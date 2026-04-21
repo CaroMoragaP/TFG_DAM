@@ -6,8 +6,8 @@ export function LoginPage() {
       <p className="eyebrow">Acceso</p>
       <h1>Login placeholder</h1>
       <p>
-        La autenticacion real llegara en fases posteriores. Esta vista deja la
-        ruta preparada para iniciar sesion.
+        La autenticación real llegará en fases posteriores. Esta vista deja la
+        ruta preparada para iniciar sesión.
       </p>
       <div className="inline-actions">
         <Link className="primary-link" to="/app">
@@ -20,4 +20,3 @@ export function LoginPage() {
     </section>
   );
 }
-

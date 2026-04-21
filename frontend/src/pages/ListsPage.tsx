@@ -154,7 +154,7 @@ export function ListsPage() {
 
           {visibleLists.length === 0 ? (
             <div className="panel empty-state">
-              <h3>Aun no tienes listas visibles.</h3>
+              <h3>Aún no tienes listas visibles.</h3>
               <p>Crea una lista global o una lista para la biblioteca activa.</p>
             </div>
           ) : (
@@ -187,7 +187,7 @@ export function ListsPage() {
                   <p>
                     {selectedList.library_id === null
                       ? "Lista global visible en cualquier biblioteca."
-                      : `Lista ligada a la biblioteca activa.`}
+                      : "Lista ligada a la biblioteca activa."}
                   </p>
                 </div>
                 <div className="inline-actions">
@@ -219,8 +219,8 @@ export function ListsPage() {
 
           {selectedList && listBooksQuery.data?.length === 0 ? (
             <div className="panel empty-state">
-              <h3>La lista esta vacia.</h3>
-              <p>Anade libros desde el catalogo usando la accion "Anadir a lista".</p>
+              <h3>La lista está vacía.</h3>
+              <p>Añade libros desde el catálogo usando la acción "Añadir a lista".</p>
             </div>
           ) : null}
 
@@ -234,7 +234,7 @@ export function ListsPage() {
                   </div>
                   <div className="inline-actions">
                     <span className="library-badge">
-                      {book.genres[0] ?? "Sin genero"}
+                      {book.genres[0] ?? "Sin género"}
                     </span>
                     <button
                       className="ghost-link compact-action"

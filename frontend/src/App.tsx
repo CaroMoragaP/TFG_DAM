@@ -60,8 +60,8 @@ const router = createBrowserRouter([
         element: (
           <LibrarySectionPage
             eyebrow="Historial"
-            title="Leidos"
-            description="Aqui vivira el archivo de libros terminados con filtros y notas personales."
+            title="Leídos"
+            description="Aquí vivirá el archivo de libros terminados con filtros y notas personales."
           />
         ),
       },
@@ -69,9 +69,9 @@ const router = createBrowserRouter([
         path: "pendiente",
         element: (
           <LibrarySectionPage
-            eyebrow="Planificacion"
+            eyebrow="Planificación"
             title="Pendiente"
-            description="Pantalla placeholder para la pila de proximas lecturas y prioridades."
+            description="Pantalla placeholder para la pila de próximas lecturas y prioridades."
           />
         ),
       },
@@ -80,8 +80,8 @@ const router = createBrowserRouter([
         element: (
           <LibrarySectionPage
             eyebrow="Comunidad"
-            title="Resenas"
-            description="Aqui se integraran las resenas, comentarios y valoraciones de la biblioteca."
+            title="Reseñas"
+            description="Aquí se integrarán las reseñas, comentarios y valoraciones de la biblioteca."
           />
         ),
       },
@@ -93,9 +93,9 @@ const router = createBrowserRouter([
         path: "stats",
         element: (
           <LibrarySectionPage
-            eyebrow="Analitica"
+            eyebrow="Analítica"
             title="Stats"
-            description="Modulo inicial para futuras metricas de lectura, actividad y progreso."
+            description="Módulo inicial para futuras métricas de lectura, actividad y progreso."
           />
         ),
       },

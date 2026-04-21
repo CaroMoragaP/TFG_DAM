@@ -62,7 +62,7 @@ describe("BookModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
 
     await waitFor(() => {
-      expect(screen.getByText("El titulo es obligatorio.")).toBeInTheDocument();
+      expect(screen.getByText("El título es obligatorio.")).toBeInTheDocument();
     });
     expect(screen.getByText("El autor es obligatorio.")).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();

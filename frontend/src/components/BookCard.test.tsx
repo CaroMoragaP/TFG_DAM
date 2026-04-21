@@ -53,7 +53,7 @@ describe("BookCard", () => {
     expect(screen.getByText("Leyendo")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca personal")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Anadir a lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir a lista" }));
     expect(onAddToList).toHaveBeenCalledWith(book);
 
     fireEvent.click(screen.getByRole("button", { name: "Editar" }));

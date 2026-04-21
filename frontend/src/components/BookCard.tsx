@@ -23,7 +23,7 @@ const readingStatusCopy: Record<
     iconLabel: "L",
   },
   finished: {
-    label: "Leido",
+    label: "Leído",
     toneClass: "finished",
     iconLabel: "T",
   },
@@ -68,7 +68,7 @@ export function BookCard({
               type="button"
               onClick={() => onAddToList(book)}
             >
-              Anadir a lista
+              Añadir a lista
             </button>
             <button className="ghost-link compact-action" type="button" onClick={() => onEdit(book)}>
               Editar
@@ -82,7 +82,7 @@ export function BookCard({
             <dd>{formatRating(book.user_rating)}</dd>
           </div>
           <div>
-            <dt>Genero</dt>
+            <dt>Género</dt>
             <dd>{book.genres[0] ?? "-"}</dd>
           </div>
         </dl>

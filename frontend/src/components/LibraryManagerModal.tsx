@@ -67,7 +67,7 @@ export function LibraryManagerModal({
 
   async function handleRename(libraryId: number) {
     if (!editingLibraryName.trim()) {
-      setErrorMessage("El nombre no puede estar vacio.");
+      setErrorMessage("El nombre no puede estar vacío.");
       return;
     }
 

@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 
-import { ApiError, fetchOpenLibraryBook, type Book, type ExternalBookLookup, type Library, type ReadingStatus } from "../lib/api";
+import {
+  ApiError,
+  fetchOpenLibraryBook,
+  type Book,
+  type ExternalBookLookup,
+  type Library,
+  type ReadingStatus,
+} from "../lib/api";
 
 export type BookFormValues = {
   libraryId: string;
@@ -60,7 +67,7 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
   const errors: FormErrors = {};
 
   if (!values.title.trim()) {
-    errors.title = "El titulo es obligatorio.";
+    errors.title = "El título es obligatorio.";
   }
 
   if (!values.author.trim()) {
@@ -70,7 +77,7 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
   if (values.publicationYear.trim()) {
     const parsedYear = Number(values.publicationYear);
     if (!Number.isInteger(parsedYear) || parsedYear < 0 || parsedYear > 9999) {
-      errors.publicationYear = "Introduce un ano valido.";
+      errors.publicationYear = "Introduce un año válido.";
     }
   }
 
@@ -78,7 +85,7 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
     try {
       new URL(values.coverUrl);
     } catch {
-      errors.coverUrl = "Introduce una URL valida.";
+      errors.coverUrl = "Introduce una URL válida.";
     }
   }
 
@@ -92,7 +99,10 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
   return errors;
 }
 
-function applyImportedBook(values: BookFormValues, importedBook: ExternalBookLookup): BookFormValues {
+function applyImportedBook(
+  values: BookFormValues,
+  importedBook: ExternalBookLookup,
+): BookFormValues {
   return {
     ...values,
     title: importedBook.title,
@@ -142,7 +152,7 @@ export function BookModal({
       const title = formValues.title.trim();
 
       if (!isbn && !title) {
-        throw new Error("Escribe un ISBN o un titulo antes de buscar.");
+        throw new Error("Escribe un ISBN o un título antes de buscar.");
       }
 
       return fetchOpenLibraryBook(token, isbn ? { isbn } : { q: title });
@@ -165,7 +175,7 @@ export function BookModal({
       const message =
         error instanceof ApiError || error instanceof Error
           ? error.message
-          : "No se pudo importar informacion desde Open Library.";
+          : "No se pudo importar información desde Open Library.";
       setErrors((currentErrors) => ({
         ...currentErrors,
         form: message,
@@ -238,7 +248,7 @@ export function BookModal({
           <div>
             <p className="eyebrow">{mode === "create" ? "Nuevo libro" : "Editar libro"}</p>
             <h2 id="book-modal-title">
-              {mode === "create" ? "Anadir libro" : "Guardar cambios"}
+              {mode === "create" ? "Añadir libro" : "Guardar cambios"}
             </h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
@@ -267,7 +277,7 @@ export function BookModal({
             ) : null}
 
             <label className="field-group">
-              Titulo
+              Título
               <input
                 value={formValues.title}
                 onChange={(event) => handleFieldChange("title", event.target.value)}
@@ -285,7 +295,7 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              Ano
+              Año
               <input
                 inputMode="numeric"
                 value={formValues.publicationYear}
@@ -316,12 +326,12 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              Genero
+              Género
               <select
                 value={formValues.genre}
                 onChange={(event) => handleFieldChange("genre", event.target.value)}
               >
-                <option value="">Sin genero</option>
+                <option value="">Sin género</option>
                 {genreOptions.map((genre) => (
                   <option key={genre} value={genre}>
                     {genre}
@@ -341,7 +351,7 @@ export function BookModal({
               >
                 <option value="pending">Pendiente</option>
                 <option value="reading">Leyendo</option>
-                <option value="finished">Leido</option>
+                <option value="finished">Leído</option>
               </select>
             </label>
 

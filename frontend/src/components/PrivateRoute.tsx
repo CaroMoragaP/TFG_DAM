@@ -10,7 +10,7 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
     return (
       <div className="route-loader">
         <section className="panel centered-panel">
-          <p className="eyebrow">Sesion</p>
+          <p className="eyebrow">Sesión</p>
           <h1>Recuperando acceso</h1>
           <p>Validando tu token antes de entrar en la biblioteca privada.</p>
         </section>

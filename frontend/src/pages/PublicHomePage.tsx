@@ -7,8 +7,8 @@ export function PublicHomePage() {
         <p className="eyebrow">Fase 1</p>
         <h1>Gestiona tu biblioteca desde una zona privada con acceso real.</h1>
         <p className="lead">
-          La base ya incorpora autenticacion JWT, persistencia de sesion y un
-          layout privado preparado para catalogo, seguimiento y estadisticas.
+          La base ya incorpora autenticación JWT, persistencia de sesión y un
+          layout privado preparado para catálogo, seguimiento y estadísticas.
         </p>
         <div className="inline-actions">
           <Link className="primary-link" to="/auth?tab=register">
@@ -25,7 +25,7 @@ export function PublicHomePage() {
         <ul className="feature-list">
           <li>Registro y login conectados con FastAPI</li>
           <li>JWT persistido en navegador y validado al recargar</li>
-          <li>Rutas privadas protegidas para catalogo y seguimiento</li>
+          <li>Rutas privadas protegidas para catálogo y seguimiento</li>
         </ul>
       </div>
     </section>

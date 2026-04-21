@@ -48,7 +48,7 @@ export function AddToListModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">Listas personales</p>
-            <h2 id="add-to-list-title">Anadir "{book.title}"</h2>
+            <h2 id="add-to-list-title">Añadir "{book.title}"</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -78,7 +78,7 @@ export function AddToListModal({
                     </small>
                   </span>
                   <span>
-                    {isSaving && submittingListId === list.id ? "Guardando..." : "Anadir"}
+                    {isSaving && submittingListId === list.id ? "Guardando..." : "Añadir"}
                   </span>
                 </button>
               ))}

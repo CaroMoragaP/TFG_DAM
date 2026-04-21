@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       persistSession(token, currentUser);
     } catch {
       logout();
-      throw new Error("No se pudo refrescar la sesion.");
+      throw new Error("No se pudo refrescar la sesión.");
     }
   }
 

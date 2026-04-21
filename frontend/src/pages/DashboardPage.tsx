@@ -127,7 +127,7 @@ export function DashboardPage() {
     },
     onError: (error) => {
       setAddToListError(
-        error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.",
+        error instanceof Error ? error.message : "No se pudo añadir el libro a la lista.",
       );
     },
   });
@@ -198,7 +198,7 @@ export function DashboardPage() {
     }
 
     if (!activeLibraryId) {
-      throw new Error("No se encontro una biblioteca activa para guardar el libro.");
+      throw new Error("No se encontró una biblioteca activa para guardar el libro.");
     }
 
     const payload: BookCreatePayload = {
@@ -233,10 +233,10 @@ export function DashboardPage() {
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
         <div>
-          <p className="eyebrow">Catalogo privado</p>
-          <h2>Mi catalogo</h2>
+          <p className="eyebrow">Catálogo privado</p>
+          <h2>Mi catálogo</h2>
           <p>
-            Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.
+            Explora tus libros, busca por autor o ISBN y mantén el estado de lectura al día.
           </p>
         </div>
         <button
@@ -245,14 +245,14 @@ export function DashboardPage() {
           onClick={handleOpenCreateModal}
           disabled={isLibrariesLoading || isLibrariesError || !activeLibraryId}
         >
-          + Anadir libro
+          + Añadir libro
         </button>
       </div>
 
       <div className="panel subtle-panel">
         <p className="eyebrow">Biblioteca activa</p>
         <h3>{activeLibrary?.name ?? "Sin biblioteca activa"}</h3>
-        <p>El catalogo y las listas se filtran automaticamente por esta biblioteca.</p>
+        <p>El catálogo y las listas se filtran automáticamente por esta biblioteca.</p>
       </div>
 
       <div className="panel catalog-toolbar">
@@ -260,7 +260,7 @@ export function DashboardPage() {
           <label className="field-group">
             Buscar
             <input
-              placeholder="Buscar por titulo, autor, ISBN..."
+              placeholder="Buscar por título, autor, ISBN..."
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -269,7 +269,7 @@ export function DashboardPage() {
 
         <div className="catalog-filters">
           <label className="field-group">
-            Genero
+            Género
             <select
               value={genre}
               onChange={(event) => updateFilter("genre", event.target.value)}
@@ -292,12 +292,12 @@ export function DashboardPage() {
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="reading">Leyendo</option>
-              <option value="finished">Leido</option>
+              <option value="finished">Leído</option>
             </select>
           </label>
 
           <label className="field-group">
-            Rating minimo
+            Valoración mínima
             <select
               value={minRatingParam}
               onChange={(event) => updateFilter("minRating", event.target.value)}
@@ -329,7 +329,7 @@ export function DashboardPage() {
 
       {booksQuery.isError ? (
         <div className="panel">
-          <p>No se pudo cargar el catalogo. Revisa que FastAPI siga levantado.</p>
+          <p>No se pudo cargar el catálogo. Revisa que FastAPI siga levantado.</p>
         </div>
       ) : null}
 
@@ -337,7 +337,7 @@ export function DashboardPage() {
         <div className="panel empty-state">
           <h3>No hay libros con esos filtros.</h3>
           <p>
-            Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo.
+            Ajusta la búsqueda o crea un nuevo libro para empezar a poblar tu catálogo.
           </p>
         </div>
       ) : null}

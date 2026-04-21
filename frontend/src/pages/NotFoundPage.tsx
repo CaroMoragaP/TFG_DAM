@@ -5,11 +5,10 @@ export function NotFoundPage() {
     <section className="panel centered-panel">
       <p className="eyebrow">404</p>
       <h1>Ruta no encontrada</h1>
-      <p>La pagina que buscas no existe dentro del setup inicial.</p>
+      <p>La página que buscas no existe dentro del setup inicial.</p>
       <Link className="primary-link" to="/">
         Volver al inicio
       </Link>
     </section>
   );
 }
-

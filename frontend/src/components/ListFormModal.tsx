@@ -132,8 +132,8 @@ export function ListFormModal({
             <p className="eyebrow">Contexto</p>
             <p>
               {scope === "global"
-                ? "La lista sera visible en cualquier biblioteca."
-                : `La lista quedara ligada a ${activeLibrary?.name ?? "la biblioteca activa"}.`}
+                ? "La lista será visible en cualquier biblioteca."
+                : `La lista quedará ligada a ${activeLibrary?.name ?? "la biblioteca activa"}.`}
             </p>
           </div>
 

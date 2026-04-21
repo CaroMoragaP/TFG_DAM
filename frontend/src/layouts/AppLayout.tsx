@@ -2,8 +2,8 @@ import { NavLink, Outlet } from "react-router-dom";
 
 const navigationItems = [
   { to: "/app", label: "Resumen" },
-  { to: "/app/library", label: "Estanteria" },
-  { to: "/login", label: "Cerrar sesion" },
+  { to: "/app/library", label: "Estantería" },
+  { to: "/login", label: "Cerrar sesión" },
 ];
 
 export function AppLayout() {
@@ -20,8 +20,8 @@ export function AppLayout() {
       <div className="app-body">
         <aside className="app-sidebar">
           <div className="sidebar-card">
-            <p className="sidebar-title">Navegacion</p>
-            <nav className="sidebar-nav" aria-label="Navegacion principal">
+            <p className="sidebar-title">Navegación</p>
+            <nav className="sidebar-nav" aria-label="Navegación principal">
               {navigationItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -45,4 +45,3 @@ export function AppLayout() {
     </div>
   );
 }
-

@@ -13,12 +13,12 @@ import {
 } from "../lib/api";
 
 const navigationItems = [
-  { to: "/catalogo", label: "Catalogo" },
+  { to: "/catalogo", label: "Catálogo" },
   { to: "/listas", label: "Mis listas" },
   { to: "/leyendo", label: "Leyendo" },
-  { to: "/leidos", label: "Leidos" },
+  { to: "/leidos", label: "Leídos" },
   { to: "/pendiente", label: "Pendiente" },
-  { to: "/resenas", label: "Resenas" },
+  { to: "/resenas", label: "Reseñas" },
   { to: "/stats", label: "Stats" },
 ];
 
@@ -110,7 +110,7 @@ export function PrivateLayout() {
               Gestionar mis bibliotecas
             </button>
             <button className="menu-button" type="button" onClick={handleLogout}>
-              Cerrar sesion
+              Cerrar sesión
             </button>
           </div>
         </details>
@@ -119,7 +119,7 @@ export function PrivateLayout() {
       <div className="private-body">
         <aside className="private-sidebar">
           <div className="sidebar-card">
-            <p className="eyebrow">Navegacion</p>
+            <p className="eyebrow">Navegación</p>
             <nav className="sidebar-nav" aria-label="Secciones privadas">
               {navigationItems.map((item) => (
                 <NavLink

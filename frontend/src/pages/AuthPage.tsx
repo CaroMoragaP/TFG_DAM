@@ -69,11 +69,11 @@ export function AuthPage() {
     if (!values.email.trim()) {
       errors.email = "El email es obligatorio.";
     } else if (!emailPattern.test(values.email.trim())) {
-      errors.email = "Introduce un email valido.";
+      errors.email = "Introduce un email válido.";
     }
 
     if (!values.password) {
-      errors.password = "La contrasena es obligatoria.";
+      errors.password = "La contraseña es obligatoria.";
     }
 
     return errors;
@@ -89,21 +89,21 @@ export function AuthPage() {
     if (!values.email.trim()) {
       errors.email = "El email es obligatorio.";
     } else if (!emailPattern.test(values.email.trim())) {
-      errors.email = "Introduce un email valido.";
+      errors.email = "Introduce un email válido.";
     }
 
     if (!values.password) {
-      errors.password = "La contrasena es obligatoria.";
+      errors.password = "La contraseña es obligatoria.";
     } else if (values.password.length < 8) {
       errors.password = "Usa al menos 8 caracteres.";
     } else if (values.password.length > passwordMaxLength) {
-      errors.password = "La contrasena no puede superar 72 caracteres.";
+      errors.password = "La contraseña no puede superar 72 caracteres.";
     }
 
     if (!values.confirmPassword) {
-      errors.confirmPassword = "Confirma la contrasena.";
+      errors.confirmPassword = "Confirma la contraseña.";
     } else if (values.confirmPassword !== values.password) {
-      errors.confirmPassword = "Las contrasenas no coinciden.";
+      errors.confirmPassword = "Las contraseñas no coinciden.";
     }
 
     return errors;
@@ -130,9 +130,9 @@ export function AuthPage() {
       navigate("/catalogo", { replace: true });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        setLoginFormError("Email o contrasena incorrectos.");
+        setLoginFormError("Email o contraseña incorrectos.");
       } else {
-        setLoginFormError("No se pudo iniciar sesion. Intentalo otra vez.");
+        setLoginFormError("No se pudo iniciar sesión. Inténtalo otra vez.");
       }
     } finally {
       setIsLoginSubmitting(false);
@@ -165,7 +165,7 @@ export function AuthPage() {
           email: "Ya existe una cuenta con ese email.",
         });
       } else {
-        setRegisterFormError("No se pudo crear la cuenta. Intentalo otra vez.");
+        setRegisterFormError("No se pudo crear la cuenta. Inténtalo otra vez.");
       }
     } finally {
       setIsRegisterSubmitting(false);
@@ -179,13 +179,13 @@ export function AuthPage() {
           <p className="eyebrow">Ventana 1</p>
           <h1>Entra en tu biblioteca privada</h1>
           <p className="lead">
-            Accede a tu catalogo personal, guarda sesion y prepara la zona
+            Accede a tu catálogo personal, guarda sesión y prepara la zona
             privada para las siguientes fases.
           </p>
         </div>
 
         <div className="content-stack">
-          <div className="auth-tabs" role="tablist" aria-label="Autenticacion">
+          <div className="auth-tabs" role="tablist" aria-label="Autenticación">
             <button
               className={activeTab === "login" ? "auth-tab active" : "auth-tab"}
               type="button"
@@ -230,7 +230,7 @@ export function AuthPage() {
               </label>
 
               <label className="field-group">
-                <span>Contrasena</span>
+                <span>Contraseña</span>
                 <input
                   type="password"
                   value={loginValues.password}
@@ -241,7 +241,7 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="current-password"
-                  placeholder="Introduce tu contrasena"
+                  placeholder="Introduce tu contraseña"
                 />
                 {loginErrors.password && (
                   <p className="field-error">{loginErrors.password}</p>
@@ -276,7 +276,7 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="name"
-                  placeholder="Como quieres aparecer"
+                  placeholder="Cómo quieres aparecer"
                 />
                 {registerErrors.name && (
                   <p className="field-error">{registerErrors.name}</p>
@@ -303,7 +303,7 @@ export function AuthPage() {
               </label>
 
               <label className="field-group">
-                <span>Contrasena</span>
+                <span>Contraseña</span>
                 <input
                   type="password"
                   value={registerValues.password}
@@ -323,7 +323,7 @@ export function AuthPage() {
               </label>
 
               <label className="field-group">
-                <span>Confirmacion de contrasena</span>
+                <span>Confirmación de contraseña</span>
                 <input
                   type="password"
                   value={registerValues.confirmPassword}
@@ -334,7 +334,7 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="new-password"
-                  placeholder="Repite la contrasena"
+                  placeholder="Repite la contraseña"
                   maxLength={passwordMaxLength}
                 />
                 {registerErrors.confirmPassword && (

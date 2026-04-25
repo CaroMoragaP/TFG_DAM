@@ -173,6 +173,7 @@ export type UserCopyUpdatePayload = {
 
 export type BooksQueryParams = {
   libraryId?: number;
+  listId?: number;
   q?: string;
   genre?: string;
   readingStatus?: ReadingStatus;
@@ -548,6 +549,7 @@ export function fetchBooks(
 ): Promise<Book[]> {
   const queryString = buildQueryString({
     library_id: params.libraryId,
+    list_id: params.listId,
     q: params.q?.trim() || undefined,
     genre: params.genre?.trim() || undefined,
     reading_status: params.readingStatus,

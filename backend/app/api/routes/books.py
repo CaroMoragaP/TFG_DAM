@@ -30,6 +30,7 @@ from app.services.libraries import LibraryNotFoundError
 from app.services.libraries import LibraryOwnershipRequiredError
 from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import LibraryRoleRequiredError
+from app.services.lists import ListNotFoundError
 
 router = APIRouter()
 
@@ -41,6 +42,7 @@ router = APIRouter()
 )
 def read_books(
     library_id: int | None = Query(default=None),
+    list_id: int | None = Query(default=None),
     q: str | None = Query(default=None),
     reading_status: ReadingStatus | None = Query(default=None),
     genre: str | None = Query(default=None),
@@ -53,11 +55,14 @@ def read_books(
             db,
             user_id=current_user.id,
             library_id=library_id,
+            list_id=list_id,
             q=q,
             reading_status=reading_status,
             genre=genre,
             min_rating=min_rating,
         )
+    except ListNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except (LibraryPermissionDeniedError, LibraryRoleRequiredError) as exc:

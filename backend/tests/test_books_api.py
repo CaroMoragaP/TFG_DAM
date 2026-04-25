@@ -44,6 +44,19 @@ def create_library(client: TestClient, headers: dict[str, str], *, name: str) ->
     return int(response.json()["id"])
 
 
+def create_list(client: TestClient, headers: dict[str, str], *, name: str) -> int:
+    response = client.post(
+        "/lists",
+        headers=headers,
+        json={
+            "name": name,
+            "type": "custom",
+        },
+    )
+    assert response.status_code == 201
+    return int(response.json()["id"])
+
+
 def add_member(
     client: TestClient,
     headers: dict[str, str],
@@ -88,6 +101,20 @@ def create_book(
     )
     assert response.status_code == 201
     return response.json()
+
+
+def add_book_to_list(
+    client: TestClient,
+    headers: dict[str, str],
+    list_id: int,
+    book_id: int,
+) -> None:
+    response = client.post(
+        f"/lists/{list_id}/books",
+        headers=headers,
+        json={"book_id": book_id},
+    )
+    assert response.status_code == 204
 
 
 def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
@@ -259,6 +286,101 @@ def test_copy_detail_user_data_and_list_genres(
     assert default_user_data_response.status_code == 200
     assert default_user_data_response.json()["reading_status"] == "pending"
     assert default_user_data_response.json()["rating"] is None
+
+
+def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
+    headers = register_user(client)
+    personal_library_id = get_personal_library_id(client, headers)
+    shared_library_id = create_library(client, headers, name="Biblioteca compartida")
+    list_id = create_list(client, headers, name="Sci-Fi favorita")
+
+    dune_personal = create_book(
+        client,
+        headers,
+        personal_library_id,
+        title="Dune",
+        author="Frank Herbert",
+        genre="Sci-Fi",
+        reading_status="reading",
+        user_rating=5,
+    )
+    update_personal_dune_response = client.put(
+        f"/books/{dune_personal['book_id']}/metadata",
+        headers=headers,
+        json={"isbn": "9780441172719"},
+    )
+    assert update_personal_dune_response.status_code == 200
+    dune_shared = client.post(
+        "/books",
+        headers=headers,
+        json={
+            "library_id": shared_library_id,
+            "title": "Dune",
+            "authors": ["Frank Herbert"],
+            "genres": ["Sci-Fi"],
+            "reading_status": "finished",
+            "user_rating": 4,
+            "isbn": "9780441172719",
+        },
+    )
+    assert dune_shared.status_code == 201
+    dune_shared_payload = dune_shared.json()
+
+    hyperion = create_book(
+        client,
+        headers,
+        personal_library_id,
+        title="Hyperion",
+        author="Dan Simmons",
+        genre="Sci-Fi",
+        reading_status="pending",
+        user_rating=3,
+    )
+
+    add_book_to_list(client, headers, list_id, dune_personal["book_id"])
+
+    filtered_response = client.get(f"/books?list_id={list_id}", headers=headers)
+    assert filtered_response.status_code == 200
+    filtered_payload = filtered_response.json()
+    assert {(item["id"], item["title"]) for item in filtered_payload} == {
+        (dune_personal["id"], "Dune"),
+        (dune_shared_payload["id"], "Dune"),
+    }
+
+    combined_response = client.get(
+        f"/books?list_id={list_id}&library_id={shared_library_id}&reading_status=finished&min_rating=4",
+        headers=headers,
+    )
+    assert combined_response.status_code == 200
+    assert [book["id"] for book in combined_response.json()] == [dune_shared_payload["id"]]
+
+    non_matching_response = client.get(
+        f"/books?list_id={list_id}&q=hyperion",
+        headers=headers,
+    )
+    assert non_matching_response.status_code == 200
+    assert non_matching_response.json() == []
+
+    missing_list_response = client.get("/books?list_id=9999", headers=headers)
+    assert missing_list_response.status_code == 404
+
+    intruder_response = client.post(
+        "/auth/register",
+        json={
+            "name": "Intruder",
+            "email": "intruder@example.com",
+            "password": "supersecret123",
+        },
+    )
+    assert intruder_response.status_code == 201
+    intruder_headers = {"Authorization": f"Bearer {intruder_response.json()['access_token']}"}
+
+    forbidden_list_response = client.get(f"/books?list_id={list_id}", headers=intruder_headers)
+    assert forbidden_list_response.status_code == 404
+
+    unrelated_response = client.get("/books?list_id=9999&q=dune", headers=headers)
+    assert unrelated_response.status_code == 404
+    assert hyperion["title"] == "Hyperion"
 
 
 def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient) -> None:

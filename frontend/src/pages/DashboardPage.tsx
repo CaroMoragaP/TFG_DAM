@@ -23,8 +23,7 @@ import {
 
 export function DashboardPage() {
   const { token } = useAuth();
-  const { activeLibrary, activeLibraryId, isLibrariesError, isLibrariesLoading, libraries } =
-    useActiveLibrary();
+  const { activeLibraryId, isLibrariesError, isLibrariesLoading, libraries } = useActiveLibrary();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -35,15 +34,19 @@ export function DashboardPage() {
 
   const q = searchParams.get("q") ?? "";
   const libraryParam = searchParams.get("library") ?? "";
+  const listIdParam = searchParams.get("listId") ?? "";
   const genre = searchParams.get("genre") ?? "";
   const readingStatus = (searchParams.get("readingStatus") ?? "") as ReadingStatus | "";
   const minRatingParam = searchParams.get("minRating") ?? "";
   const minRating = minRatingParam ? Number(minRatingParam) : undefined;
   const parsedLibraryId = Number(libraryParam);
+  const parsedListId = Number(listIdParam);
   const selectedLibraryId =
     libraryParam && Number.isInteger(parsedLibraryId) && parsedLibraryId > 0
       ? parsedLibraryId
       : undefined;
+  const selectedListId =
+    listIdParam && Number.isInteger(parsedListId) && parsedListId > 0 ? parsedListId : undefined;
 
   const editableLibraries = useMemo(
     () => libraries.filter((library) => !library.is_archived && library.role !== "viewer"),
@@ -82,10 +85,21 @@ export function DashboardPage() {
   });
 
   const booksQuery = useQuery({
-    queryKey: ["books", { libraryId: selectedLibraryId ?? "all", q, genre, readingStatus, minRating }],
+    queryKey: [
+      "books",
+      {
+        libraryId: selectedLibraryId ?? "all",
+        listId: selectedListId ?? "all",
+        q,
+        genre,
+        readingStatus,
+        minRating,
+      },
+    ],
     queryFn: () =>
       fetchBooks(token ?? "", {
         libraryId: selectedLibraryId,
+        listId: selectedListId,
         q,
         genre: genre || undefined,
         readingStatus: readingStatus || undefined,
@@ -140,22 +154,23 @@ export function DashboardPage() {
       setAddToListError(null);
     },
     onError: (error) => {
-      setAddToListError(
-        error instanceof Error ? error.message : "No se pudo añadir el libro a la lista.",
-      );
+      setAddToListError(error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.");
     },
   });
 
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
   const visibleLists = listsQuery.data ?? [];
+  const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
   const showLibraryBadge = libraries.length > 1;
   const defaultCreateLibraryId =
     editableLibraries.find((library) => library.id === activeLibraryId)?.id ??
     editableLibraries[0]?.id ??
     null;
+  const booksErrorMessage =
+    booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 
   function updateFilter(
-    key: "library" | "genre" | "readingStatus" | "minRating",
+    key: "library" | "listId" | "genre" | "readingStatus" | "minRating",
     value: string,
   ) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -179,7 +194,7 @@ export function DashboardPage() {
   async function handleSubmitBook(values: BookFormValues) {
     const libraryId = Number(values.libraryId);
     if (!Number.isInteger(libraryId) || libraryId <= 0) {
-      throw new Error("Selecciona una biblioteca válida para guardar el libro.");
+      throw new Error("Selecciona una biblioteca valida para guardar el libro.");
     }
 
     const payload: BookCreatePayload = {
@@ -223,9 +238,9 @@ export function DashboardPage() {
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
         <div>
-          <p className="eyebrow">Catálogo privado</p>
-          <h2>Mi catálogo</h2>
-          <p>Explora tus libros, busca por autor o ISBN y mantén el estado de lectura al día.</p>
+          <p className="eyebrow">Catalogo privado</p>
+          <h2>Mi catalogo</h2>
+          <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
         </div>
         <button
           className="submit-button catalog-add-button"
@@ -233,14 +248,8 @@ export function DashboardPage() {
           onClick={() => setIsCreateModalOpen(true)}
           disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
         >
-          + Añadir libro
+          + Anadir libro
         </button>
-      </div>
-
-      <div className="panel subtle-panel">
-        <p className="eyebrow">Biblioteca por defecto</p>
-        <h3>{activeLibrary?.name ?? "Sin biblioteca por defecto"}</h3>
-        <p>Se usará como destino inicial al crear libros, pero el catálogo muestra todas tus bibliotecas activas.</p>
       </div>
 
       <div className="panel catalog-toolbar">
@@ -248,7 +257,7 @@ export function DashboardPage() {
           <label className="field-group">
             Buscar
             <input
-              placeholder="Buscar por título, autor, ISBN..."
+              placeholder="Buscar por titulo, autor, ISBN..."
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -269,7 +278,22 @@ export function DashboardPage() {
           </label>
 
           <label className="field-group">
-            Género
+            Lista
+            <select value={listIdParam} onChange={(event) => updateFilter("listId", event.target.value)}>
+              <option value="">Todas</option>
+              {visibleLists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+              {selectedListId && !activeList && !listsQuery.isPending ? (
+                <option value={selectedListId}>Lista no disponible</option>
+              ) : null}
+            </select>
+          </label>
+
+          <label className="field-group">
+            Genero
             <select value={genre} onChange={(event) => updateFilter("genre", event.target.value)}>
               <option value="">Todos</option>
               {(genresQuery.data ?? []).map((genreOption) => (
@@ -289,12 +313,12 @@ export function DashboardPage() {
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="reading">Leyendo</option>
-              <option value="finished">Leído</option>
+              <option value="finished">Leido</option>
             </select>
           </label>
 
           <label className="field-group">
-            Valoración mínima
+            Valoracion minima
             <select value={minRatingParam} onChange={(event) => updateFilter("minRating", event.target.value)}>
               <option value="">Todos</option>
               <option value="1">1+ estrellas</option>
@@ -306,6 +330,23 @@ export function DashboardPage() {
           </label>
         </div>
       </div>
+
+      {selectedListId ? (
+        <div className="panel subtle-panel active-filter-panel">
+          <div className="active-filter-copy">
+            <p className="eyebrow">Lista activa</p>
+            <h3>{activeList?.name ?? `Lista #${selectedListId}`}</h3>
+            <p>
+              {activeList
+                ? `Mostrando los libros asociados a la lista ${activeList.name}.`
+                : "La lista filtrada ya no esta disponible o no te pertenece."}
+            </p>
+          </div>
+          <button className="ghost-link compact-action" type="button" onClick={() => updateFilter("listId", "")}>
+            Limpiar filtro
+          </button>
+        </div>
+      ) : null}
 
       {isLibrariesError ? (
         <div className="panel">
@@ -322,15 +363,30 @@ export function DashboardPage() {
       ) : null}
 
       {booksQuery.isError ? (
-        <div className="panel">
-          <p>No se pudo cargar el catálogo. Revisa que FastAPI siga levantado.</p>
+        <div className="panel content-stack">
+          <p>{booksErrorMessage}</p>
+          {selectedListId ? (
+            <div className="inline-actions">
+              <button
+                className="ghost-link compact-action"
+                type="button"
+                onClick={() => updateFilter("listId", "")}
+              >
+                Limpiar filtro de lista
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {booksQuery.data && booksQuery.data.length === 0 ? (
         <div className="panel empty-state">
-          <h3>No hay libros con esos filtros.</h3>
-          <p>Ajusta la búsqueda o crea un nuevo libro para empezar a poblar tu catálogo.</p>
+          <h3>{selectedListId ? "La lista seleccionada esta vacia." : "No hay libros con esos filtros."}</h3>
+          <p>
+            {selectedListId
+              ? 'Anade libros a esta lista desde el catalogo usando la accion "Anadir a lista".'
+              : "Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo."}
+          </p>
         </div>
       ) : null}
 

@@ -480,7 +480,7 @@ dd {
 
 .catalog-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
 }
 
@@ -488,6 +488,29 @@ dd {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.25rem;
+}
+
+.active-filter-panel,
+.list-management-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.active-filter-panel {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.active-filter-copy h3,
+.active-filter-copy p,
+.list-card-main h3,
+.list-card-main p {
+  margin: 0;
+}
+
+.active-filter-copy p:last-child,
+.list-card-main p {
+  color: var(--text-muted);
 }
 
 .book-card {
@@ -713,6 +736,31 @@ dd {
   box-shadow: 0 10px 24px rgba(33, 79, 74, 0.1);
 }
 
+.list-management-card {
+  cursor: pointer;
+}
+
+.list-management-card:focus-visible {
+  outline: 2px solid rgba(201, 107, 59, 0.35);
+  outline-offset: 3px;
+}
+
+.list-card-main,
+.list-card-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.list-card-main {
+  align-items: flex-start;
+}
+
+.list-card-actions {
+  flex-wrap: wrap;
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -916,6 +964,7 @@ dd {
     align-items: stretch;
   }
 
+  .active-filter-panel,
   .catalog-filters,
   .lists-layout,
   .split-panel,
@@ -964,8 +1013,11 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .active-filter-panel,
   .book-card-head,
   .book-card-footer,
+  .list-card-main,
+  .list-card-actions,
   .list-book-card,
   .library-manager-card,
   .library-manager-header {

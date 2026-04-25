@@ -22,6 +22,7 @@ from app.models.enums import ReadingStatus
 from app.models.enums import UserLibraryRole
 from app.models.library import Library
 from app.models.library import UserLibrary
+from app.models.list import ListBook
 from app.schemas.book import BookCreate
 from app.schemas.book import BookMetadataOut
 from app.schemas.book import BookMetadataUpdate
@@ -37,6 +38,7 @@ from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import LibraryRoleRequiredError
 from app.services.libraries import get_accessible_library
 from app.services.libraries import get_user_library_membership
+from app.services.lists import get_user_list
 from app.services.user_copies import get_or_create_user_copy
 
 
@@ -119,6 +121,7 @@ def list_books(
     *,
     user_id: int,
     library_id: int | None = None,
+    list_id: int | None = None,
     q: str | None = None,
     genre: str | None = None,
     reading_status: ReadingStatus | None = None,
@@ -131,6 +134,8 @@ def list_books(
             library_id=library_id,
             allowed_roles=READ_ACCESS_ROLES,
         )
+    if list_id is not None:
+        get_user_list(db, user_id=user_id, list_id=list_id)
 
     user_copy_alias = aliased(UserCopy)
     stmt = (
@@ -157,6 +162,8 @@ def list_books(
 
     if library_id is not None:
         stmt = stmt.where(Copy.library_id == library_id)
+    if list_id is not None:
+        stmt = stmt.join(ListBook, ListBook.book_id == Book.id).where(ListBook.list_id == list_id)
 
     normalized_q = q.strip().lower() if q else None
     if normalized_q:

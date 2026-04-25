@@ -6,6 +6,7 @@ import { PublicLayout } from "./layouts/PublicLayout";
 import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AuthPage } from "./pages/AuthPage";
+import { LibrariesPage } from "./pages/LibrariesPage";
 import { LibrarySectionPage } from "./pages/LibrarySectionPage";
 import { ListsPage } from "./pages/ListsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -93,6 +94,10 @@ const router = createBrowserRouter([
       {
         path: "listas",
         element: <ListsPage />,
+      },
+      {
+        path: "bibliotecas",
+        element: <LibrariesPage />,
       },
       {
         path: "stats",

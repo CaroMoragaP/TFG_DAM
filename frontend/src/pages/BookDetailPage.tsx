@@ -3,16 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { BookModal, type BookFormValues } from "../components/BookModal";
+import { BookMetadataModal, type BookMetadataValues } from "../components/BookMetadataModal";
+import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
+import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   deleteCopyRequest,
   fetchCopyById,
-  fetchGenres,
   fetchUserCopyData,
+  updateBookMetadataRequest,
   updateCopyRequest,
   updateUserCopyDataRequest,
-  type Book,
-  type BookUpdatePayload,
+  type BookMetadata,
+  type CopyDetail,
   type ReadingStatus,
   type UserCopyUpdatePayload,
 } from "../lib/api";
@@ -20,14 +22,20 @@ import {
 const statusLabels: Record<ReadingStatus, string> = {
   pending: "Pendiente",
   reading: "Leyendo",
-  finished: "Leido",
+  finished: "Leído",
 };
 
-function toEditableBook(detail: Awaited<ReturnType<typeof fetchCopyById>>, userData: Awaited<ReturnType<typeof fetchUserCopyData>>): Book {
+function toBookMetadata(detail: CopyDetail): BookMetadata {
   return {
-    ...detail,
-    reading_status: userData.reading_status,
-    user_rating: userData.rating,
+    id: detail.book_id,
+    title: detail.title,
+    isbn: detail.isbn,
+    publication_year: detail.publication_year,
+    description: detail.description,
+    cover_url: detail.cover_url,
+    publisher: detail.publisher,
+    authors: detail.authors,
+    genres: detail.genres,
   };
 }
 
@@ -36,7 +44,9 @@ export function BookDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { libraries } = useActiveLibrary();
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [startDateDraft, setStartDateDraft] = useState("");
@@ -57,12 +67,6 @@ export function BookDetailPage() {
     enabled: Boolean(token && isValidCopyId),
   });
 
-  const genresQuery = useQuery({
-    queryKey: ["genres"],
-    queryFn: () => fetchGenres(token ?? ""),
-    enabled: Boolean(token),
-  });
-
   useEffect(() => {
     setNotesDraft(userDataQuery.data?.personal_notes ?? "");
     setStartDateDraft(userDataQuery.data?.start_date ?? "");
@@ -81,15 +85,41 @@ export function BookDetailPage() {
   });
 
   const updateCopyMutation = useMutation({
-    mutationFn: (payload: BookUpdatePayload) =>
-      updateCopyRequest(token ?? "", copyId, payload),
+    mutationFn: (payload: CopyEditValues) =>
+      updateCopyRequest(token ?? "", copyId, {
+        format: payload.format,
+        status: payload.status,
+        physical_location: payload.physicalLocation.trim() || null,
+        digital_location: payload.digitalLocation.trim() || null,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["copy", copyId] }),
+        queryClient.invalidateQueries({ queryKey: ["books"] }),
+      ]);
+      setIsCopyModalOpen(false);
+    },
+  });
+
+  const updateBookMutation = useMutation({
+    mutationFn: (payload: BookMetadataValues) =>
+      updateBookMetadataRequest(token ?? "", copyQuery.data!.book_id, {
+        title: payload.title.trim(),
+        authors: payload.author.trim() ? [payload.author.trim()] : [],
+        publication_year: payload.publicationYear.trim() ? Number(payload.publicationYear) : null,
+        isbn: payload.isbn.trim() || null,
+        genres: payload.genre.trim() ? [payload.genre.trim()] : [],
+        cover_url: payload.coverUrl.trim() || null,
+        description: payload.description.trim() || null,
+        publisher_name: payload.publisherName.trim() || null,
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["copy", copyId] }),
         queryClient.invalidateQueries({ queryKey: ["books"] }),
         queryClient.invalidateQueries({ queryKey: ["genres"] }),
       ]);
-      setIsEditModalOpen(false);
+      setIsBookModalOpen(false);
     },
   });
 
@@ -105,7 +135,7 @@ export function BookDetailPage() {
     return (
       <section className="content-stack">
         <div className="panel">
-          <p>El identificador del ejemplar no es valido.</p>
+          <p>El identificador del ejemplar no es válido.</p>
         </div>
       </section>
     );
@@ -115,24 +145,13 @@ export function BookDetailPage() {
   const isError = copyQuery.isError || userDataQuery.isError;
   const detail = copyQuery.data;
   const userData = userDataQuery.data;
-  const editableBook = detail && userData ? toEditableBook(detail, userData) : null;
+  const library = detail ? libraries.find((item) => item.id === detail.library_id) ?? null : null;
+  const canEditCopy = Boolean(library && !library.is_archived && library.role !== "viewer");
+  const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
   const author = detail?.authors[0] ?? "Autor sin registrar";
   const genre = detail?.genres[0] ?? "-";
   const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
   const isUserDataPending = updateUserDataMutation.isPending;
-
-  async function handleBookSave(values: BookFormValues) {
-    const payload: BookUpdatePayload = {
-      title: values.title.trim(),
-      authors: [values.author.trim()],
-      publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
-      isbn: values.isbn.trim() || null,
-      genres: values.genre.trim() ? [values.genre.trim()] : [],
-      cover_url: values.coverUrl.trim() || null,
-    };
-
-    await updateCopyMutation.mutateAsync(payload);
-  }
 
   async function handleStatusChange(nextStatus: ReadingStatus) {
     await updateUserDataMutation.mutateAsync({ reading_status: nextStatus });
@@ -160,7 +179,7 @@ export function BookDetailPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
+    if (!window.confirm("Se eliminará este ejemplar del catálogo. ¿Quieres continuar?")) {
       return;
     }
     await deleteCopyMutation.mutateAsync();
@@ -169,7 +188,7 @@ export function BookDetailPage() {
   return (
     <section className="content-stack">
       <button className="ghost-link detail-back-button" type="button" onClick={() => navigate(-1)}>
-        ← Volver al catalogo
+        ← Volver al catálogo
       </button>
 
       {isLoading ? (
@@ -206,11 +225,11 @@ export function BookDetailPage() {
 
                 <dl className="detail-meta-grid">
                   <div>
-                    <dt>Genero</dt>
+                    <dt>Género</dt>
                     <dd>{genre}</dd>
                   </div>
                   <div>
-                    <dt>Ano</dt>
+                    <dt>Año</dt>
                     <dd>{detail.publication_year ?? "-"}</dd>
                   </div>
                   <div>
@@ -224,22 +243,36 @@ export function BookDetailPage() {
                 </dl>
 
                 <div className="detail-actions">
-                  <button
-                    className="ghost-link"
-                    type="button"
-                    onClick={() => setIsEditModalOpen(true)}
-                    disabled={updateCopyMutation.isPending}
-                  >
-                    Editar libro
-                  </button>
-                  <button
-                    className="ghost-link danger-action"
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={deleteCopyMutation.isPending}
-                  >
-                    {deleteCopyMutation.isPending ? "Eliminando..." : "Eliminar"}
-                  </button>
+                  {canEditBook ? (
+                    <button
+                      className="ghost-link"
+                      type="button"
+                      onClick={() => setIsBookModalOpen(true)}
+                      disabled={updateBookMutation.isPending}
+                    >
+                      Editar ficha
+                    </button>
+                  ) : null}
+                  {canEditCopy ? (
+                    <button
+                      className="ghost-link"
+                      type="button"
+                      onClick={() => setIsCopyModalOpen(true)}
+                      disabled={updateCopyMutation.isPending}
+                    >
+                      Editar ejemplar
+                    </button>
+                  ) : null}
+                  {canEditCopy ? (
+                    <button
+                      className="ghost-link danger-action"
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleteCopyMutation.isPending}
+                    >
+                      {deleteCopyMutation.isPending ? "Eliminando..." : "Eliminar ejemplar"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -258,12 +291,12 @@ export function BookDetailPage() {
                 >
                   <option value="pending">Pendiente</option>
                   <option value="reading">Leyendo</option>
-                  <option value="finished">Leido</option>
+                  <option value="finished">Leído</option>
                 </select>
               </label>
 
               <div className="rating-block">
-                <span className="eyebrow">Valoracion</span>
+                <span className="eyebrow">Valoración</span>
                 <div className="star-row" role="group" aria-label="Valorar libro">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -279,7 +312,7 @@ export function BookDetailPage() {
                   ))}
                 </div>
                 <p className="detail-inline-copy">
-                  {userData.rating ? `${userData.rating}/5` : "Sin valoracion"}
+                  {userData.rating ? `${userData.rating}/5` : "Sin valoración"}
                 </p>
               </div>
 
@@ -325,7 +358,7 @@ export function BookDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="notes-preview">{userData.personal_notes ?? "Todavia no has anadido notas."}</p>
+                  <p className="notes-preview">{userData.personal_notes ?? "Todavía no has añadido notas."}</p>
                 )}
               </div>
             </div>
@@ -367,21 +400,36 @@ export function BookDetailPage() {
                 </p>
               ) : null}
             </div>
+
+            {library?.is_archived ? (
+              <div className="panel subtle-panel">
+                <p className="eyebrow">Biblioteca archivada</p>
+                <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catálogo.</p>
+              </div>
+            ) : null}
           </aside>
         </div>
       ) : null}
 
-      <BookModal
-        book={editableBook}
-        defaultLibraryId={editableBook?.library_id ?? null}
-        genres={genresQuery.data ?? []}
-        isOpen={isEditModalOpen && editableBook !== null}
+      <CopyEditModal
+        copy={detail ?? null}
+        library={library}
+        isOpen={isCopyModalOpen}
         isSaving={updateCopyMutation.isPending}
-        libraries={[]}
-        mode="edit"
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleBookSave}
-        token={token ?? ""}
+        onClose={() => setIsCopyModalOpen(false)}
+        onSubmit={async (values) => {
+          await updateCopyMutation.mutateAsync(values);
+        }}
+      />
+
+      <BookMetadataModal
+        book={detail ? toBookMetadata(detail) : null}
+        isOpen={isBookModalOpen}
+        isSaving={updateBookMutation.isPending}
+        onClose={() => setIsBookModalOpen(false)}
+        onSubmit={async (values) => {
+          await updateBookMutation.mutateAsync(values);
+        }}
       />
     </section>
   );

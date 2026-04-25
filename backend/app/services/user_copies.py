@@ -12,9 +12,11 @@ from app.models.book import BookGenre
 from app.models.book import Copy
 from app.models.book import UserCopy
 from app.models.enums import ReadingStatus
+from app.models.library import Library
 from app.models.library import UserLibrary
 from app.schemas.user_copy import UserCopyOut
 from app.schemas.user_copy import UserCopyUpdate
+from app.services.libraries import get_user_library_membership
 
 
 class CopyNotFoundError(ValueError):
@@ -165,11 +167,13 @@ def _get_accessible_copy(
 ) -> Copy:
     stmt = (
         select(Copy)
+        .join(Library, Library.id == Copy.library_id)
         .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
         .options(*COPY_ACCESS_LOAD_OPTIONS)
         .where(
             Copy.id == copy_id,
             UserLibrary.user_id == user_id,
+            Library.archived_at.is_(None),
         )
     )
     copy = db.execute(stmt).unique().scalar_one_or_none()
@@ -180,4 +184,9 @@ def _get_accessible_copy(
     if existing_copy is None:
         raise CopyNotFoundError("El ejemplar solicitado no existe.")
 
+    get_user_library_membership(
+        db,
+        user_id=user_id,
+        library_id=existing_copy.library_id,
+    )
     raise CopyPermissionDeniedError("No tienes permisos para acceder a este ejemplar.")

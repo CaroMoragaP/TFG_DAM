@@ -44,6 +44,25 @@ def create_library(client: TestClient, headers: dict[str, str], *, name: str) ->
     return int(response.json()["id"])
 
 
+def add_member(
+    client: TestClient,
+    headers: dict[str, str],
+    library_id: int,
+    *,
+    email: str,
+    role: str,
+) -> None:
+    response = client.post(
+        f"/libraries/{library_id}/members",
+        headers=headers,
+        json={
+            "email": email,
+            "role": role,
+        },
+    )
+    assert response.status_code == 201
+
+
 def create_book(
     client: TestClient,
     headers: dict[str, str],
@@ -183,14 +202,26 @@ def test_copy_detail_user_data_and_list_genres(
         f"/copies/{created['id']}",
         headers=headers,
         json={
+            "status": "loaned",
+            "physical_location": "Estanteria principal",
+        },
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["status"] == "loaned"
+    assert update_response.json()["physical_location"] == "Estanteria principal"
+
+    metadata_update_response = client.put(
+        f"/books/{created['book_id']}/metadata",
+        headers=headers,
+        json={
             "title": "Neuromancer",
             "authors": ["William Gibson"],
             "genres": ["Cyberpunk"],
             "description": "Un clasico cyberpunk.",
         },
     )
-    assert update_response.status_code == 200
-    assert update_response.json()["description"] == "Un clasico cyberpunk."
+    assert metadata_update_response.status_code == 200
+    assert metadata_update_response.json()["description"] == "Un clasico cyberpunk."
 
     user_update_response = client.put(
         f"/copies/{created['id']}/user-data",
@@ -228,3 +259,89 @@ def test_copy_detail_user_data_and_list_genres(
     assert default_user_data_response.status_code == 200
     assert default_user_data_response.json()["reading_status"] == "pending"
     assert default_user_data_response.json()["rating"] is None
+
+
+def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient) -> None:
+    owner_headers = register_user(client)
+    shared_library_id = create_library(client, owner_headers, name="Club de lectura")
+
+    editor_response = client.post(
+        "/auth/register",
+        json={
+            "name": "Editor",
+            "email": "editor@example.com",
+            "password": "supersecret123",
+        },
+    )
+    assert editor_response.status_code == 201
+    editor_headers = {"Authorization": f"Bearer {editor_response.json()['access_token']}"}
+
+    viewer_response = client.post(
+        "/auth/register",
+        json={
+            "name": "Viewer",
+            "email": "viewer@example.com",
+            "password": "supersecret123",
+        },
+    )
+    assert viewer_response.status_code == 201
+    viewer_headers = {"Authorization": f"Bearer {viewer_response.json()['access_token']}"}
+
+    add_member(client, owner_headers, shared_library_id, email="editor@example.com", role="editor")
+    add_member(client, owner_headers, shared_library_id, email="viewer@example.com", role="viewer")
+
+    editor_book_response = client.post(
+        "/books",
+        headers=editor_headers,
+        json={
+            "library_id": shared_library_id,
+            "title": "Solaris",
+            "authors": ["Stanislaw Lem"],
+            "genres": ["Sci-Fi"],
+            "reading_status": "pending",
+        },
+    )
+    assert editor_book_response.status_code == 201
+    created_book = editor_book_response.json()
+
+    viewer_book_response = client.post(
+        "/books",
+        headers=viewer_headers,
+        json={
+            "library_id": shared_library_id,
+            "title": "Fahrenheit 451",
+            "authors": ["Ray Bradbury"],
+            "genres": ["Sci-Fi"],
+            "reading_status": "pending",
+        },
+    )
+    assert viewer_book_response.status_code == 403
+
+    editor_copy_update_response = client.put(
+        f"/copies/{created_book['id']}",
+        headers=editor_headers,
+        json={
+            "status": "reserved",
+        },
+    )
+    assert editor_copy_update_response.status_code == 200
+    assert editor_copy_update_response.json()["status"] == "reserved"
+
+    editor_metadata_update_response = client.put(
+        f"/books/{created_book['book_id']}/metadata",
+        headers=editor_headers,
+        json={
+            "title": "Solaris revisado",
+        },
+    )
+    assert editor_metadata_update_response.status_code == 403
+
+    owner_metadata_update_response = client.put(
+        f"/books/{created_book['book_id']}/metadata",
+        headers=owner_headers,
+        json={
+            "title": "Solaris revisado",
+        },
+    )
+    assert owner_metadata_update_response.status_code == 200
+    assert owner_metadata_update_response.json()["title"] == "Solaris revisado"

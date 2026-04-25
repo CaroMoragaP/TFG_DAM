@@ -36,6 +36,10 @@ class Library(Base):
         nullable=False,
         server_default=func.now(),
     )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     user_libraries: Mapped[list["UserLibrary"]] = relationship(
         back_populates="library",

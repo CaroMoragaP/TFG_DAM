@@ -6,8 +6,9 @@ from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
-from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session
 
 from app.models.book import Author
 from app.models.book import Book
@@ -18,14 +19,24 @@ from app.models.book import Genre
 from app.models.book import Publisher
 from app.models.book import UserCopy
 from app.models.enums import ReadingStatus
+from app.models.enums import UserLibraryRole
+from app.models.library import Library
 from app.models.library import UserLibrary
 from app.schemas.book import BookCreate
-from app.schemas.book import CopyDetailOut
+from app.schemas.book import BookMetadataOut
+from app.schemas.book import BookMetadataUpdate
 from app.schemas.book import BookOut
-from app.schemas.book import BookUpdate
+from app.schemas.book import CopyDetailOut
+from app.schemas.book import CopyUpdate
+from app.services.libraries import CATALOG_MANAGEMENT_ROLES
+from app.services.libraries import READ_ACCESS_ROLES
+from app.services.libraries import LibraryArchivedError
 from app.services.libraries import LibraryNotFoundError
+from app.services.libraries import LibraryOwnershipRequiredError
 from app.services.libraries import LibraryPermissionDeniedError
+from app.services.libraries import LibraryRoleRequiredError
 from app.services.libraries import get_accessible_library
+from app.services.libraries import get_user_library_membership
 from app.services.user_copies import get_or_create_user_copy
 
 
@@ -50,6 +61,11 @@ COPY_LOAD_OPTIONS = (
     joinedload(Copy.book).selectinload(Book.book_authors).joinedload(BookAuthor.author),
     joinedload(Copy.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
 )
+BOOK_LOAD_OPTIONS = (
+    joinedload(Book.publisher),
+    selectinload(Book.book_authors).joinedload(BookAuthor.author),
+    selectinload(Book.book_genres).joinedload(BookGenre.genre),
+)
 
 
 def create_book(
@@ -58,7 +74,12 @@ def create_book(
     user_id: int,
     data: BookCreate,
 ) -> Copy:
-    get_accessible_library(db, user_id=user_id, library_id=data.library_id)
+    get_accessible_library(
+        db,
+        user_id=user_id,
+        library_id=data.library_id,
+        allowed_roles=CATALOG_MANAGEMENT_ROLES,
+    )
 
     book = _get_or_create_book(db, data)
     existing_copy = db.scalar(
@@ -104,12 +125,18 @@ def list_books(
     min_rating: int | None = None,
 ) -> Sequence[Copy]:
     if library_id is not None:
-        get_accessible_library(db, user_id=user_id, library_id=library_id)
+        get_accessible_library(
+            db,
+            user_id=user_id,
+            library_id=library_id,
+            allowed_roles=READ_ACCESS_ROLES,
+        )
 
     user_copy_alias = aliased(UserCopy)
     stmt = (
         select(Copy, user_copy_alias.reading_status, user_copy_alias.rating)
         .join(Book, Copy.book_id == Book.id)
+        .join(Library, Library.id == Copy.library_id)
         .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
         .outerjoin(
             user_copy_alias,
@@ -121,7 +148,10 @@ def list_books(
         .outerjoin(BookGenre, BookGenre.book_id == Book.id)
         .outerjoin(Genre, Genre.id == BookGenre.genre_id)
         .options(*COPY_LOAD_OPTIONS)
-        .where(UserLibrary.user_id == user_id)
+        .where(
+            UserLibrary.user_id == user_id,
+            Library.archived_at.is_(None),
+        )
         .order_by(Book.title.asc(), Copy.id.asc())
     )
 
@@ -172,36 +202,76 @@ def get_book_copy(
     *,
     user_id: int,
     copy_id: int,
+    allowed_roles: frozenset[UserLibraryRole] = READ_ACCESS_ROLES,
 ) -> Copy:
     rows = db.execute(
         _build_copy_query(user_id=user_id).where(
             Copy.id == copy_id,
             UserLibrary.user_id == user_id,
+            Library.archived_at.is_(None),
         ),
     ).unique().all()
     copies = _hydrate_copy_personal_fields(rows)
     copy = copies[0] if copies else None
     if copy is not None:
+        get_user_library_membership(
+            db,
+            user_id=user_id,
+            library_id=copy.library_id,
+            allowed_roles=allowed_roles,
+        )
         return copy
 
     existing_copy = db.get(Copy, copy_id)
     if existing_copy is None:
         raise BookNotFoundError("El libro solicitado no existe.")
 
+    _assert_copy_access(
+        db,
+        user_id=user_id,
+        copy=existing_copy,
+        allowed_roles=allowed_roles,
+    )
     raise BookPermissionDeniedError(
         "No tienes permisos para acceder a este libro.",
     )
 
 
-def update_book(
+def update_copy(
     db: Session,
     *,
     user_id: int,
     copy_id: int,
-    data: BookUpdate,
+    data: CopyUpdate,
 ) -> Copy:
-    copy = get_book_copy(db, user_id=user_id, copy_id=copy_id)
-    book = copy.book
+    copy = get_book_copy(
+        db,
+        user_id=user_id,
+        copy_id=copy_id,
+        allowed_roles=CATALOG_MANAGEMENT_ROLES,
+    )
+
+    if "format" in data.model_fields_set:
+        copy.format = data.format
+    if "physical_location" in data.model_fields_set:
+        copy.physical_location = data.physical_location
+    if "digital_location" in data.model_fields_set:
+        copy.digital_location = data.digital_location
+    if "status" in data.model_fields_set:
+        copy.status = data.status
+
+    db.commit()
+    return get_book_copy(db, user_id=user_id, copy_id=copy_id)
+
+
+def update_book_metadata(
+    db: Session,
+    *,
+    user_id: int,
+    book_id: int,
+    data: BookMetadataUpdate,
+) -> Book:
+    book = _get_editable_book_for_owner(db, user_id=user_id, book_id=book_id)
 
     if "title" in data.model_fields_set:
         book.title = data.title
@@ -226,26 +296,24 @@ def update_book(
             BookGenre(genre=genre)
             for genre in _resolve_genres(db, data.genres or [])
         ]
-    if "format" in data.model_fields_set:
-        copy.format = data.format
-    if "physical_location" in data.model_fields_set:
-        copy.physical_location = data.physical_location
-    if "digital_location" in data.model_fields_set:
-        copy.digital_location = data.digital_location
-    if "status" in data.model_fields_set:
-        copy.status = data.status
 
     db.commit()
-    return get_book_copy(db, user_id=user_id, copy_id=copy_id)
+    db.refresh(book)
+    return _get_editable_book_for_owner(db, user_id=user_id, book_id=book_id)
 
 
-def delete_book(
+def delete_copy(
     db: Session,
     *,
     user_id: int,
     copy_id: int,
 ) -> None:
-    copy = get_book_copy(db, user_id=user_id, copy_id=copy_id)
+    copy = get_book_copy(
+        db,
+        user_id=user_id,
+        copy_id=copy_id,
+        allowed_roles=CATALOG_MANAGEMENT_ROLES,
+    )
     db.delete(copy)
     db.commit()
 
@@ -308,6 +376,26 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
     )
 
 
+def serialize_book_metadata(book: Book) -> BookMetadataOut:
+    return BookMetadataOut(
+        id=book.id,
+        title=book.title,
+        isbn=book.isbn,
+        publication_year=book.publication_year,
+        description=book.description,
+        cover_url=book.cover_url,
+        publisher=book.publisher.name if book.publisher is not None else None,
+        authors=[
+            relation.author.name
+            for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
+        ],
+        genres=[
+            relation.genre.name
+            for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
+        ],
+    )
+
+
 def _get_or_create_book(db: Session, data: BookCreate) -> Book:
     if data.isbn is not None:
         existing_book = db.scalar(select(Book).where(Book.isbn == data.isbn))
@@ -337,6 +425,59 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
     db.add(book)
     db.flush()
     return book
+
+
+def _get_editable_book_for_owner(
+    db: Session,
+    *,
+    user_id: int,
+    book_id: int,
+) -> Book:
+    stmt = (
+        select(Book)
+        .join(Copy, Copy.book_id == Book.id)
+        .join(Library, Library.id == Copy.library_id)
+        .join(UserLibrary, UserLibrary.library_id == Library.id)
+        .options(*BOOK_LOAD_OPTIONS)
+        .where(
+            Book.id == book_id,
+            UserLibrary.user_id == user_id,
+            UserLibrary.role == UserLibraryRole.OWNER,
+            Library.archived_at.is_(None),
+        )
+        .order_by(Copy.id.asc())
+    )
+    book = db.execute(stmt).unique().scalar_one_or_none()
+    if book is not None:
+        return book
+
+    existing_book = db.get(Book, book_id)
+    if existing_book is None:
+        raise BookNotFoundError("El libro solicitado no existe.")
+
+    candidate_copy = db.scalar(
+        select(Copy)
+        .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
+        .where(
+            Copy.book_id == book_id,
+            UserLibrary.user_id == user_id,
+        )
+        .order_by(Copy.id.asc())
+    )
+    if candidate_copy is None:
+        raise BookPermissionDeniedError(
+            "No tienes permisos para acceder a este libro.",
+        )
+
+    get_user_library_membership(
+        db,
+        user_id=user_id,
+        library_id=candidate_copy.library_id,
+        allowed_roles=frozenset({UserLibraryRole.OWNER}),
+    )
+    raise BookPermissionDeniedError(
+        "No tienes permisos para editar este libro.",
+    )
 
 
 def _resolve_publisher(db: Session, name: str | None) -> Publisher | None:
@@ -403,10 +544,26 @@ def _ensure_unique_isbn(
         raise DuplicateBookIsbnError("Ya existe otro libro con ese ISBN.")
 
 
+def _assert_copy_access(
+    db: Session,
+    *,
+    user_id: int,
+    copy: Copy,
+    allowed_roles: frozenset[UserLibraryRole],
+) -> None:
+    get_user_library_membership(
+        db,
+        user_id=user_id,
+        library_id=copy.library_id,
+        allowed_roles=allowed_roles,
+    )
+
+
 def _build_copy_query(*, user_id: int):
     user_copy_alias = aliased(UserCopy)
     return (
         select(Copy, user_copy_alias.reading_status, user_copy_alias.rating)
+        .join(Library, Library.id == Copy.library_id)
         .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
         .outerjoin(
             user_copy_alias,

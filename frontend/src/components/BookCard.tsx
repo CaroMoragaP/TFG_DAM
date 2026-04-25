@@ -6,6 +6,7 @@ type BookCardProps = {
   book: Book;
   library?: Library;
   showLibraryBadge: boolean;
+  canEdit?: boolean;
   onAddToList: (book: Book) => void;
   onEdit: (book: Book) => void;
 };
@@ -39,6 +40,7 @@ export function BookCard({
   book,
   library,
   showLibraryBadge,
+  canEdit = true,
   onAddToList,
   onEdit,
 }: BookCardProps) {
@@ -74,9 +76,11 @@ export function BookCard({
             >
               Añadir a lista
             </button>
-            <button className="ghost-link compact-action" type="button" onClick={() => onEdit(book)}>
-              Editar
-            </button>
+            {canEdit ? (
+              <button className="ghost-link compact-action" type="button" onClick={() => onEdit(book)}>
+                Editar
+              </button>
+            ) : null}
           </div>
         </div>
 

@@ -1,19 +1,11 @@
-import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
-import { LibraryManagerModal } from "../components/LibraryManagerModal";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
-import {
-  createLibraryRequest,
-  updateLibraryRequest,
-  type LibraryCreatePayload,
-  type LibraryUpdatePayload,
-} from "../lib/api";
 
 const navigationItems = [
   { to: "/catalogo", label: "Catálogo" },
+  { to: "/bibliotecas", label: "Mis bibliotecas" },
   { to: "/listas", label: "Mis listas" },
   { to: "/leyendo", label: "Leyendo" },
   { to: "/leidos", label: "Leídos" },
@@ -24,39 +16,8 @@ const navigationItems = [
 
 export function PrivateLayout() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { token, user, logout } = useAuth();
-  const {
-    activeLibraryId,
-    libraries,
-    refreshLibraries,
-    setActiveLibraryId,
-  } = useActiveLibrary();
-  const [isLibraryManagerOpen, setIsLibraryManagerOpen] = useState(false);
-
-  const createLibraryMutation = useMutation({
-    mutationFn: (payload: LibraryCreatePayload) =>
-      createLibraryRequest(token ?? "", payload),
-    onSuccess: async (library) => {
-      await queryClient.invalidateQueries({ queryKey: ["libraries"] });
-      setActiveLibraryId(library.id);
-      await refreshLibraries();
-    },
-  });
-
-  const renameLibraryMutation = useMutation({
-    mutationFn: ({
-      libraryId,
-      payload,
-    }: {
-      libraryId: number;
-      payload: LibraryUpdatePayload;
-    }) => updateLibraryRequest(token ?? "", libraryId, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["libraries"] });
-      await refreshLibraries();
-    },
-  });
+  const { user, logout } = useAuth();
+  const { activeLibraryId, libraries, setActiveLibraryId } = useActiveLibrary();
 
   function handleLogout() {
     logout();
@@ -102,14 +63,7 @@ export function PrivateLayout() {
                 ))}
               </select>
             </label>
-            <p>Se usara como destino inicial al crear nuevos libros.</p>
-            <button
-              className="ghost-link compact-action menu-inline-button"
-              type="button"
-              onClick={() => setIsLibraryManagerOpen(true)}
-            >
-              Gestionar mis bibliotecas
-            </button>
+            <p>Se usará como destino inicial al crear nuevos libros.</p>
             <button className="menu-button" type="button" onClick={handleLogout}>
               Cerrar sesión
             </button>
@@ -141,21 +95,6 @@ export function PrivateLayout() {
           <Outlet />
         </main>
       </div>
-
-      <LibraryManagerModal
-        activeLibraryId={activeLibraryId}
-        isOpen={isLibraryManagerOpen}
-        isSaving={createLibraryMutation.isPending || renameLibraryMutation.isPending}
-        libraries={libraries}
-        onClose={() => setIsLibraryManagerOpen(false)}
-        onCreate={async (payload) => {
-          await createLibraryMutation.mutateAsync(payload);
-        }}
-        onRename={async (libraryId, payload) => {
-          await renameLibraryMutation.mutateAsync({ libraryId, payload });
-        }}
-        onSelectActive={(libraryId) => setActiveLibraryId(libraryId)}
-      />
     </div>
   );
 }

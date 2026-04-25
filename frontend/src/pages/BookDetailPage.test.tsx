@@ -8,11 +8,10 @@ import { BookDetailPage } from "./BookDetailPage";
 const apiMocks = vi.hoisted(() => ({
   fetchCopyById: vi.fn(),
   fetchUserCopyData: vi.fn(),
-  fetchGenres: vi.fn(),
   updateUserCopyDataRequest: vi.fn(),
   updateCopyRequest: vi.fn(),
+  updateBookMetadataRequest: vi.fn(),
   deleteCopyRequest: vi.fn(),
-  fetchOpenLibraryBook: vi.fn(),
 }));
 
 vi.mock("../auth/AuthProvider", () => ({
@@ -21,15 +20,32 @@ vi.mock("../auth/AuthProvider", () => ({
   }),
 }));
 
+vi.mock("../libraries/ActiveLibraryProvider", () => ({
+  useActiveLibrary: () => ({
+    libraries: [
+      {
+        id: 1,
+        name: "Biblioteca compartida",
+        type: "shared",
+        created_at: "2026-04-19T00:00:00Z",
+        role: "owner",
+        is_archived: false,
+        archived_at: null,
+        member_count: 1,
+        copy_count: 1,
+      },
+    ],
+  }),
+}));
+
 vi.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
   fetchCopyById: apiMocks.fetchCopyById,
   fetchUserCopyData: apiMocks.fetchUserCopyData,
-  fetchGenres: apiMocks.fetchGenres,
   updateUserCopyDataRequest: apiMocks.updateUserCopyDataRequest,
   updateCopyRequest: apiMocks.updateCopyRequest,
+  updateBookMetadataRequest: apiMocks.updateBookMetadataRequest,
   deleteCopyRequest: apiMocks.deleteCopyRequest,
-  fetchOpenLibraryBook: apiMocks.fetchOpenLibraryBook,
 }));
 
 describe("BookDetailPage", () => {
@@ -59,7 +75,6 @@ describe("BookDetailPage", () => {
       end_date: null,
       personal_notes: "Notas iniciales",
     });
-    apiMocks.fetchGenres.mockResolvedValue(["Sci-Fi"]);
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 7,
       reading_status: "finished",
@@ -69,6 +84,7 @@ describe("BookDetailPage", () => {
       personal_notes: "Notas finales",
     });
     apiMocks.updateCopyRequest.mockResolvedValue({});
+    apiMocks.updateBookMetadataRequest.mockResolvedValue({});
     apiMocks.deleteCopyRequest.mockResolvedValue(undefined);
 
     const queryClient = new QueryClient({

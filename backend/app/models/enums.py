@@ -73,7 +73,8 @@ class LibraryType(str, Enum):
 
 class UserLibraryRole(str, Enum):
     OWNER = "owner"
-    MEMBER = "member"
+    EDITOR = "editor"
+    VIEWER = "viewer"
 
 
 class ListType(str, Enum):

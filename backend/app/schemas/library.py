@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import EmailStr
 from pydantic import Field
 from pydantic import field_validator
 
@@ -41,5 +42,44 @@ class LibraryOut(BaseModel):
     type: LibraryType
     created_at: datetime
     role: UserLibraryRole
+    is_archived: bool
+    archived_at: datetime | None
+    member_count: int
+    copy_count: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LibraryMemberOut(BaseModel):
+    user_id: int
+    name: str
+    email: EmailStr
+    role: UserLibraryRole
+
+
+class LibraryMemberCreate(BaseModel):
+    email: EmailStr
+    role: UserLibraryRole
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: UserLibraryRole) -> UserLibraryRole:
+        if value == UserLibraryRole.OWNER:
+            raise ValueError("No se puede asignar el rol owner desde esta operacion.")
+        return value
+
+
+class LibraryMemberUpdate(BaseModel):
+    role: UserLibraryRole
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: UserLibraryRole) -> UserLibraryRole:
+        if value == UserLibraryRole.OWNER:
+            raise ValueError("No se puede asignar el rol owner desde esta operacion.")
+        return value

@@ -6,7 +6,7 @@ export type HealthResponse = {
 };
 
 export type LibraryType = "personal" | "shared";
-export type UserLibraryRole = "owner" | "member";
+export type UserLibraryRole = "owner" | "editor" | "viewer";
 export type ListType = "wishlist" | "pending" | "custom";
 export type CopyFormat = "physical" | "digital";
 export type CopyStatus = "available" | "loaned" | "reserved";
@@ -23,6 +23,17 @@ export type Library = {
   name: string;
   type: LibraryType;
   created_at: string;
+  role: UserLibraryRole;
+  is_archived: boolean;
+  archived_at: string | null;
+  member_count: number;
+  copy_count: number;
+};
+
+export type LibraryMember = {
+  user_id: number;
+  name: string;
+  email: string;
   role: UserLibraryRole;
 };
 
@@ -85,6 +96,18 @@ export type CopyDetail = {
   status: CopyStatus;
 };
 
+export type BookMetadata = {
+  id: number;
+  title: string;
+  isbn: string | null;
+  publication_year: number | null;
+  description: string | null;
+  cover_url: string | null;
+  publisher: string | null;
+  authors: string[];
+  genres: string[];
+};
+
 export type UserCopyData = {
   copy_id: number;
   reading_status: ReadingStatus;
@@ -109,14 +132,20 @@ export type BookCreatePayload = {
   title: string;
   isbn?: string | null;
   publication_year?: number | null;
+  description?: string | null;
   cover_url?: string | null;
+  publisher_name?: string | null;
   authors: string[];
   genres: string[];
+  format?: CopyFormat;
+  physical_location?: string | null;
+  digital_location?: string | null;
+  status?: CopyStatus;
   reading_status: ReadingStatus;
   user_rating?: number | null;
 };
 
-export type BookUpdatePayload = {
+export type BookMetadataUpdatePayload = {
   title?: string;
   isbn?: string | null;
   publication_year?: number | null;
@@ -125,6 +154,9 @@ export type BookUpdatePayload = {
   genres?: string[];
   description?: string | null;
   publisher_name?: string | null;
+};
+
+export type CopyUpdatePayload = {
   format?: CopyFormat;
   physical_location?: string | null;
   digital_location?: string | null;
@@ -154,6 +186,15 @@ export type LibraryCreatePayload = {
 
 export type LibraryUpdatePayload = {
   name: string;
+};
+
+export type LibraryMemberCreatePayload = {
+  email: string;
+  role: Exclude<UserLibraryRole, "owner">;
+};
+
+export type LibraryMemberUpdatePayload = {
+  role: Exclude<UserLibraryRole, "owner">;
 };
 
 export type ListCreatePayload = {
@@ -289,8 +330,15 @@ export function fetchMe(token: string): Promise<User> {
   });
 }
 
-export function fetchLibraries(token: string): Promise<Library[]> {
-  return apiFetch<Library[]>("/libraries", undefined, {
+export function fetchLibraries(
+  token: string,
+  params?: { includeArchived?: boolean },
+): Promise<Library[]> {
+  const queryString = buildQueryString({
+    include_archived: params?.includeArchived ? "true" : undefined,
+  });
+
+  return apiFetch<Library[]>(`/libraries${queryString}`, undefined, {
     token,
   });
 }
@@ -319,6 +367,87 @@ export function updateLibraryRequest(
     {
       method: "PUT",
       body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function fetchLibraryMembers(token: string, libraryId: number): Promise<LibraryMember[]> {
+  return apiFetch<LibraryMember[]>(`/libraries/${libraryId}/members`, undefined, {
+    token,
+  });
+}
+
+export function addLibraryMemberRequest(
+  token: string,
+  libraryId: number,
+  payload: LibraryMemberCreatePayload,
+): Promise<LibraryMember> {
+  return apiFetch<LibraryMember>(
+    `/libraries/${libraryId}/members`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function updateLibraryMemberRequest(
+  token: string,
+  libraryId: number,
+  memberUserId: number,
+  payload: LibraryMemberUpdatePayload,
+): Promise<LibraryMember> {
+  return apiFetch<LibraryMember>(
+    `/libraries/${libraryId}/members/${memberUserId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function removeLibraryMemberRequest(
+  token: string,
+  libraryId: number,
+  memberUserId: number,
+): Promise<void> {
+  return apiFetch<void>(
+    `/libraries/${libraryId}/members/${memberUserId}`,
+    {
+      method: "DELETE",
+    },
+    { token },
+  );
+}
+
+export function archiveLibraryRequest(token: string, libraryId: number): Promise<Library> {
+  return apiFetch<Library>(
+    `/libraries/${libraryId}/archive`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export function restoreLibraryRequest(token: string, libraryId: number): Promise<Library> {
+  return apiFetch<Library>(
+    `/libraries/${libraryId}/restore`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export function deleteLibraryRequest(token: string, libraryId: number): Promise<void> {
+  return apiFetch<void>(
+    `/libraries/${libraryId}`,
+    {
+      method: "DELETE",
     },
     { token },
   );
@@ -455,10 +584,27 @@ export function fetchCopyById(token: string, copyId: number): Promise<CopyDetail
 export function updateCopyRequest(
   token: string,
   copyId: number,
-  payload: BookUpdatePayload,
+  payload: CopyUpdatePayload,
 ): Promise<CopyDetail> {
   return apiFetch<CopyDetail>(
     `/copies/${copyId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    {
+      token,
+    },
+  );
+}
+
+export function updateBookMetadataRequest(
+  token: string,
+  bookId: number,
+  payload: BookMetadataUpdatePayload,
+): Promise<BookMetadata> {
+  return apiFetch<BookMetadata>(
+    `/books/${bookId}/metadata`,
     {
       method: "PUT",
       body: JSON.stringify(payload),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { AddToListModal } from "../components/AddToListModal";
 import { BookCard } from "../components/BookCard";
 import { BookModal, type BookFormValues } from "../components/BookModal";
+import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   addBookToListRequest,
@@ -16,7 +17,6 @@ import {
   updateCopyRequest,
   type Book,
   type BookCreatePayload,
-  type BookUpdatePayload,
   type ReadingStatus,
   type UserList,
 } from "../lib/api";
@@ -27,7 +27,7 @@ export function DashboardPage() {
     useActiveLibrary();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
-  const [activeModalMode, setActiveModalMode] = useState<"create" | "edit" | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [bookForListModal, setBookForListModal] = useState<Book | null>(null);
   const [addToListError, setAddToListError] = useState<string | null>(null);
@@ -44,6 +44,11 @@ export function DashboardPage() {
     libraryParam && Number.isInteger(parsedLibraryId) && parsedLibraryId > 0
       ? parsedLibraryId
       : undefined;
+
+  const editableLibraries = useMemo(
+    () => libraries.filter((library) => !library.is_archived && library.role !== "viewer"),
+    [libraries],
+  );
 
   useEffect(() => {
     setSearchDraft(q);
@@ -102,20 +107,23 @@ export function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ["books"] }),
         queryClient.invalidateQueries({ queryKey: ["genres"] }),
       ]);
-      setActiveModalMode(null);
-      setSelectedBook(null);
+      setIsCreateModalOpen(false);
     },
   });
 
-  const updateBookMutation = useMutation({
-    mutationFn: ({ bookId, payload }: { bookId: number; payload: BookUpdatePayload }) =>
-      updateCopyRequest(token ?? "", bookId, payload),
+  const updateCopyMutation = useMutation({
+    mutationFn: ({ copyId, payload }: { copyId: number; payload: CopyEditValues }) =>
+      updateCopyRequest(token ?? "", copyId, {
+        format: payload.format,
+        status: payload.status,
+        physical_location: payload.physicalLocation.trim() || null,
+        digital_location: payload.digitalLocation.trim() || null,
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["books"] }),
-        queryClient.invalidateQueries({ queryKey: ["genres"] }),
+        queryClient.invalidateQueries({ queryKey: ["copy"] }),
       ]);
-      setActiveModalMode(null);
       setSelectedBook(null);
     },
   });
@@ -133,15 +141,18 @@ export function DashboardPage() {
     },
     onError: (error) => {
       setAddToListError(
-        error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.",
+        error instanceof Error ? error.message : "No se pudo añadir el libro a la lista.",
       );
     },
   });
 
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
   const visibleLists = listsQuery.data ?? [];
-  const isModalOpen = activeModalMode !== null;
   const showLibraryBadge = libraries.length > 1;
+  const defaultCreateLibraryId =
+    editableLibraries.find((library) => library.id === activeLibraryId)?.id ??
+    editableLibraries[0]?.id ??
+    null;
 
   function updateFilter(
     key: "library" | "genre" | "readingStatus" | "minRating",
@@ -156,14 +167,8 @@ export function DashboardPage() {
     setSearchParams(nextSearchParams, { replace: true });
   }
 
-  function handleOpenCreateModal() {
-    setSelectedBook(null);
-    setActiveModalMode("create");
-  }
-
   function handleOpenEditModal(book: Book) {
     setSelectedBook(book);
-    setActiveModalMode("edit");
   }
 
   function handleOpenAddToListModal(book: Book) {
@@ -171,35 +176,10 @@ export function DashboardPage() {
     setAddToListError(null);
   }
 
-  function handleCloseModal() {
-    if (createBookMutation.isPending || updateBookMutation.isPending) {
-      return;
-    }
-    setActiveModalMode(null);
-    setSelectedBook(null);
-  }
-
   async function handleSubmitBook(values: BookFormValues) {
-    if (activeModalMode === "edit" && selectedBook) {
-      const payload: BookUpdatePayload = {
-        title: values.title.trim(),
-        authors: [values.author.trim()],
-        publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
-        isbn: values.isbn.trim() || null,
-        genres: values.genre.trim() ? [values.genre.trim()] : [],
-        cover_url: values.coverUrl.trim() || null,
-      };
-
-      await updateBookMutation.mutateAsync({
-        bookId: selectedBook.id,
-        payload,
-      });
-      return;
-    }
-
     const libraryId = Number(values.libraryId);
     if (!Number.isInteger(libraryId) || libraryId <= 0) {
-      throw new Error("Selecciona una biblioteca valida para guardar el libro.");
+      throw new Error("Selecciona una biblioteca válida para guardar el libro.");
     }
 
     const payload: BookCreatePayload = {
@@ -217,6 +197,17 @@ export function DashboardPage() {
     await createBookMutation.mutateAsync(payload);
   }
 
+  async function handleSubmitCopyEdit(values: CopyEditValues) {
+    if (!selectedBook) {
+      return;
+    }
+
+    await updateCopyMutation.mutateAsync({
+      copyId: selectedBook.id,
+      payload: values,
+    });
+  }
+
   async function handleSelectList(list: UserList) {
     if (!bookForListModal) {
       return;
@@ -232,24 +223,24 @@ export function DashboardPage() {
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
         <div>
-          <p className="eyebrow">Catalogo privado</p>
-          <h2>Mi catalogo</h2>
-          <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
+          <p className="eyebrow">Catálogo privado</p>
+          <h2>Mi catálogo</h2>
+          <p>Explora tus libros, busca por autor o ISBN y mantén el estado de lectura al día.</p>
         </div>
         <button
           className="submit-button catalog-add-button"
           type="button"
-          onClick={handleOpenCreateModal}
-          disabled={isLibrariesLoading || isLibrariesError || libraries.length === 0}
+          onClick={() => setIsCreateModalOpen(true)}
+          disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
         >
-          + Anadir libro
+          + Añadir libro
         </button>
       </div>
 
       <div className="panel subtle-panel">
         <p className="eyebrow">Biblioteca por defecto</p>
         <h3>{activeLibrary?.name ?? "Sin biblioteca por defecto"}</h3>
-        <p>Se usara como destino inicial al crear libros, pero el catalogo muestra todas tus bibliotecas.</p>
+        <p>Se usará como destino inicial al crear libros, pero el catálogo muestra todas tus bibliotecas activas.</p>
       </div>
 
       <div className="panel catalog-toolbar">
@@ -257,7 +248,7 @@ export function DashboardPage() {
           <label className="field-group">
             Buscar
             <input
-              placeholder="Buscar por titulo, autor, ISBN..."
+              placeholder="Buscar por título, autor, ISBN..."
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -278,7 +269,7 @@ export function DashboardPage() {
           </label>
 
           <label className="field-group">
-            Genero
+            Género
             <select value={genre} onChange={(event) => updateFilter("genre", event.target.value)}>
               <option value="">Todos</option>
               {(genresQuery.data ?? []).map((genreOption) => (
@@ -298,12 +289,12 @@ export function DashboardPage() {
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="reading">Leyendo</option>
-              <option value="finished">Leido</option>
+              <option value="finished">Leído</option>
             </select>
           </label>
 
           <label className="field-group">
-            Valoracion minima
+            Valoración mínima
             <select value={minRatingParam} onChange={(event) => updateFilter("minRating", event.target.value)}>
               <option value="">Todos</option>
               <option value="1">1+ estrellas</option>
@@ -332,43 +323,68 @@ export function DashboardPage() {
 
       {booksQuery.isError ? (
         <div className="panel">
-          <p>No se pudo cargar el catalogo. Revisa que FastAPI siga levantado.</p>
+          <p>No se pudo cargar el catálogo. Revisa que FastAPI siga levantado.</p>
         </div>
       ) : null}
 
       {booksQuery.data && booksQuery.data.length === 0 ? (
         <div className="panel empty-state">
           <h3>No hay libros con esos filtros.</h3>
-          <p>Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo.</p>
+          <p>Ajusta la búsqueda o crea un nuevo libro para empezar a poblar tu catálogo.</p>
         </div>
       ) : null}
 
       {booksQuery.data && booksQuery.data.length > 0 ? (
         <div className="catalog-grid">
-          {booksQuery.data.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              library={libraryMap.get(book.library_id)}
-              showLibraryBadge={showLibraryBadge}
-              onAddToList={handleOpenAddToListModal}
-              onEdit={handleOpenEditModal}
-            />
-          ))}
+          {booksQuery.data.map((book) => {
+            const library = libraryMap.get(book.library_id);
+            const canEdit = library ? !library.is_archived && library.role !== "viewer" : false;
+
+            return (
+              <BookCard
+                key={book.id}
+                book={book}
+                library={library}
+                showLibraryBadge={showLibraryBadge}
+                canEdit={canEdit}
+                onAddToList={handleOpenAddToListModal}
+                onEdit={handleOpenEditModal}
+              />
+            );
+          })}
         </div>
       ) : null}
 
       <BookModal
-        book={selectedBook}
-        defaultLibraryId={activeLibraryId ?? libraries[0]?.id ?? null}
+        book={null}
+        defaultLibraryId={defaultCreateLibraryId}
         genres={genresQuery.data ?? []}
-        isOpen={isModalOpen}
-        isSaving={createBookMutation.isPending || updateBookMutation.isPending}
-        libraries={libraries}
-        mode={activeModalMode ?? "create"}
-        onClose={handleCloseModal}
+        isOpen={isCreateModalOpen}
+        isSaving={createBookMutation.isPending}
+        libraries={editableLibraries}
+        mode="create"
+        onClose={() => {
+          if (createBookMutation.isPending) {
+            return;
+          }
+          setIsCreateModalOpen(false);
+        }}
         onSubmit={handleSubmitBook}
         token={token ?? ""}
+      />
+
+      <CopyEditModal
+        copy={selectedBook}
+        library={selectedBook ? libraryMap.get(selectedBook.library_id) ?? null : null}
+        isOpen={selectedBook !== null}
+        isSaving={updateCopyMutation.isPending}
+        onClose={() => {
+          if (updateCopyMutation.isPending) {
+            return;
+          }
+          setSelectedBook(null);
+        }}
+        onSubmit={handleSubmitCopyEdit}
       />
 
       <AddToListModal

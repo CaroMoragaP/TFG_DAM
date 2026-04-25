@@ -31,6 +31,10 @@ const library: Library = {
   type: "personal",
   created_at: "2026-04-19T00:00:00Z",
   role: "owner",
+  is_archived: false,
+  archived_at: null,
+  member_count: 1,
+  copy_count: 1,
 };
 
 describe("BookCard", () => {

@@ -29,7 +29,6 @@ export type Library = {
 export type UserList = {
   id: number;
   user_id: number;
-  library_id: number | null;
   name: string;
   type: ListType;
   created_at: string;
@@ -68,6 +67,33 @@ export type Book = {
   user_rating: number | null;
 };
 
+export type CopyDetail = {
+  id: number;
+  book_id: number;
+  library_id: number;
+  title: string;
+  isbn: string | null;
+  publication_year: number | null;
+  description: string | null;
+  cover_url: string | null;
+  publisher: string | null;
+  authors: string[];
+  genres: string[];
+  format: CopyFormat;
+  physical_location: string | null;
+  digital_location: string | null;
+  status: CopyStatus;
+};
+
+export type UserCopyData = {
+  copy_id: number;
+  reading_status: ReadingStatus;
+  rating: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  personal_notes: string | null;
+};
+
 export type ExternalBookLookup = {
   title: string;
   authors: string[];
@@ -97,8 +123,20 @@ export type BookUpdatePayload = {
   cover_url?: string | null;
   authors?: string[];
   genres?: string[];
+  description?: string | null;
+  publisher_name?: string | null;
+  format?: CopyFormat;
+  physical_location?: string | null;
+  digital_location?: string | null;
+  status?: CopyStatus;
+};
+
+export type UserCopyUpdatePayload = {
   reading_status?: ReadingStatus;
-  user_rating?: number | null;
+  rating?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  personal_notes?: string | null;
 };
 
 export type BooksQueryParams = {
@@ -121,7 +159,6 @@ export type LibraryUpdatePayload = {
 export type ListCreatePayload = {
   name: string;
   type: ListType;
-  library_id?: number | null;
 };
 
 export type ListUpdatePayload = ListCreatePayload;
@@ -409,13 +446,19 @@ export function createBookRequest(
   );
 }
 
-export function updateBookRequest(
+export function fetchCopyById(token: string, copyId: number): Promise<CopyDetail> {
+  return apiFetch<CopyDetail>(`/copies/${copyId}`, undefined, {
+    token,
+  });
+}
+
+export function updateCopyRequest(
   token: string,
-  bookId: number,
+  copyId: number,
   payload: BookUpdatePayload,
-): Promise<Book> {
-  return apiFetch<Book>(
-    `/books/${bookId}`,
+): Promise<CopyDetail> {
+  return apiFetch<CopyDetail>(
+    `/copies/${copyId}`,
     {
       method: "PUT",
       body: JSON.stringify(payload),
@@ -426,11 +469,34 @@ export function updateBookRequest(
   );
 }
 
-export function deleteBookRequest(token: string, bookId: number): Promise<void> {
+export function deleteCopyRequest(token: string, copyId: number): Promise<void> {
   return apiFetch<void>(
-    `/books/${bookId}`,
+    `/copies/${copyId}`,
     {
       method: "DELETE",
+    },
+    {
+      token,
+    },
+  );
+}
+
+export function fetchUserCopyData(token: string, copyId: number): Promise<UserCopyData> {
+  return apiFetch<UserCopyData>(`/copies/${copyId}/user-data`, undefined, {
+    token,
+  });
+}
+
+export function updateUserCopyDataRequest(
+  token: string,
+  copyId: number,
+  payload: UserCopyUpdatePayload,
+): Promise<UserCopyData> {
+  return apiFetch<UserCopyData>(
+    `/copies/${copyId}/user-data`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
     },
     {
       token,

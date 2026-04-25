@@ -93,8 +93,6 @@ class BookUpdate(BaseModel):
     physical_location: str | None = Field(default=None, max_length=255)
     digital_location: str | None = Field(default=None, max_length=500)
     status: CopyStatus | None = None
-    reading_status: ReadingStatus | None = None
-    user_rating: int | None = Field(default=None, ge=1, le=5)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -131,19 +129,14 @@ class BookUpdate(BaseModel):
             return None
         return _normalize_name_list(value)
 
-    @field_validator("format", "status", "reading_status")
+    @field_validator("format", "status")
     @classmethod
     def validate_non_nullable_enums(
         cls,
-        value: CopyFormat | CopyStatus | ReadingStatus | None,
-    ) -> CopyFormat | CopyStatus | ReadingStatus:
+        value: CopyFormat | CopyStatus | None,
+    ) -> CopyFormat | CopyStatus:
         if value is None:
             raise ValueError("Este campo no puede ser nulo.")
-        return value
-
-    @field_validator("user_rating")
-    @classmethod
-    def validate_user_rating(cls, value: int | None) -> int | None:
         return value
 
 
@@ -165,5 +158,25 @@ class BookOut(BaseModel):
     status: CopyStatus
     reading_status: ReadingStatus
     user_rating: int | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CopyDetailOut(BaseModel):
+    id: int
+    book_id: int
+    library_id: int
+    title: str
+    isbn: str | None
+    publication_year: int | None
+    description: str | None
+    cover_url: str | None
+    publisher: str | None
+    authors: list[str]
+    genres: list[str]
+    format: CopyFormat
+    physical_location: str | None
+    digital_location: str | None
+    status: CopyStatus
 
     model_config = ConfigDict(from_attributes=True)

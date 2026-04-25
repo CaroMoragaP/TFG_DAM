@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.book import UserCopy
     from app.models.list import List
     from app.models.library import UserLibrary
 
@@ -36,6 +37,10 @@ class User(Base):
     )
 
     user_libraries: Mapped[list["UserLibrary"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    user_copies: Mapped[list["UserCopy"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

@@ -18,7 +18,6 @@ from app.models.enums import ListType
 
 if TYPE_CHECKING:
     from app.models.book import Book
-    from app.models.library import Library
     from app.models.user import User
 
 
@@ -29,11 +28,6 @@ class List(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
-    )
-    library_id: Mapped[int | None] = mapped_column(
-        ForeignKey("libraries.id", ondelete="SET NULL"),
-        nullable=True,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -54,7 +48,6 @@ class List(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="lists")
-    library: Mapped["Library | None"] = relationship(back_populates="lists")
     books: Mapped[list["ListBook"]] = relationship(
         back_populates="list",
         cascade="all, delete-orphan",

@@ -90,7 +90,7 @@ export function PrivateLayout() {
             <h3>{user?.name}</h3>
             <p>{user?.email}</p>
             <label className="field-group compact-field">
-              Biblioteca activa
+              Biblioteca por defecto
               <select
                 value={activeLibraryId ?? ""}
                 onChange={(event) => setActiveLibraryId(Number(event.target.value))}
@@ -102,6 +102,7 @@ export function PrivateLayout() {
                 ))}
               </select>
             </label>
+            <p>Se usara como destino inicial al crear nuevos libros.</p>
             <button
               className="ghost-link compact-action menu-inline-button"
               type="button"

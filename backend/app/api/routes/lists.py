@@ -26,8 +26,6 @@ from app.services.lists import list_list_books
 from app.services.lists import list_user_lists
 from app.services.lists import remove_book_from_list
 from app.services.lists import update_list
-from app.services.libraries import LibraryNotFoundError
-from app.services.libraries import LibraryPermissionDeniedError
 
 router = APIRouter()
 
@@ -58,13 +56,7 @@ def create_list_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ListOut:
-    try:
-        list_obj, book_count = create_list(db, user_id=current_user.id, data=payload)
-    except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except LibraryPermissionDeniedError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-
+    list_obj, book_count = create_list(db, user_id=current_user.id, data=payload)
     return build_list_response(list_obj, book_count)
 
 
@@ -88,10 +80,6 @@ def update_list_entry(
         )
     except ListNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except LibraryPermissionDeniedError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return build_list_response(list_obj, book_count)
 
@@ -214,7 +202,6 @@ def build_list_response(list_obj, book_count: int) -> ListOut:
     return ListOut(
         id=list_obj.id,
         user_id=list_obj.user_id,
-        library_id=list_obj.library_id,
         name=list_obj.name,
         type=list_obj.type,
         created_at=list_obj.created_at,

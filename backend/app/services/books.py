@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
@@ -15,14 +16,17 @@ from app.models.book import BookGenre
 from app.models.book import Copy
 from app.models.book import Genre
 from app.models.book import Publisher
+from app.models.book import UserCopy
 from app.models.enums import ReadingStatus
 from app.models.library import UserLibrary
 from app.schemas.book import BookCreate
+from app.schemas.book import CopyDetailOut
 from app.schemas.book import BookOut
 from app.schemas.book import BookUpdate
 from app.services.libraries import LibraryNotFoundError
 from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import get_accessible_library
+from app.services.user_copies import get_or_create_user_copy
 
 
 class BookNotFoundError(ValueError):
@@ -75,10 +79,16 @@ def create_book(
         physical_location=data.physical_location,
         digital_location=data.digital_location,
         status=data.status,
-        reading_status=data.reading_status,
-        user_rating=data.user_rating,
     )
     db.add(copy)
+    db.flush()
+    get_or_create_user_copy(
+        db,
+        user_id=user_id,
+        copy_id=copy.id,
+        seed_reading_status=data.reading_status,
+        seed_rating=data.user_rating,
+    )
     db.commit()
     return get_book_copy(db, user_id=user_id, copy_id=copy.id)
 
@@ -96,10 +106,15 @@ def list_books(
     if library_id is not None:
         get_accessible_library(db, user_id=user_id, library_id=library_id)
 
+    user_copy_alias = aliased(UserCopy)
     stmt = (
-        select(Copy)
+        select(Copy, user_copy_alias.reading_status, user_copy_alias.rating)
         .join(Book, Copy.book_id == Book.id)
         .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
+        .outerjoin(
+            user_copy_alias,
+            (user_copy_alias.copy_id == Copy.id) & (user_copy_alias.user_id == user_id),
+        )
         .outerjoin(Publisher, Publisher.id == Book.publisher_id)
         .outerjoin(BookAuthor, BookAuthor.book_id == Book.id)
         .outerjoin(Author, Author.id == BookAuthor.author_id)
@@ -130,12 +145,21 @@ def list_books(
         stmt = stmt.where(func.lower(func.coalesce(Genre.name, "")) == normalized_genre)
 
     if reading_status is not None:
-        stmt = stmt.where(Copy.reading_status == reading_status)
+        if reading_status == ReadingStatus.PENDING:
+            stmt = stmt.where(
+                or_(
+                    user_copy_alias.reading_status == reading_status,
+                    user_copy_alias.reading_status.is_(None),
+                ),
+            )
+        else:
+            stmt = stmt.where(user_copy_alias.reading_status == reading_status)
 
     if min_rating is not None:
-        stmt = stmt.where(Copy.user_rating.is_not(None), Copy.user_rating >= min_rating)
+        stmt = stmt.where(user_copy_alias.rating.is_not(None), user_copy_alias.rating >= min_rating)
 
-    return db.execute(stmt).unique().scalars().all()
+    rows = db.execute(stmt).unique().all()
+    return _hydrate_copy_personal_fields(rows)
 
 
 def list_genres(db: Session) -> list[str]:
@@ -149,16 +173,14 @@ def get_book_copy(
     user_id: int,
     copy_id: int,
 ) -> Copy:
-    stmt = (
-        select(Copy)
-        .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
-        .options(*COPY_LOAD_OPTIONS)
-        .where(
+    rows = db.execute(
+        _build_copy_query(user_id=user_id).where(
             Copy.id == copy_id,
             UserLibrary.user_id == user_id,
-        )
-    )
-    copy = db.execute(stmt).unique().scalar_one_or_none()
+        ),
+    ).unique().all()
+    copies = _hydrate_copy_personal_fields(rows)
+    copy = copies[0] if copies else None
     if copy is not None:
         return copy
 
@@ -212,10 +234,6 @@ def update_book(
         copy.digital_location = data.digital_location
     if "status" in data.model_fields_set:
         copy.status = data.status
-    if "reading_status" in data.model_fields_set:
-        copy.reading_status = data.reading_status
-    if "user_rating" in data.model_fields_set:
-        copy.user_rating = data.user_rating
 
     db.commit()
     return get_book_copy(db, user_id=user_id, copy_id=copy_id)
@@ -234,6 +252,8 @@ def delete_book(
 
 def serialize_book_copy(copy: Copy) -> BookOut:
     book = copy.book
+    reading_status = getattr(copy, "_catalog_reading_status", ReadingStatus.PENDING)
+    user_rating = getattr(copy, "_catalog_user_rating", None)
     return BookOut(
         id=copy.id,
         book_id=book.id,
@@ -256,8 +276,35 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         physical_location=copy.physical_location,
         digital_location=copy.digital_location,
         status=copy.status,
-        reading_status=copy.reading_status,
-        user_rating=copy.user_rating,
+        reading_status=reading_status,
+        user_rating=user_rating,
+    )
+
+
+def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
+    book = copy.book
+    return CopyDetailOut(
+        id=copy.id,
+        book_id=book.id,
+        library_id=copy.library_id,
+        title=book.title,
+        isbn=book.isbn,
+        publication_year=book.publication_year,
+        description=book.description,
+        cover_url=book.cover_url,
+        publisher=book.publisher.name if book.publisher is not None else None,
+        authors=[
+            relation.author.name
+            for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
+        ],
+        genres=[
+            relation.genre.name
+            for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
+        ],
+        format=copy.format,
+        physical_location=copy.physical_location,
+        digital_location=copy.digital_location,
+        status=copy.status,
     )
 
 
@@ -267,20 +314,24 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
         if existing_book is not None:
             return existing_book
 
+    publisher = _resolve_publisher(db, data.publisher_name)
+    authors = _resolve_authors(db, data.authors)
+    genres = _resolve_genres(db, data.genres)
+
     book = Book(
         title=data.title,
         isbn=data.isbn,
         publication_year=data.publication_year,
         description=data.description,
         cover_url=data.cover_url,
-        publisher=_resolve_publisher(db, data.publisher_name),
+        publisher=publisher,
         book_authors=[
             BookAuthor(author=author)
-            for author in _resolve_authors(db, data.authors)
+            for author in authors
         ],
         book_genres=[
             BookGenre(genre=genre)
-            for genre in _resolve_genres(db, data.genres)
+            for genre in genres
         ],
     )
     db.add(book)
@@ -350,3 +401,27 @@ def _ensure_unique_isbn(
     )
     if existing_book is not None:
         raise DuplicateBookIsbnError("Ya existe otro libro con ese ISBN.")
+
+
+def _build_copy_query(*, user_id: int):
+    user_copy_alias = aliased(UserCopy)
+    return (
+        select(Copy, user_copy_alias.reading_status, user_copy_alias.rating)
+        .join(UserLibrary, UserLibrary.library_id == Copy.library_id)
+        .outerjoin(
+            user_copy_alias,
+            (user_copy_alias.copy_id == Copy.id) & (user_copy_alias.user_id == user_id),
+        )
+        .options(*COPY_LOAD_OPTIONS)
+    )
+
+
+def _hydrate_copy_personal_fields(
+    rows: Sequence[tuple[Copy, ReadingStatus | None, int | None]],
+) -> list[Copy]:
+    copies: list[Copy] = []
+    for copy, reading_status, rating in rows:
+        setattr(copy, "_catalog_reading_status", reading_status or ReadingStatus.PENDING)
+        setattr(copy, "_catalog_user_rating", rating)
+        copies.append(copy)
+    return copies

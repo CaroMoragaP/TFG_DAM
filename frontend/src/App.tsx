@@ -3,6 +3,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PrivateLayout } from "./layouts/PrivateLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
+import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AuthPage } from "./pages/AuthPage";
 import { LibrarySectionPage } from "./pages/LibrarySectionPage";
@@ -44,6 +45,10 @@ const router = createBrowserRouter([
       {
         path: "catalogo",
         element: <DashboardPage />,
+      },
+      {
+        path: "libros/:id",
+        element: <BookDetailPage />,
       },
       {
         path: "leyendo",

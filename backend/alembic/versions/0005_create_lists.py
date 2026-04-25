@@ -35,7 +35,6 @@ def upgrade() -> None:
         "lists",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("library_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("type", list_type, nullable=False),
         sa.Column(
@@ -50,12 +49,10 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(["library_id"], ["libraries.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_lists_user_id"), "lists", ["user_id"], unique=False)
-    op.create_index(op.f("ix_lists_library_id"), "lists", ["library_id"], unique=False)
 
     op.create_table(
         "list_books",
@@ -77,8 +74,8 @@ def upgrade() -> None:
     connection.execute(
         sa.text(
             """
-            INSERT INTO lists (user_id, library_id, name, type)
-            SELECT id, NULL, 'Favoritos', 'wishlist'
+            INSERT INTO lists (user_id, name, type)
+            SELECT id, 'Favoritos', 'wishlist'
             FROM users
             """
         ),
@@ -86,8 +83,8 @@ def upgrade() -> None:
     connection.execute(
         sa.text(
             """
-            INSERT INTO lists (user_id, library_id, name, type)
-            SELECT id, NULL, 'Pendientes', 'pending'
+            INSERT INTO lists (user_id, name, type)
+            SELECT id, 'Pendientes', 'pending'
             FROM users
             """
         ),
@@ -96,7 +93,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("list_books")
-    op.drop_index(op.f("ix_lists_library_id"), table_name="lists")
     op.drop_index(op.f("ix_lists_user_id"), table_name="lists")
     op.drop_table("lists")
     list_type.drop(op.get_bind(), checkfirst=True)

@@ -13,7 +13,7 @@ import {
   fetchBooks,
   fetchGenres,
   fetchLists,
-  updateBookRequest,
+  updateCopyRequest,
   type Book,
   type BookCreatePayload,
   type BookUpdatePayload,
@@ -34,10 +34,16 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
 
   const q = searchParams.get("q") ?? "";
+  const libraryParam = searchParams.get("library") ?? "";
   const genre = searchParams.get("genre") ?? "";
   const readingStatus = (searchParams.get("readingStatus") ?? "") as ReadingStatus | "";
   const minRatingParam = searchParams.get("minRating") ?? "";
   const minRating = minRatingParam ? Number(minRatingParam) : undefined;
+  const parsedLibraryId = Number(libraryParam);
+  const selectedLibraryId =
+    libraryParam && Number.isInteger(parsedLibraryId) && parsedLibraryId > 0
+      ? parsedLibraryId
+      : undefined;
 
   useEffect(() => {
     setSearchDraft(q);
@@ -71,20 +77,20 @@ export function DashboardPage() {
   });
 
   const booksQuery = useQuery({
-    queryKey: ["books", { libraryId: activeLibraryId, q, genre, readingStatus, minRating }],
+    queryKey: ["books", { libraryId: selectedLibraryId ?? "all", q, genre, readingStatus, minRating }],
     queryFn: () =>
       fetchBooks(token ?? "", {
-        libraryId: activeLibraryId ?? undefined,
+        libraryId: selectedLibraryId,
         q,
         genre: genre || undefined,
         readingStatus: readingStatus || undefined,
         minRating,
       }),
-    enabled: Boolean(token && activeLibraryId),
+    enabled: Boolean(token),
   });
 
   const listsQuery = useQuery({
-    queryKey: ["lists", activeLibraryId],
+    queryKey: ["lists"],
     queryFn: () => fetchLists(token ?? ""),
     enabled: Boolean(token),
   });
@@ -103,7 +109,7 @@ export function DashboardPage() {
 
   const updateBookMutation = useMutation({
     mutationFn: ({ bookId, payload }: { bookId: number; payload: BookUpdatePayload }) =>
-      updateBookRequest(token ?? "", bookId, payload),
+      updateCopyRequest(token ?? "", bookId, payload),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["books"] }),
@@ -127,20 +133,18 @@ export function DashboardPage() {
     },
     onError: (error) => {
       setAddToListError(
-        error instanceof Error ? error.message : "No se pudo añadir el libro a la lista.",
+        error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.",
       );
     },
   });
 
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
-  const visibleLists = (listsQuery.data ?? []).filter(
-    (list) => list.library_id === null || list.library_id === activeLibraryId,
-  );
+  const visibleLists = listsQuery.data ?? [];
   const isModalOpen = activeModalMode !== null;
   const showLibraryBadge = libraries.length > 1;
 
   function updateFilter(
-    key: "genre" | "readingStatus" | "minRating",
+    key: "library" | "genre" | "readingStatus" | "minRating",
     value: string,
   ) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -180,14 +184,10 @@ export function DashboardPage() {
       const payload: BookUpdatePayload = {
         title: values.title.trim(),
         authors: [values.author.trim()],
-        publication_year: values.publicationYear.trim()
-          ? Number(values.publicationYear)
-          : null,
+        publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
         isbn: values.isbn.trim() || null,
         genres: values.genre.trim() ? [values.genre.trim()] : [],
         cover_url: values.coverUrl.trim() || null,
-        reading_status: values.readingStatus,
-        user_rating: values.userRating ? Number(values.userRating) : null,
       };
 
       await updateBookMutation.mutateAsync({
@@ -197,17 +197,16 @@ export function DashboardPage() {
       return;
     }
 
-    if (!activeLibraryId) {
-      throw new Error("No se encontró una biblioteca activa para guardar el libro.");
+    const libraryId = Number(values.libraryId);
+    if (!Number.isInteger(libraryId) || libraryId <= 0) {
+      throw new Error("Selecciona una biblioteca valida para guardar el libro.");
     }
 
     const payload: BookCreatePayload = {
-      library_id: activeLibraryId,
+      library_id: libraryId,
       title: values.title.trim(),
       authors: [values.author.trim()],
-      publication_year: values.publicationYear.trim()
-        ? Number(values.publicationYear)
-        : null,
+      publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
       isbn: values.isbn.trim() || null,
       genres: values.genre.trim() ? [values.genre.trim()] : [],
       cover_url: values.coverUrl.trim() || null,
@@ -233,26 +232,24 @@ export function DashboardPage() {
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
         <div>
-          <p className="eyebrow">Catálogo privado</p>
-          <h2>Mi catálogo</h2>
-          <p>
-            Explora tus libros, busca por autor o ISBN y mantén el estado de lectura al día.
-          </p>
+          <p className="eyebrow">Catalogo privado</p>
+          <h2>Mi catalogo</h2>
+          <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
         </div>
         <button
           className="submit-button catalog-add-button"
           type="button"
           onClick={handleOpenCreateModal}
-          disabled={isLibrariesLoading || isLibrariesError || !activeLibraryId}
+          disabled={isLibrariesLoading || isLibrariesError || libraries.length === 0}
         >
-          + Añadir libro
+          + Anadir libro
         </button>
       </div>
 
       <div className="panel subtle-panel">
-        <p className="eyebrow">Biblioteca activa</p>
-        <h3>{activeLibrary?.name ?? "Sin biblioteca activa"}</h3>
-        <p>El catálogo y las listas se filtran automáticamente por esta biblioteca.</p>
+        <p className="eyebrow">Biblioteca por defecto</p>
+        <h3>{activeLibrary?.name ?? "Sin biblioteca por defecto"}</h3>
+        <p>Se usara como destino inicial al crear libros, pero el catalogo muestra todas tus bibliotecas.</p>
       </div>
 
       <div className="panel catalog-toolbar">
@@ -260,7 +257,7 @@ export function DashboardPage() {
           <label className="field-group">
             Buscar
             <input
-              placeholder="Buscar por título, autor, ISBN..."
+              placeholder="Buscar por titulo, autor, ISBN..."
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -269,11 +266,20 @@ export function DashboardPage() {
 
         <div className="catalog-filters">
           <label className="field-group">
-            Género
-            <select
-              value={genre}
-              onChange={(event) => updateFilter("genre", event.target.value)}
-            >
+            Biblioteca
+            <select value={libraryParam} onChange={(event) => updateFilter("library", event.target.value)}>
+              <option value="">Todas</option>
+              {libraries.map((library) => (
+                <option key={library.id} value={library.id}>
+                  {library.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
+            Genero
+            <select value={genre} onChange={(event) => updateFilter("genre", event.target.value)}>
               <option value="">Todos</option>
               {(genresQuery.data ?? []).map((genreOption) => (
                 <option key={genreOption} value={genreOption}>
@@ -292,16 +298,13 @@ export function DashboardPage() {
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="reading">Leyendo</option>
-              <option value="finished">Leído</option>
+              <option value="finished">Leido</option>
             </select>
           </label>
 
           <label className="field-group">
-            Valoración mínima
-            <select
-              value={minRatingParam}
-              onChange={(event) => updateFilter("minRating", event.target.value)}
-            >
+            Valoracion minima
+            <select value={minRatingParam} onChange={(event) => updateFilter("minRating", event.target.value)}>
               <option value="">Todos</option>
               <option value="1">1+ estrellas</option>
               <option value="2">2+ estrellas</option>
@@ -329,16 +332,14 @@ export function DashboardPage() {
 
       {booksQuery.isError ? (
         <div className="panel">
-          <p>No se pudo cargar el catálogo. Revisa que FastAPI siga levantado.</p>
+          <p>No se pudo cargar el catalogo. Revisa que FastAPI siga levantado.</p>
         </div>
       ) : null}
 
       {booksQuery.data && booksQuery.data.length === 0 ? (
         <div className="panel empty-state">
           <h3>No hay libros con esos filtros.</h3>
-          <p>
-            Ajusta la búsqueda o crea un nuevo libro para empezar a poblar tu catálogo.
-          </p>
+          <p>Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo.</p>
         </div>
       ) : null}
 
@@ -359,7 +360,7 @@ export function DashboardPage() {
 
       <BookModal
         book={selectedBook}
-        defaultLibraryId={activeLibraryId ?? null}
+        defaultLibraryId={activeLibraryId ?? libraries[0]?.id ?? null}
         genres={genresQuery.data ?? []}
         isOpen={isModalOpen}
         isSaving={createBookMutation.isPending || updateBookMutation.isPending}

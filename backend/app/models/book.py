@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import TYPE_CHECKING
 
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Date
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
@@ -20,6 +23,7 @@ from app.models.enums import ReadingStatus
 if TYPE_CHECKING:
     from app.models.library import Library
     from app.models.list import ListBook
+    from app.models.user import User
 
 
 class Publisher(Base):
@@ -150,11 +154,43 @@ class Copy(Base):
         EnumValueType(CopyStatus),
         nullable=False,
     )
-    reading_status: Mapped[ReadingStatus] = mapped_column(
-        EnumValueType(ReadingStatus),
-        nullable=False,
-    )
-    user_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     book: Mapped["Book"] = relationship(back_populates="copies")
     library: Mapped["Library"] = relationship(back_populates="copies")
+    user_copies: Mapped[list["UserCopy"]] = relationship(
+        back_populates="copy",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserCopy(Base):
+    __tablename__ = "user_copies"
+    __table_args__ = (
+        UniqueConstraint("user_id", "copy_id", name="uq_user_copies_user_id_copy_id"),
+        CheckConstraint(
+            "rating IS NULL OR (rating >= 1 AND rating <= 5)",
+            name="ck_user_copies_rating_range",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    copy_id: Mapped[int] = mapped_column(
+        ForeignKey("copies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reading_status: Mapped[ReadingStatus] = mapped_column(
+        EnumValueType(ReadingStatus),
+        nullable=False,
+        default=ReadingStatus.PENDING,
+    )
+    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    personal_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="user_copies")
+    copy: Mapped["Copy"] = relationship(back_populates="user_copies")

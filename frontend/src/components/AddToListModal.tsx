@@ -48,7 +48,7 @@ export function AddToListModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">Listas personales</p>
-            <h2 id="add-to-list-title">Añadir "{book.title}"</h2>
+            <h2 id="add-to-list-title">Anadir "{book.title}"</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -73,13 +73,9 @@ export function AddToListModal({
                 >
                   <span>
                     <strong>{list.name}</strong>
-                    <small>
-                      {list.library_id === null ? "Global" : "Biblioteca activa"} · {list.book_count} libros
-                    </small>
+                    <small>{list.book_count} libros</small>
                   </span>
-                  <span>
-                    {isSaving && submittingListId === list.id ? "Guardando..." : "Añadir"}
-                  </span>
+                  <span>{isSaving && submittingListId === list.id ? "Guardando..." : "Anadir"}</span>
                 </button>
               ))}
             </div>

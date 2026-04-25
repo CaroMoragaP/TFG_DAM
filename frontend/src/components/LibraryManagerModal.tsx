@@ -142,7 +142,7 @@ export function LibraryManagerModal({
                       </p>
                     </div>
                     <span className={library.id === activeLibraryId ? "status-chip active" : "status-chip"}>
-                      {library.id === activeLibraryId ? "Activa" : "Disponible"}
+                      {library.id === activeLibraryId ? "Por defecto" : "Disponible"}
                     </span>
                   </div>
 
@@ -169,7 +169,7 @@ export function LibraryManagerModal({
                       type="button"
                       onClick={() => onSelectActive(library.id)}
                     >
-                      Usar
+                      Usar por defecto
                     </button>
                     {library.role === "owner" ? (
                       <button

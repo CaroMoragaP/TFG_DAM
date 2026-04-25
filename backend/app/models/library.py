@@ -19,7 +19,6 @@ from app.models.enums import UserLibraryRole
 
 if TYPE_CHECKING:
     from app.models.book import Copy
-    from app.models.list import List
     from app.models.user import User
 
 
@@ -45,10 +44,6 @@ class Library(Base):
     copies: Mapped[list["Copy"]] = relationship(
         back_populates="library",
         cascade="all, delete-orphan",
-    )
-    lists: Mapped[list["List"]] = relationship(
-        back_populates="library",
-        passive_deletes=True,
     )
 
 

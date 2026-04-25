@@ -1,17 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 
-import type { Library, ListCreatePayload, ListType, UserList } from "../lib/api";
+import type { ListCreatePayload, ListType, UserList } from "../lib/api";
 
 type ListFormModalProps = {
-  activeLibrary: Library | null;
   isOpen: boolean;
   isSaving: boolean;
   list: UserList | null;
   onClose: () => void;
   onSubmit: (payload: ListCreatePayload) => Promise<void>;
 };
-
-type ScopeValue = "global" | "active";
 
 const typeLabels: Record<ListType, string> = {
   wishlist: "Favoritos",
@@ -20,7 +17,6 @@ const typeLabels: Record<ListType, string> = {
 };
 
 export function ListFormModal({
-  activeLibrary,
   isOpen,
   isSaving,
   list,
@@ -29,7 +25,6 @@ export function ListFormModal({
 }: ListFormModalProps) {
   const [name, setName] = useState("");
   const [type, setType] = useState<ListType>("custom");
-  const [scope, setScope] = useState<ScopeValue>("global");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,7 +34,6 @@ export function ListFormModal({
 
     setName(list?.name ?? "");
     setType(list?.type ?? "custom");
-    setScope(list?.library_id === null ? "global" : "active");
     setErrorMessage(null);
   }, [isOpen, list]);
 
@@ -55,17 +49,11 @@ export function ListFormModal({
       return;
     }
 
-    if (scope === "active" && !activeLibrary) {
-      setErrorMessage("No hay una biblioteca activa disponible.");
-      return;
-    }
-
     setErrorMessage(null);
     try {
       await onSubmit({
         name: name.trim(),
         type,
-        library_id: scope === "active" ? activeLibrary?.id ?? null : null,
       });
     } catch (error) {
       setErrorMessage(
@@ -86,9 +74,7 @@ export function ListFormModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">Mis listas</p>
-            <h2 id="list-form-title">
-              {list ? "Editar lista" : "Crear lista"}
-            </h2>
+            <h2 id="list-form-title">{list ? "Editar lista" : "Crear lista"}</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -103,10 +89,7 @@ export function ListFormModal({
 
           <label className="field-group">
             Tipo
-            <select
-              value={type}
-              onChange={(event) => setType(event.target.value as ListType)}
-            >
+            <select value={type} onChange={(event) => setType(event.target.value as ListType)}>
               {Object.entries(typeLabels).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -115,26 +98,9 @@ export function ListFormModal({
             </select>
           </label>
 
-          <label className="field-group">
-            Alcance
-            <select
-              value={scope}
-              onChange={(event) => setScope(event.target.value as ScopeValue)}
-            >
-              <option value="global">Global</option>
-              <option value="active" disabled={!activeLibrary}>
-                Solo biblioteca activa
-              </option>
-            </select>
-          </label>
-
           <div className="subtle-panel">
-            <p className="eyebrow">Contexto</p>
-            <p>
-              {scope === "global"
-                ? "La lista será visible en cualquier biblioteca."
-                : `La lista quedará ligada a ${activeLibrary?.name ?? "la biblioteca activa"}.`}
-            </p>
+            <p className="eyebrow">Visibilidad</p>
+            <p>La lista estara disponible para guardar libros de cualquiera de tus bibliotecas.</p>
           </div>
 
           {errorMessage ? <p className="form-error">{errorMessage}</p> : null}

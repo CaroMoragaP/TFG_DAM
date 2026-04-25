@@ -24,18 +24,15 @@ class _ListNameMixin(BaseModel):
 
 class ListCreate(_ListNameMixin):
     type: ListType = ListType.CUSTOM
-    library_id: int | None = None
 
 
 class ListUpdate(_ListNameMixin):
     type: ListType = ListType.CUSTOM
-    library_id: int | None = None
 
 
 class ListOut(BaseModel):
     id: int
     user_id: int
-    library_id: int | None
     name: str
     type: ListType
     created_at: datetime

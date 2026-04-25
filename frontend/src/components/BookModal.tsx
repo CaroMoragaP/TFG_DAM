@@ -63,11 +63,21 @@ function bookToFormValues(book: Book): BookFormValues {
   };
 }
 
-function buildValidationErrors(values: BookFormValues): FormErrors {
+function buildValidationErrors(
+  values: BookFormValues,
+  mode: "create" | "edit",
+): FormErrors {
   const errors: FormErrors = {};
 
+  if (mode === "create") {
+    const parsedLibraryId = Number(values.libraryId);
+    if (!Number.isInteger(parsedLibraryId) || parsedLibraryId <= 0) {
+      errors.libraryId = "Selecciona una biblioteca.";
+    }
+  }
+
   if (!values.title.trim()) {
-    errors.title = "El título es obligatorio.";
+    errors.title = "El titulo es obligatorio.";
   }
 
   if (!values.author.trim()) {
@@ -77,7 +87,7 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
   if (values.publicationYear.trim()) {
     const parsedYear = Number(values.publicationYear);
     if (!Number.isInteger(parsedYear) || parsedYear < 0 || parsedYear > 9999) {
-      errors.publicationYear = "Introduce un año válido.";
+      errors.publicationYear = "Introduce un ano valido.";
     }
   }
 
@@ -85,7 +95,7 @@ function buildValidationErrors(values: BookFormValues): FormErrors {
     try {
       new URL(values.coverUrl);
     } catch {
-      errors.coverUrl = "Introduce una URL válida.";
+      errors.coverUrl = "Introduce una URL valida.";
     }
   }
 
@@ -107,9 +117,7 @@ function applyImportedBook(
     ...values,
     title: importedBook.title,
     author: importedBook.authors[0] ?? "",
-    publicationYear: importedBook.publication_year
-      ? String(importedBook.publication_year)
-      : "",
+    publicationYear: importedBook.publication_year ? String(importedBook.publication_year) : "",
     isbn: importedBook.isbn ?? "",
     genre: importedBook.genres[0] ?? "",
     coverUrl: importedBook.cover_url ?? "",
@@ -132,9 +140,7 @@ export function BookModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const currentLibrary =
     libraries.find((library) =>
-      mode === "edit" && book
-        ? library.id === book.library_id
-        : library.id === defaultLibraryId,
+      mode === "edit" && book ? library.id === book.library_id : library.id === defaultLibraryId,
     ) ?? null;
 
   useEffect(() => {
@@ -152,7 +158,7 @@ export function BookModal({
       const title = formValues.title.trim();
 
       if (!isbn && !title) {
-        throw new Error("Escribe un ISBN o un título antes de buscar.");
+        throw new Error("Escribe un ISBN o un titulo antes de buscar.");
       }
 
       return fetchOpenLibraryBook(token, isbn ? { isbn } : { q: title });
@@ -175,7 +181,7 @@ export function BookModal({
       const message =
         error instanceof ApiError || error instanceof Error
           ? error.message
-          : "No se pudo importar información desde Open Library.";
+          : "No se pudo importar informacion desde Open Library.";
       setErrors((currentErrors) => ({
         ...currentErrors,
         form: message,
@@ -184,9 +190,7 @@ export function BookModal({
   });
 
   const genreOptions =
-    !formValues.genre || genres.includes(formValues.genre)
-      ? genres
-      : [formValues.genre, ...genres];
+    !formValues.genre || genres.includes(formValues.genre) ? genres : [formValues.genre, ...genres];
 
   if (!isOpen) {
     return null;
@@ -215,7 +219,7 @@ export function BookModal({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextErrors = buildValidationErrors(formValues);
+    const nextErrors = buildValidationErrors(formValues, mode);
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -247,9 +251,7 @@ export function BookModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">{mode === "create" ? "Nuevo libro" : "Editar libro"}</p>
-            <h2 id="book-modal-title">
-              {mode === "create" ? "Añadir libro" : "Guardar cambios"}
-            </h2>
+            <h2 id="book-modal-title">{mode === "create" ? "Anadir libro" : "Guardar cambios"}</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -259,60 +261,56 @@ export function BookModal({
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-grid">
             {mode === "create" ? (
-              <div className="field-group">
+              <label className="field-group">
                 Biblioteca destino
-                <div className="readonly-field">
-                  {currentLibrary?.name ?? "Biblioteca no disponible"}
-                </div>
-              </div>
+                <select
+                  value={formValues.libraryId}
+                  onChange={(event) => handleFieldChange("libraryId", event.target.value)}
+                >
+                  <option value="">Selecciona una biblioteca</option>
+                  {libraries.map((library) => (
+                    <option key={library.id} value={library.id}>
+                      {library.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.libraryId ? <p className="field-error">{errors.libraryId}</p> : null}
+              </label>
             ) : null}
 
             {mode === "edit" && book ? (
               <div className="field-group">
                 Biblioteca
-                <div className="readonly-field">
-                  {libraries.find((library) => library.id === book.library_id)?.name ?? "Biblioteca"}
-                </div>
+                <div className="readonly-field">{currentLibrary?.name ?? "Biblioteca"}</div>
               </div>
             ) : null}
 
             <label className="field-group">
-              Título
-              <input
-                value={formValues.title}
-                onChange={(event) => handleFieldChange("title", event.target.value)}
-              />
+              Titulo
+              <input value={formValues.title} onChange={(event) => handleFieldChange("title", event.target.value)} />
               {errors.title ? <p className="field-error">{errors.title}</p> : null}
             </label>
 
             <label className="field-group">
               Autor
-              <input
-                value={formValues.author}
-                onChange={(event) => handleFieldChange("author", event.target.value)}
-              />
+              <input value={formValues.author} onChange={(event) => handleFieldChange("author", event.target.value)} />
               {errors.author ? <p className="field-error">{errors.author}</p> : null}
             </label>
 
             <label className="field-group">
-              Año
+              Ano
               <input
                 inputMode="numeric"
                 value={formValues.publicationYear}
                 onChange={(event) => handleFieldChange("publicationYear", event.target.value)}
               />
-              {errors.publicationYear ? (
-                <p className="field-error">{errors.publicationYear}</p>
-              ) : null}
+              {errors.publicationYear ? <p className="field-error">{errors.publicationYear}</p> : null}
             </label>
 
             <label className="field-group">
               ISBN
               <div className="compound-field">
-                <input
-                  value={formValues.isbn}
-                  onChange={(event) => handleFieldChange("isbn", event.target.value)}
-                />
+                <input value={formValues.isbn} onChange={(event) => handleFieldChange("isbn", event.target.value)} />
                 <button
                   className="ghost-link compact-action"
                   type="button"
@@ -326,12 +324,9 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              Género
-              <select
-                value={formValues.genre}
-                onChange={(event) => handleFieldChange("genre", event.target.value)}
-              >
-                <option value="">Sin género</option>
+              Genero
+              <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
+                <option value="">Sin genero</option>
                 {genreOptions.map((genre) => (
                   <option key={genre} value={genre}>
                     {genre}
@@ -341,44 +336,43 @@ export function BookModal({
               {errors.genre ? <p className="field-error">{errors.genre}</p> : null}
             </label>
 
-            <label className="field-group">
-              Estado inicial
-              <select
-                value={formValues.readingStatus}
-                onChange={(event) =>
-                  handleFieldChange("readingStatus", event.target.value as ReadingStatus)
-                }
-              >
-                <option value="pending">Pendiente</option>
-                <option value="reading">Leyendo</option>
-                <option value="finished">Leído</option>
-              </select>
-            </label>
+            {mode === "create" ? (
+              <label className="field-group">
+                Estado inicial
+                <select
+                  value={formValues.readingStatus}
+                  onChange={(event) => handleFieldChange("readingStatus", event.target.value as ReadingStatus)}
+                >
+                  <option value="pending">Pendiente</option>
+                  <option value="reading">Leyendo</option>
+                  <option value="finished">Leido</option>
+                </select>
+              </label>
+            ) : null}
 
             <label className="field-group">
               URL de portada
-              <input
-                value={formValues.coverUrl}
-                onChange={(event) => handleFieldChange("coverUrl", event.target.value)}
-              />
+              <input value={formValues.coverUrl} onChange={(event) => handleFieldChange("coverUrl", event.target.value)} />
               {errors.coverUrl ? <p className="field-error">{errors.coverUrl}</p> : null}
             </label>
 
-            <label className="field-group">
-              Rating
-              <select
-                value={formValues.userRating}
-                onChange={(event) => handleFieldChange("userRating", event.target.value)}
-              >
-                <option value="">Sin rating</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-              </select>
-              {errors.userRating ? <p className="field-error">{errors.userRating}</p> : null}
-            </label>
+            {mode === "create" ? (
+              <label className="field-group">
+                Rating
+                <select
+                  value={formValues.userRating}
+                  onChange={(event) => handleFieldChange("userRating", event.target.value)}
+                >
+                  <option value="">Sin rating</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+                {errors.userRating ? <p className="field-error">{errors.userRating}</p> : null}
+              </label>
+            ) : null}
           </div>
 
           {errors.form ? <p className="form-error">{errors.form}</p> : null}
@@ -388,11 +382,7 @@ export function BookModal({
               Cancelar
             </button>
             <button className="submit-button" type="submit" disabled={isSaving}>
-              {isSaving
-                ? "Guardando..."
-                : mode === "create"
-                  ? "Guardar libro"
-                  : "Guardar cambios"}
+              {isSaving ? "Guardando..." : mode === "create" ? "Guardar libro" : "Guardar cambios"}
             </button>
           </div>
         </form>

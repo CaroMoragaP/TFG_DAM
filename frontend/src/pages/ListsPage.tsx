@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 import { ListFormModal } from "../components/ListFormModal";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   createListRequest,
   deleteListRequest,
@@ -17,25 +16,18 @@ import {
 
 export function ListsPage() {
   const { token } = useAuth();
-  const { activeLibrary, activeLibraryId } = useActiveLibrary();
   const queryClient = useQueryClient();
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [editingList, setEditingList] = useState<UserList | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const listsQuery = useQuery({
-    queryKey: ["lists", activeLibraryId],
+    queryKey: ["lists"],
     queryFn: () => fetchLists(token ?? ""),
     enabled: Boolean(token),
   });
 
-  const visibleLists = useMemo(
-    () =>
-      (listsQuery.data ?? []).filter(
-        (list) => list.library_id === null || list.library_id === activeLibraryId,
-      ),
-    [activeLibraryId, listsQuery.data],
-  );
+  const visibleLists = useMemo(() => listsQuery.data ?? [], [listsQuery.data]);
   const selectedList =
     visibleLists.find((list) => list.id === selectedListId) ?? visibleLists[0] ?? null;
 
@@ -127,9 +119,7 @@ export function ListsPage() {
         <div>
           <p className="eyebrow">Listas personales</p>
           <h2>Mis listas</h2>
-          <p>
-            Organiza tus lecturas en listas globales o en listas ligadas a la biblioteca activa.
-          </p>
+          <p>Organiza tus lecturas en colecciones disponibles para todo tu catalogo.</p>
         </div>
         <button className="submit-button catalog-add-button" type="button" onClick={handleOpenCreateForm}>
           + Crear lista
@@ -137,11 +127,9 @@ export function ListsPage() {
       </div>
 
       <div className="panel subtle-panel">
-        <p className="eyebrow">Biblioteca activa</p>
-        <h3>{activeLibrary?.name ?? "Sin biblioteca activa"}</h3>
-        <p>
-          Se muestran las listas globales y las asociadas a la biblioteca actual.
-        </p>
+        <p className="eyebrow">Listas globales</p>
+        <h3>Todas tus listas</h3>
+        <p>Estas listas estan disponibles para anadir libros desde cualquiera de tus bibliotecas.</p>
       </div>
 
       <div className="lists-layout">
@@ -154,8 +142,8 @@ export function ListsPage() {
 
           {visibleLists.length === 0 ? (
             <div className="panel empty-state">
-              <h3>Aún no tienes listas visibles.</h3>
-              <p>Crea una lista global o una lista para la biblioteca activa.</p>
+              <h3>Aun no tienes listas.</h3>
+              <p>Crea tu primera lista para empezar a organizar lecturas y recomendaciones.</p>
             </div>
           ) : (
             visibleLists.map((list) => (
@@ -167,9 +155,7 @@ export function ListsPage() {
               >
                 <span>
                   <strong>{list.name}</strong>
-                  <small>
-                    {list.library_id === null ? "Global" : "Biblioteca"} · {list.book_count} libros
-                  </small>
+                  <small>{list.book_count} libros</small>
                 </span>
                 <span className="status-chip">{list.type}</span>
               </button>
@@ -184,11 +170,7 @@ export function ListsPage() {
                 <div>
                   <p className="eyebrow">Lista seleccionada</p>
                   <h2>{selectedList.name}</h2>
-                  <p>
-                    {selectedList.library_id === null
-                      ? "Lista global visible en cualquier biblioteca."
-                      : "Lista ligada a la biblioteca activa."}
-                  </p>
+                  <p>Disponible para guardar libros desde cualquier biblioteca accesible.</p>
                 </div>
                 <div className="inline-actions">
                   <button
@@ -219,8 +201,8 @@ export function ListsPage() {
 
           {selectedList && listBooksQuery.data?.length === 0 ? (
             <div className="panel empty-state">
-              <h3>La lista está vacía.</h3>
-              <p>Añade libros desde el catálogo usando la acción "Añadir a lista".</p>
+              <h3>La lista esta vacia.</h3>
+              <p>Anade libros desde el catalogo usando la accion "Anadir a lista".</p>
             </div>
           ) : null}
 
@@ -233,9 +215,7 @@ export function ListsPage() {
                     <p>{book.authors[0] ?? "Autor sin registrar"}</p>
                   </div>
                   <div className="inline-actions">
-                    <span className="library-badge">
-                      {book.genres[0] ?? "Sin género"}
-                    </span>
+                    <span className="library-badge">{book.genres[0] ?? "Sin genero"}</span>
                     <button
                       className="ghost-link compact-action"
                       type="button"
@@ -258,7 +238,6 @@ export function ListsPage() {
       </div>
 
       <ListFormModal
-        activeLibrary={activeLibrary}
         isOpen={isFormOpen}
         isSaving={createListMutation.isPending || updateListMutation.isPending}
         list={editingList}

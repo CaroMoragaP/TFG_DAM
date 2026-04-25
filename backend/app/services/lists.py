@@ -17,7 +17,6 @@ from app.models.list import ListBook
 from app.models.enums import ListType
 from app.schemas.list import ListCreate
 from app.schemas.list import ListUpdate
-from app.services.libraries import get_accessible_library
 
 DEFAULT_LIST_SEEDS: tuple[tuple[str, ListType], ...] = (
     ("Favoritos", ListType.WISHLIST),
@@ -57,7 +56,6 @@ def create_default_lists_for_user(
                 user_id=user_id,
                 name=name,
                 type=list_type,
-                library_id=None,
             ),
         )
 
@@ -83,12 +81,8 @@ def create_list(
     user_id: int,
     data: ListCreate,
 ) -> tuple[List, int]:
-    if data.library_id is not None:
-        get_accessible_library(db, user_id=user_id, library_id=data.library_id)
-
     list_obj = List(
         user_id=user_id,
-        library_id=data.library_id,
         name=data.name,
         type=data.type,
     )
@@ -124,12 +118,9 @@ def update_list(
     data: ListUpdate,
 ) -> tuple[List, int]:
     list_obj = get_user_list(db, user_id=user_id, list_id=list_id)
-    if data.library_id is not None:
-        get_accessible_library(db, user_id=user_id, library_id=data.library_id)
 
     list_obj.name = data.name
     list_obj.type = data.type
-    list_obj.library_id = data.library_id
     db.commit()
     db.refresh(list_obj)
     return list_obj, get_list_book_count(db, list_id=list_obj.id)
@@ -170,8 +161,8 @@ def add_book_to_list(
     list_id: int,
     book_id: int,
 ) -> None:
-    list_obj = get_user_list(db, user_id=user_id, list_id=list_id)
-    _validate_book_for_list(db, user_id=user_id, book_id=book_id, list_obj=list_obj)
+    get_user_list(db, user_id=user_id, list_id=list_id)
+    _validate_book_for_list(db, user_id=user_id, book_id=book_id)
 
     existing_entry = db.scalar(
         select(ListBook).where(
@@ -223,7 +214,6 @@ def _validate_book_for_list(
     *,
     user_id: int,
     book_id: int,
-    list_obj: List,
 ) -> None:
     stmt = (
         select(Book.id)
@@ -235,11 +225,8 @@ def _validate_book_for_list(
         )
         .distinct()
     )
-    if list_obj.library_id is not None:
-        stmt = stmt.where(Copy.library_id == list_obj.library_id)
-
     accessible_book_id = db.scalar(stmt)
     if accessible_book_id is None:
         raise BookUnavailableForListError(
-            "El libro no esta disponible para esa lista en el contexto actual.",
+            "El libro no esta disponible para el usuario autenticado.",
         )

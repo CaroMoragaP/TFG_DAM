@@ -7,6 +7,7 @@ from app.models.book import BookGenre
 from app.models.book import Copy
 from app.models.book import Genre
 from app.models.book import Publisher
+from app.models.book import UserCopy
 from app.models.enums import CopyFormat
 from app.models.enums import CopyStatus
 from app.models.enums import LibraryType
@@ -35,6 +36,7 @@ __all__ = [
     "ListType",
     "Publisher",
     "ReadingStatus",
+    "UserCopy",
     "User",
     "UserLibrary",
     "UserLibraryRole",

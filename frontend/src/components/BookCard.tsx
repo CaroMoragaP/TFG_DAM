@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import type { Book, Library, ReadingStatus } from "../lib/api";
 
 type BookCardProps = {
@@ -46,7 +48,7 @@ export function BookCard({
 
   return (
     <article className="book-card panel">
-      <div className="book-cover-shell">
+      <Link className="book-cover-shell" to={`/libros/${book.id}`} aria-label={`Ver detalle de ${book.title}`}>
         {book.cover_url ? (
           <img className="book-cover-image" src={book.cover_url} alt={`Portada de ${book.title}`} />
         ) : (
@@ -54,12 +56,14 @@ export function BookCard({
             <span>{coverLetter}</span>
           </div>
         )}
-      </div>
+      </Link>
 
       <div className="book-card-body">
         <div className="book-card-head">
           <div>
-            <h3>{book.title}</h3>
+            <h3>
+              <Link to={`/libros/${book.id}`}>{book.title}</Link>
+            </h3>
             <p className="book-card-author">{author}</p>
           </div>
           <div className="card-actions">

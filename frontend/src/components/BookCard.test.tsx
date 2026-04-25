@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { BookCard } from "./BookCard";
@@ -33,18 +34,20 @@ const library: Library = {
 };
 
 describe("BookCard", () => {
-  it("renders the main catalog information and exposes list and edit actions", () => {
+  it("renders the main catalog information, keeps actions, and links to detail", () => {
     const onEdit = vi.fn();
     const onAddToList = vi.fn();
 
     render(
-      <BookCard
-        book={book}
-        library={library}
-        showLibraryBadge={true}
-        onAddToList={onAddToList}
-        onEdit={onEdit}
-      />,
+      <MemoryRouter>
+        <BookCard
+          book={book}
+          library={library}
+          showLibraryBadge={true}
+          onAddToList={onAddToList}
+          onEdit={onEdit}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByText("Dune")).toBeInTheDocument();
@@ -52,8 +55,9 @@ describe("BookCard", () => {
     expect(screen.getByText("5/5")).toBeInTheDocument();
     expect(screen.getByText("Leyendo")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca personal")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dune" })).toHaveAttribute("href", "/libros/7");
 
-    fireEvent.click(screen.getByRole("button", { name: "Añadir a lista" }));
+    fireEvent.click(screen.getByRole("button", { name: /lista/i }));
     expect(onAddToList).toHaveBeenCalledWith(book);
 
     fireEvent.click(screen.getByRole("button", { name: "Editar" }));

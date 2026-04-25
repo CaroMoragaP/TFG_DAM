@@ -1,0 +1,117 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
+
+import { BookDetailPage } from "./BookDetailPage";
+
+const apiMocks = vi.hoisted(() => ({
+  fetchCopyById: vi.fn(),
+  fetchUserCopyData: vi.fn(),
+  fetchGenres: vi.fn(),
+  updateUserCopyDataRequest: vi.fn(),
+  updateCopyRequest: vi.fn(),
+  deleteCopyRequest: vi.fn(),
+  fetchOpenLibraryBook: vi.fn(),
+}));
+
+vi.mock("../auth/AuthProvider", () => ({
+  useAuth: () => ({
+    token: "token",
+  }),
+}));
+
+vi.mock("../lib/api", () => ({
+  ApiError: class ApiError extends Error {},
+  fetchCopyById: apiMocks.fetchCopyById,
+  fetchUserCopyData: apiMocks.fetchUserCopyData,
+  fetchGenres: apiMocks.fetchGenres,
+  updateUserCopyDataRequest: apiMocks.updateUserCopyDataRequest,
+  updateCopyRequest: apiMocks.updateCopyRequest,
+  deleteCopyRequest: apiMocks.deleteCopyRequest,
+  fetchOpenLibraryBook: apiMocks.fetchOpenLibraryBook,
+}));
+
+describe("BookDetailPage", () => {
+  it("loads copy detail and saves personal updates", async () => {
+    apiMocks.fetchCopyById.mockResolvedValue({
+      id: 7,
+      book_id: 3,
+      library_id: 1,
+      title: "Dune",
+      isbn: "123",
+      publication_year: 1965,
+      description: "Arrakis.",
+      cover_url: null,
+      publisher: null,
+      authors: ["Frank Herbert"],
+      genres: ["Sci-Fi"],
+      format: "physical",
+      physical_location: null,
+      digital_location: null,
+      status: "available",
+    });
+    apiMocks.fetchUserCopyData.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "reading",
+      rating: 4,
+      start_date: "2026-04-01",
+      end_date: null,
+      personal_notes: "Notas iniciales",
+    });
+    apiMocks.fetchGenres.mockResolvedValue(["Sci-Fi"]);
+    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "finished",
+      rating: 5,
+      start_date: "2026-04-01",
+      end_date: "2026-04-25",
+      personal_notes: "Notas finales",
+    });
+    apiMocks.updateCopyRequest.mockResolvedValue({});
+    apiMocks.deleteCopyRequest.mockResolvedValue(undefined);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/libros/7"]}>
+          <Routes>
+            <Route path="/libros/:id" element={<BookDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Dune")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Estado"), {
+      target: { value: "finished" },
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 7, {
+        reading_status: "finished",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Notas finales" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 7, {
+        personal_notes: "Notas finales",
+      });
+    });
+  });
+});

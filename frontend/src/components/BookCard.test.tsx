@@ -15,6 +15,8 @@ const book: Book = {
   description: null,
   cover_url: null,
   publisher: null,
+  collection: "Cronicas de Arrakis",
+  author_country: "Estados Unidos",
   authors: ["Frank Herbert"],
   genres: ["Sci-Fi"],
   format: "physical",
@@ -58,6 +60,8 @@ describe("BookCard", () => {
     expect(screen.getByText("Frank Herbert")).toBeInTheDocument();
     expect(screen.getByText("5/5")).toBeInTheDocument();
     expect(screen.getByText("Leyendo")).toBeInTheDocument();
+    expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
+    expect(screen.getByText("Estados Unidos")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca personal")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dune" })).toHaveAttribute("href", "/libros/7");
 

@@ -45,6 +45,8 @@ class BookCreate(BaseModel):
     description: str | None = None
     cover_url: str | None = Field(default=None, max_length=500)
     publisher_name: str | None = Field(default=None, max_length=255)
+    collection_name: str | None = Field(default=None, max_length=255)
+    author_country_name: str | None = Field(default=None, max_length=120)
     authors: list[str] = Field(default_factory=list)
     genres: list[str] = Field(default_factory=list)
     format: CopyFormat = CopyFormat.PHYSICAL
@@ -67,6 +69,8 @@ class BookCreate(BaseModel):
         "description",
         "cover_url",
         "publisher_name",
+        "collection_name",
+        "author_country_name",
         "physical_location",
         "digital_location",
     )
@@ -87,6 +91,8 @@ class BookUpdate(BaseModel):
     description: str | None = None
     cover_url: str | None = Field(default=None, max_length=500)
     publisher_name: str | None = Field(default=None, max_length=255)
+    collection_name: str | None = Field(default=None, max_length=255)
+    author_country_name: str | None = Field(default=None, max_length=120)
     authors: list[str] | None = None
     genres: list[str] | None = None
     format: CopyFormat | None = None
@@ -112,6 +118,8 @@ class BookUpdate(BaseModel):
         "description",
         "cover_url",
         "publisher_name",
+        "collection_name",
+        "author_country_name",
         "physical_location",
         "digital_location",
     )
@@ -147,6 +155,8 @@ class BookMetadataUpdate(BaseModel):
     description: str | None = None
     cover_url: str | None = Field(default=None, max_length=500)
     publisher_name: str | None = Field(default=None, max_length=255)
+    collection_name: str | None = Field(default=None, max_length=255)
+    author_country_name: str | None = Field(default=None, max_length=120)
     authors: list[str] | None = None
     genres: list[str] | None = None
 
@@ -168,6 +178,8 @@ class BookMetadataUpdate(BaseModel):
         "description",
         "cover_url",
         "publisher_name",
+        "collection_name",
+        "author_country_name",
     )
     @classmethod
     def normalize_metadata_optional_fields(cls, value: str | None) -> str | None:
@@ -221,6 +233,8 @@ class BookOut(BaseModel):
     description: str | None
     cover_url: str | None
     publisher: str | None
+    collection: str | None
+    author_country: str | None
     authors: list[str]
     genres: list[str]
     format: CopyFormat
@@ -243,6 +257,8 @@ class CopyDetailOut(BaseModel):
     description: str | None
     cover_url: str | None
     publisher: str | None
+    collection: str | None
+    author_country: str | None
     authors: list[str]
     genres: list[str]
     format: CopyFormat
@@ -261,6 +277,8 @@ class BookMetadataOut(BaseModel):
     description: str | None
     cover_url: str | None
     publisher: str | None
+    collection: str | None
+    author_country: str | None
     authors: list[str]
     genres: list[str]
 

@@ -29,6 +29,8 @@ const book: Book = {
   description: null,
   cover_url: null,
   publisher: null,
+  collection: "Cronicas de Arrakis",
+  author_country: "Estados Unidos",
   authors: ["Frank Herbert"],
   genres: ["Sci-Fi"],
   format: "physical",

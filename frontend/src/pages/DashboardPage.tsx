@@ -36,6 +36,8 @@ export function DashboardPage() {
   const libraryParam = searchParams.get("library") ?? "";
   const listIdParam = searchParams.get("listId") ?? "";
   const genre = searchParams.get("genre") ?? "";
+  const collection = searchParams.get("collection") ?? "";
+  const authorCountry = searchParams.get("authorCountry") ?? "";
   const readingStatus = (searchParams.get("readingStatus") ?? "") as ReadingStatus | "";
   const minRatingParam = searchParams.get("minRating") ?? "";
   const minRating = minRatingParam ? Number(minRatingParam) : undefined;
@@ -92,6 +94,8 @@ export function DashboardPage() {
         listId: selectedListId ?? "all",
         q,
         genre,
+        collection,
+        authorCountry,
         readingStatus,
         minRating,
       },
@@ -102,6 +106,8 @@ export function DashboardPage() {
         listId: selectedListId,
         q,
         genre: genre || undefined,
+        collection: collection || undefined,
+        authorCountry: authorCountry || undefined,
         readingStatus: readingStatus || undefined,
         minRating,
       }),
@@ -170,7 +176,7 @@ export function DashboardPage() {
     booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 
   function updateFilter(
-    key: "library" | "listId" | "genre" | "readingStatus" | "minRating",
+    key: "library" | "listId" | "genre" | "collection" | "authorCountry" | "readingStatus" | "minRating",
     value: string,
   ) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -201,9 +207,11 @@ export function DashboardPage() {
       library_id: libraryId,
       title: values.title.trim(),
       authors: [values.author.trim()],
+      author_country_name: values.authorCountry.trim() || null,
       publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
       isbn: values.isbn.trim() || null,
       genres: values.genre.trim() ? [values.genre.trim()] : [],
+      collection_name: values.collection.trim() || null,
       cover_url: values.coverUrl.trim() || null,
       reading_status: values.readingStatus,
       user_rating: values.userRating ? Number(values.userRating) : null,
@@ -305,11 +313,18 @@ export function DashboardPage() {
           </label>
 
           <label className="field-group">
+            Coleccion
+            <input value={collection} onChange={(event) => updateFilter("collection", event.target.value)} />
+          </label>
+
+          <label className="field-group">
+            Pais del autor
+            <input value={authorCountry} onChange={(event) => updateFilter("authorCountry", event.target.value)} />
+          </label>
+
+          <label className="field-group">
             Estado de lectura
-            <select
-              value={readingStatus}
-              onChange={(event) => updateFilter("readingStatus", event.target.value)}
-            >
+            <select value={readingStatus} onChange={(event) => updateFilter("readingStatus", event.target.value)}>
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="reading">Leyendo</option>
@@ -367,11 +382,7 @@ export function DashboardPage() {
           <p>{booksErrorMessage}</p>
           {selectedListId ? (
             <div className="inline-actions">
-              <button
-                className="ghost-link compact-action"
-                type="button"
-                onClick={() => updateFilter("listId", "")}
-              >
+              <button className="ghost-link compact-action" type="button" onClick={() => updateFilter("listId", "")}>
                 Limpiar filtro de lista
               </button>
             </div>

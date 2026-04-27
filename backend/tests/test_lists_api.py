@@ -138,6 +138,8 @@ def test_lists_crud_and_book_membership(client: TestClient) -> None:
         "Kindred",
         "Parable of the Sower",
     }
+    assert all("collection" in item for item in list_books_response.json())
+    assert all("author_country" in item for item in list_books_response.json())
 
     update_list_response = client.put(
         f"/lists/{created_list['id']}",

@@ -26,7 +26,7 @@ const readingStatusCopy: Record<
     iconLabel: "L",
   },
   finished: {
-    label: "Leído",
+    label: "Leido",
     toneClass: "finished",
     iconLabel: "T",
   },
@@ -69,12 +69,8 @@ export function BookCard({
             <p className="book-card-author">{author}</p>
           </div>
           <div className="card-actions">
-            <button
-              className="ghost-link compact-action"
-              type="button"
-              onClick={() => onAddToList(book)}
-            >
-              Añadir a lista
+            <button className="ghost-link compact-action" type="button" onClick={() => onAddToList(book)}>
+              Anadir a lista
             </button>
             {canEdit ? (
               <button className="ghost-link compact-action" type="button" onClick={() => onEdit(book)}>
@@ -90,8 +86,16 @@ export function BookCard({
             <dd>{formatRating(book.user_rating)}</dd>
           </div>
           <div>
-            <dt>Género</dt>
+            <dt>Genero</dt>
             <dd>{book.genres[0] ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Coleccion</dt>
+            <dd>{book.collection ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Pais autor</dt>
+            <dd>{book.author_country ?? "-"}</dd>
           </div>
         </dl>
 
@@ -103,9 +107,7 @@ export function BookCard({
             {statusInfo.label}
           </span>
 
-          {showLibraryBadge && library ? (
-            <span className="library-badge">{library.name}</span>
-          ) : null}
+          {showLibraryBadge && library ? <span className="library-badge">{library.name}</span> : null}
         </div>
       </div>
     </article>

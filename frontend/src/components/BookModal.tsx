@@ -14,9 +14,11 @@ export type BookFormValues = {
   libraryId: string;
   title: string;
   author: string;
+  authorCountry: string;
   publicationYear: string;
   isbn: string;
   genre: string;
+  collection: string;
   readingStatus: ReadingStatus;
   coverUrl: string;
   userRating: string;
@@ -41,9 +43,11 @@ const emptyFormValues = (defaultLibraryId: number | null): BookFormValues => ({
   libraryId: defaultLibraryId ? String(defaultLibraryId) : "",
   title: "",
   author: "",
+  authorCountry: "",
   publicationYear: "",
   isbn: "",
   genre: "",
+  collection: "",
   readingStatus: "pending",
   coverUrl: "",
   userRating: "",
@@ -54,9 +58,11 @@ function bookToFormValues(book: Book): BookFormValues {
     libraryId: String(book.library_id),
     title: book.title,
     author: book.authors[0] ?? "",
+    authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
     genre: book.genres[0] ?? "",
+    collection: book.collection ?? "",
     readingStatus: book.reading_status,
     coverUrl: book.cover_url ?? "",
     userRating: book.user_rating ? String(book.user_rating) : "",
@@ -169,9 +175,11 @@ export function BookModal({
         delete nextErrors.form;
         delete nextErrors.title;
         delete nextErrors.author;
+        delete nextErrors.authorCountry;
         delete nextErrors.publicationYear;
         delete nextErrors.isbn;
         delete nextErrors.genre;
+        delete nextErrors.collection;
         delete nextErrors.coverUrl;
         return nextErrors;
       });
@@ -298,6 +306,15 @@ export function BookModal({
             </label>
 
             <label className="field-group">
+              Pais del autor
+              <input
+                value={formValues.authorCountry}
+                onChange={(event) => handleFieldChange("authorCountry", event.target.value)}
+              />
+              {errors.authorCountry ? <p className="field-error">{errors.authorCountry}</p> : null}
+            </label>
+
+            <label className="field-group">
               Ano
               <input
                 inputMode="numeric"
@@ -336,6 +353,15 @@ export function BookModal({
               {errors.genre ? <p className="field-error">{errors.genre}</p> : null}
             </label>
 
+            <label className="field-group">
+              Coleccion
+              <input
+                value={formValues.collection}
+                onChange={(event) => handleFieldChange("collection", event.target.value)}
+              />
+              {errors.collection ? <p className="field-error">{errors.collection}</p> : null}
+            </label>
+
             {mode === "create" ? (
               <label className="field-group">
                 Estado inicial
@@ -352,7 +378,10 @@ export function BookModal({
 
             <label className="field-group">
               URL de portada
-              <input value={formValues.coverUrl} onChange={(event) => handleFieldChange("coverUrl", event.target.value)} />
+              <input
+                value={formValues.coverUrl}
+                onChange={(event) => handleFieldChange("coverUrl", event.target.value)}
+              />
               {errors.coverUrl ? <p className="field-error">{errors.coverUrl}</p> : null}
             </label>
 

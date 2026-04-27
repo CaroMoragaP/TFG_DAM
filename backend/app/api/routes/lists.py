@@ -30,6 +30,16 @@ from app.services.lists import update_list
 router = APIRouter()
 
 
+def _serialize_primary_author_country(book) -> str | None:
+    if not book.book_authors:
+        return None
+
+    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    if primary_relation.author.country is None:
+        return None
+    return primary_relation.author.country.name
+
+
 @router.get(
     "/lists",
     response_model=list[ListOut],
@@ -135,6 +145,8 @@ def read_list_books(
                     key=lambda item: item.genre.name.casefold(),
                 )
             ],
+            collection=entry.book.collection.name if entry.book.collection is not None else None,
+            author_country=_serialize_primary_author_country(entry.book),
             cover_url=entry.book.cover_url,
             publication_year=entry.book.publication_year,
             isbn=entry.book.isbn,

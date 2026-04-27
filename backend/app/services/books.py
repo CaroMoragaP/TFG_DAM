@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
+from app.models.book import Collection
 from app.models.book import BookGenre
 from app.models.book import Copy
+from app.models.book import Country
 from app.models.book import Genre
 from app.models.book import Publisher
 from app.models.book import UserCopy
@@ -59,13 +61,18 @@ class DuplicateBookIsbnError(ValueError):
 
 
 COPY_LOAD_OPTIONS = (
+    joinedload(Copy.book).joinedload(Book.collection),
     joinedload(Copy.book).joinedload(Book.publisher),
-    joinedload(Copy.book).selectinload(Book.book_authors).joinedload(BookAuthor.author),
+    joinedload(Copy.book)
+    .selectinload(Book.book_authors)
+    .joinedload(BookAuthor.author)
+    .joinedload(Author.country),
     joinedload(Copy.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
 )
 BOOK_LOAD_OPTIONS = (
+    joinedload(Book.collection),
     joinedload(Book.publisher),
-    selectinload(Book.book_authors).joinedload(BookAuthor.author),
+    selectinload(Book.book_authors).joinedload(BookAuthor.author).joinedload(Author.country),
     selectinload(Book.book_genres).joinedload(BookGenre.genre),
 )
 
@@ -124,6 +131,8 @@ def list_books(
     list_id: int | None = None,
     q: str | None = None,
     genre: str | None = None,
+    collection: str | None = None,
+    author_country: str | None = None,
     reading_status: ReadingStatus | None = None,
     min_rating: int | None = None,
 ) -> Sequence[Copy]:
@@ -148,8 +157,10 @@ def list_books(
             (user_copy_alias.copy_id == Copy.id) & (user_copy_alias.user_id == user_id),
         )
         .outerjoin(Publisher, Publisher.id == Book.publisher_id)
+        .outerjoin(Collection, Collection.id == Book.collection_id)
         .outerjoin(BookAuthor, BookAuthor.book_id == Book.id)
         .outerjoin(Author, Author.id == BookAuthor.author_id)
+        .outerjoin(Country, Country.id == Author.country_id)
         .outerjoin(BookGenre, BookGenre.book_id == Book.id)
         .outerjoin(Genre, Genre.id == BookGenre.genre_id)
         .options(*COPY_LOAD_OPTIONS)
@@ -180,6 +191,18 @@ def list_books(
     normalized_genre = genre.strip().lower() if genre else None
     if normalized_genre:
         stmt = stmt.where(func.lower(func.coalesce(Genre.name, "")) == normalized_genre)
+
+    normalized_collection = collection.strip().lower() if collection else None
+    if normalized_collection:
+        stmt = stmt.where(
+            func.lower(func.coalesce(Collection.name, "")) == normalized_collection,
+        )
+
+    normalized_author_country = author_country.strip().lower() if author_country else None
+    if normalized_author_country:
+        stmt = stmt.where(
+            func.lower(func.coalesce(Country.name, "")) == normalized_author_country,
+        )
 
     if reading_status is not None:
         if reading_status == ReadingStatus.PENDING:
@@ -293,11 +316,18 @@ def update_book_metadata(
         book.cover_url = data.cover_url
     if "publisher_name" in data.model_fields_set:
         book.publisher = _resolve_publisher(db, data.publisher_name)
+    if "collection_name" in data.model_fields_set:
+        book.collection = _resolve_collection(db, data.collection_name)
     if "authors" in data.model_fields_set:
         book.book_authors = [
             BookAuthor(author=author)
             for author in _resolve_authors(db, data.authors or [])
         ]
+    if "author_country_name" in data.model_fields_set:
+        _assign_primary_author_country(
+            book.book_authors,
+            _resolve_country(db, data.author_country_name),
+        )
     if "genres" in data.model_fields_set:
         book.book_genres = [
             BookGenre(genre=genre)
@@ -339,6 +369,8 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         description=book.description,
         cover_url=book.cover_url,
         publisher=book.publisher.name if book.publisher is not None else None,
+        collection=book.collection.name if book.collection is not None else None,
+        author_country=_serialize_primary_author_country(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -368,6 +400,8 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
         description=book.description,
         cover_url=book.cover_url,
         publisher=book.publisher.name if book.publisher is not None else None,
+        collection=book.collection.name if book.collection is not None else None,
+        author_country=_serialize_primary_author_country(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -392,6 +426,8 @@ def serialize_book_metadata(book: Book) -> BookMetadataOut:
         description=book.description,
         cover_url=book.cover_url,
         publisher=book.publisher.name if book.publisher is not None else None,
+        collection=book.collection.name if book.collection is not None else None,
+        author_country=_serialize_primary_author_country(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -410,8 +446,14 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
             return existing_book
 
     publisher = _resolve_publisher(db, data.publisher_name)
+    collection = _resolve_collection(db, data.collection_name)
     authors = _resolve_authors(db, data.authors)
     genres = _resolve_genres(db, data.genres)
+    book_authors = [BookAuthor(author=author) for author in authors]
+    _assign_primary_author_country(
+        book_authors,
+        _resolve_country(db, data.author_country_name),
+    )
 
     book = Book(
         title=data.title,
@@ -420,16 +462,18 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
         description=data.description,
         cover_url=data.cover_url,
         publisher=publisher,
-        book_authors=[
-            BookAuthor(author=author)
-            for author in authors
-        ],
-        book_genres=[
-            BookGenre(genre=genre)
-            for genre in genres
-        ],
+        collection=collection,
     )
     db.add(book)
+    book.book_authors = book_authors
+    book.book_genres = [
+        BookGenre(genre=genre)
+        for genre in genres
+    ]
+    _assign_primary_author_country(
+        book.book_authors,
+        _resolve_country(db, data.author_country_name),
+    )
     db.flush()
     return book
 
@@ -502,6 +546,21 @@ def _resolve_publisher(db: Session, name: str | None) -> Publisher | None:
     return publisher
 
 
+def _resolve_collection(db: Session, name: str | None) -> Collection | None:
+    if name is None:
+        return None
+
+    stmt = select(Collection).where(func.lower(Collection.name) == name.lower())
+    collection = db.scalar(stmt)
+    if collection is not None:
+        return collection
+
+    collection = Collection(name=name)
+    db.add(collection)
+    db.flush()
+    return collection
+
+
 def _resolve_authors(db: Session, names: list[str]) -> list[Author]:
     authors: list[Author] = []
 
@@ -515,6 +574,21 @@ def _resolve_authors(db: Session, names: list[str]) -> list[Author]:
         authors.append(author)
 
     return authors
+
+
+def _resolve_country(db: Session, name: str | None) -> Country | None:
+    if name is None:
+        return None
+
+    stmt = select(Country).where(func.lower(Country.name) == name.lower())
+    country = db.scalar(stmt)
+    if country is not None:
+        return country
+
+    country = Country(name=name)
+    db.add(country)
+    db.flush()
+    return country
 
 
 def _resolve_genres(db: Session, names: list[str]) -> list[Genre]:
@@ -549,6 +623,27 @@ def _ensure_unique_isbn(
     )
     if existing_book is not None:
         raise DuplicateBookIsbnError("Ya existe otro libro con ese ISBN.")
+
+
+def _assign_primary_author_country(
+    book_authors: list[BookAuthor],
+    country: Country | None,
+) -> None:
+    if not book_authors:
+        return
+
+    primary_relation = min(book_authors, key=lambda item: item.author.name.casefold())
+    primary_relation.author.country = country
+
+
+def _serialize_primary_author_country(book: Book) -> str | None:
+    if not book.book_authors:
+        return None
+
+    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    if primary_relation.author.country is None:
+        return None
+    return primary_relation.author.country.name
 
 
 def _assert_copy_access(

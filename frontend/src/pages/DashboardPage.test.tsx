@@ -120,6 +120,8 @@ describe("DashboardPage", () => {
           description: null,
           cover_url: null,
           publisher: null,
+          collection: "Cronicas de Arrakis",
+          author_country: "Estados Unidos",
           authors: ["Frank Herbert"],
           genres: ["Sci-Fi"],
           format: "physical",
@@ -156,5 +158,6 @@ describe("DashboardPage", () => {
     });
 
     await screen.findByText("Dune");
+    expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
   });
 });

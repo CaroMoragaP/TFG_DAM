@@ -26,6 +26,24 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+class Country(Base):
+    __tablename__ = "countries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
+
+    authors: Mapped[list["Author"]] = relationship(back_populates="country")
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+
+    books: Mapped[list["Book"]] = relationship(back_populates="collection")
+
+
 class Publisher(Base):
     __tablename__ = "publishers"
 
@@ -40,9 +58,13 @@ class Author(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    country_of_birth: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    country_id: Mapped[int | None] = mapped_column(
+        ForeignKey("countries.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     sex: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    country: Mapped["Country | None"] = relationship(back_populates="authors")
     book_authors: Mapped[list["BookAuthor"]] = relationship(
         back_populates="author",
         cascade="all, delete-orphan",
@@ -74,8 +96,13 @@ class Book(Base):
         ForeignKey("publishers.id", ondelete="SET NULL"),
         nullable=True,
     )
+    collection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("collections.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     publisher: Mapped["Publisher | None"] = relationship(back_populates="books")
+    collection: Mapped["Collection | None"] = relationship(back_populates="books")
     book_authors: Mapped[list["BookAuthor"]] = relationship(
         back_populates="book",
         cascade="all, delete-orphan",

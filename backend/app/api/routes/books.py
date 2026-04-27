@@ -46,6 +46,8 @@ def read_books(
     q: str | None = Query(default=None),
     reading_status: ReadingStatus | None = Query(default=None),
     genre: str | None = Query(default=None),
+    collection: str | None = Query(default=None),
+    author_country: str | None = Query(default=None),
     min_rating: int | None = Query(default=None, ge=1, le=5),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -59,6 +61,8 @@ def read_books(
             q=q,
             reading_status=reading_status,
             genre=genre,
+            collection=collection,
+            author_country=author_country,
             min_rating=min_rating,
         )
     except ListNotFoundError as exc:

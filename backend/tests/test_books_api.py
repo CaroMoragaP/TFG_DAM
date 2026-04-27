@@ -86,6 +86,8 @@ def create_book(
     genre: str,
     reading_status: str,
     user_rating: int | None,
+    collection: str | None = None,
+    author_country: str | None = None,
 ) -> dict[str, object]:
     response = client.post(
         "/books",
@@ -94,7 +96,9 @@ def create_book(
             "library_id": library_id,
             "title": title,
             "authors": [author],
+            "author_country_name": author_country,
             "genres": [genre],
+            "collection_name": collection,
             "reading_status": reading_status,
             "user_rating": user_rating,
         },
@@ -131,6 +135,8 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
         genre="Sci-Fi",
         reading_status="reading",
         user_rating=5,
+        collection="Cronicas de Arrakis",
+        author_country="Estados Unidos",
     )
     create_book(
         client,
@@ -156,6 +162,8 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     assert dune["format"] == "physical"
     assert dune["reading_status"] == "reading"
     assert dune["user_rating"] == 5
+    assert dune["collection"] == "Cronicas de Arrakis"
+    assert dune["author_country"] == "Estados Unidos"
 
     reading_response = client.get("/books?reading_status=reading", headers=headers)
     assert reading_response.status_code == 200
@@ -168,6 +176,14 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     genre_response = client.get("/books?genre=sci-fi", headers=headers)
     assert genre_response.status_code == 200
     assert {book["title"] for book in genre_response.json()} == {"Dune", "Hyperion"}
+
+    collection_response = client.get("/books?collection=cronicas de arrakis", headers=headers)
+    assert collection_response.status_code == 200
+    assert [book["title"] for book in collection_response.json()] == ["Dune"]
+
+    author_country_response = client.get("/books?author_country=estados unidos", headers=headers)
+    assert author_country_response.status_code == 200
+    assert [book["title"] for book in author_country_response.json()] == ["Dune"]
 
     search_response = client.get("/books?q=frank", headers=headers)
     assert search_response.status_code == 200
@@ -213,6 +229,8 @@ def test_copy_detail_user_data_and_list_genres(
     assert copy_payload["title"] == "Neuromancer"
     assert "reading_status" not in copy_payload
     assert "user_rating" not in copy_payload
+    assert copy_payload["collection"] is None
+    assert copy_payload["author_country"] is None
 
     user_data_response = client.get(f"/copies/{created['id']}/user-data", headers=headers)
     assert user_data_response.status_code == 200
@@ -243,12 +261,16 @@ def test_copy_detail_user_data_and_list_genres(
         json={
             "title": "Neuromancer",
             "authors": ["William Gibson"],
+            "author_country_name": "Estados Unidos",
             "genres": ["Cyberpunk"],
+            "collection_name": "Sprawl",
             "description": "Un clasico cyberpunk.",
         },
     )
     assert metadata_update_response.status_code == 200
     assert metadata_update_response.json()["description"] == "Un clasico cyberpunk."
+    assert metadata_update_response.json()["collection"] == "Sprawl"
+    assert metadata_update_response.json()["author_country"] == "Estados Unidos"
 
     user_update_response = client.put(
         f"/copies/{created['id']}/user-data",

@@ -52,6 +52,8 @@ export type ListBookSummary = {
   title: string;
   authors: string[];
   genres: string[];
+  collection: string | null;
+  author_country: string | null;
   cover_url: string | null;
   publication_year: number | null;
   isbn: string | null;
@@ -68,6 +70,8 @@ export type Book = {
   description: string | null;
   cover_url: string | null;
   publisher: string | null;
+  collection: string | null;
+  author_country: string | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -88,6 +92,8 @@ export type CopyDetail = {
   description: string | null;
   cover_url: string | null;
   publisher: string | null;
+  collection: string | null;
+  author_country: string | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -104,6 +110,8 @@ export type BookMetadata = {
   description: string | null;
   cover_url: string | null;
   publisher: string | null;
+  collection: string | null;
+  author_country: string | null;
   authors: string[];
   genres: string[];
 };
@@ -135,6 +143,8 @@ export type BookCreatePayload = {
   description?: string | null;
   cover_url?: string | null;
   publisher_name?: string | null;
+  collection_name?: string | null;
+  author_country_name?: string | null;
   authors: string[];
   genres: string[];
   format?: CopyFormat;
@@ -154,6 +164,8 @@ export type BookMetadataUpdatePayload = {
   genres?: string[];
   description?: string | null;
   publisher_name?: string | null;
+  collection_name?: string | null;
+  author_country_name?: string | null;
 };
 
 export type CopyUpdatePayload = {
@@ -176,6 +188,8 @@ export type BooksQueryParams = {
   listId?: number;
   q?: string;
   genre?: string;
+  collection?: string;
+  authorCountry?: string;
   readingStatus?: ReadingStatus;
   minRating?: number;
 };
@@ -552,6 +566,8 @@ export function fetchBooks(
     list_id: params.listId,
     q: params.q?.trim() || undefined,
     genre: params.genre?.trim() || undefined,
+    collection: params.collection?.trim() || undefined,
+    author_country: params.authorCountry?.trim() || undefined,
     reading_status: params.readingStatus,
     min_rating: params.minRating,
   });

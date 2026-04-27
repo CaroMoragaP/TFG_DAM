@@ -5,9 +5,11 @@ import { ApiError, type BookMetadata } from "../lib/api";
 export type BookMetadataValues = {
   title: string;
   author: string;
+  authorCountry: string;
   publicationYear: string;
   isbn: string;
   genre: string;
+  collection: string;
   coverUrl: string;
   description: string;
   publisherName: string;
@@ -27,9 +29,11 @@ function emptyValues(): BookMetadataValues {
   return {
     title: "",
     author: "",
+    authorCountry: "",
     publicationYear: "",
     isbn: "",
     genre: "",
+    collection: "",
     coverUrl: "",
     description: "",
     publisherName: "",
@@ -40,9 +44,11 @@ function toFormValues(book: BookMetadata): BookMetadataValues {
   return {
     title: book.title,
     author: book.authors[0] ?? "",
+    authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
     genre: book.genres[0] ?? "",
+    collection: book.collection ?? "",
     coverUrl: book.cover_url ?? "",
     description: book.description ?? "",
     publisherName: book.publisher ?? "",
@@ -119,7 +125,7 @@ export function BookMetadataModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Ficha canónica</p>
+            <p className="eyebrow">Ficha canonica</p>
             <h2 id="book-metadata-modal-title">Editar libro</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
@@ -130,7 +136,7 @@ export function BookMetadataModal({
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-grid">
             <label className="field-group">
-              Título
+              Titulo
               <input value={formValues.title} onChange={(event) => handleFieldChange("title", event.target.value)} />
             </label>
 
@@ -140,7 +146,15 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Año
+              Pais del autor principal
+              <input
+                value={formValues.authorCountry}
+                onChange={(event) => handleFieldChange("authorCountry", event.target.value)}
+              />
+            </label>
+
+            <label className="field-group">
+              Ano
               <input
                 inputMode="numeric"
                 value={formValues.publicationYear}
@@ -154,8 +168,16 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Género principal
+              Genero principal
               <input value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)} />
+            </label>
+
+            <label className="field-group">
+              Coleccion
+              <input
+                value={formValues.collection}
+                onChange={(event) => handleFieldChange("collection", event.target.value)}
+              />
             </label>
 
             <label className="field-group">
@@ -168,11 +190,14 @@ export function BookMetadataModal({
 
             <label className="field-group">
               URL de portada
-              <input value={formValues.coverUrl} onChange={(event) => handleFieldChange("coverUrl", event.target.value)} />
+              <input
+                value={formValues.coverUrl}
+                onChange={(event) => handleFieldChange("coverUrl", event.target.value)}
+              />
             </label>
 
             <label className="field-group">
-              Descripción
+              Descripcion
               <textarea
                 className="notes-textarea"
                 rows={4}

@@ -22,7 +22,7 @@ import {
 const statusLabels: Record<ReadingStatus, string> = {
   pending: "Pendiente",
   reading: "Leyendo",
-  finished: "Leído",
+  finished: "Leido",
 };
 
 function toBookMetadata(detail: CopyDetail): BookMetadata {
@@ -34,6 +34,8 @@ function toBookMetadata(detail: CopyDetail): BookMetadata {
     description: detail.description,
     cover_url: detail.cover_url,
     publisher: detail.publisher,
+    collection: detail.collection,
+    author_country: detail.author_country,
     authors: detail.authors,
     genres: detail.genres,
   };
@@ -106,9 +108,11 @@ export function BookDetailPage() {
       updateBookMetadataRequest(token ?? "", copyQuery.data!.book_id, {
         title: payload.title.trim(),
         authors: payload.author.trim() ? [payload.author.trim()] : [],
+        author_country_name: payload.authorCountry.trim() || null,
         publication_year: payload.publicationYear.trim() ? Number(payload.publicationYear) : null,
         isbn: payload.isbn.trim() || null,
         genres: payload.genre.trim() ? [payload.genre.trim()] : [],
+        collection_name: payload.collection.trim() || null,
         cover_url: payload.coverUrl.trim() || null,
         description: payload.description.trim() || null,
         publisher_name: payload.publisherName.trim() || null,
@@ -135,7 +139,7 @@ export function BookDetailPage() {
     return (
       <section className="content-stack">
         <div className="panel">
-          <p>El identificador del ejemplar no es válido.</p>
+          <p>El identificador del ejemplar no es valido.</p>
         </div>
       </section>
     );
@@ -150,6 +154,8 @@ export function BookDetailPage() {
   const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
   const author = detail?.authors[0] ?? "Autor sin registrar";
   const genre = detail?.genres[0] ?? "-";
+  const collection = detail?.collection ?? "-";
+  const authorCountry = detail?.author_country ?? "-";
   const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
   const isUserDataPending = updateUserDataMutation.isPending;
 
@@ -179,7 +185,7 @@ export function BookDetailPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm("Se eliminará este ejemplar del catálogo. ¿Quieres continuar?")) {
+    if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
       return;
     }
     await deleteCopyMutation.mutateAsync();
@@ -188,7 +194,7 @@ export function BookDetailPage() {
   return (
     <section className="content-stack">
       <button className="ghost-link detail-back-button" type="button" onClick={() => navigate(-1)}>
-        ← Volver al catálogo
+        Volver al catalogo
       </button>
 
       {isLoading ? (
@@ -225,11 +231,19 @@ export function BookDetailPage() {
 
                 <dl className="detail-meta-grid">
                   <div>
-                    <dt>Género</dt>
+                    <dt>Genero</dt>
                     <dd>{genre}</dd>
                   </div>
                   <div>
-                    <dt>Año</dt>
+                    <dt>Coleccion</dt>
+                    <dd>{collection}</dd>
+                  </div>
+                  <div>
+                    <dt>Pais autor</dt>
+                    <dd>{authorCountry}</dd>
+                  </div>
+                  <div>
+                    <dt>Ano</dt>
                     <dd>{detail.publication_year ?? "-"}</dd>
                   </div>
                   <div>
@@ -291,12 +305,12 @@ export function BookDetailPage() {
                 >
                   <option value="pending">Pendiente</option>
                   <option value="reading">Leyendo</option>
-                  <option value="finished">Leído</option>
+                  <option value="finished">Leido</option>
                 </select>
               </label>
 
               <div className="rating-block">
-                <span className="eyebrow">Valoración</span>
+                <span className="eyebrow">Valoracion</span>
                 <div className="star-row" role="group" aria-label="Valorar libro">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -307,12 +321,12 @@ export function BookDetailPage() {
                       disabled={isUserDataPending}
                       aria-label={`Valorar con ${star} estrellas`}
                     >
-                      ★
+                      *
                     </button>
                   ))}
                 </div>
                 <p className="detail-inline-copy">
-                  {userData.rating ? `${userData.rating}/5` : "Sin valoración"}
+                  {userData.rating ? `${userData.rating}/5` : "Sin valoracion"}
                 </p>
               </div>
 
@@ -358,7 +372,7 @@ export function BookDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="notes-preview">{userData.personal_notes ?? "Todavía no has añadido notas."}</p>
+                  <p className="notes-preview">{userData.personal_notes ?? "Todavia no has anadido notas."}</p>
                 )}
               </div>
             </div>
@@ -404,7 +418,7 @@ export function BookDetailPage() {
             {library?.is_archived ? (
               <div className="panel subtle-panel">
                 <p className="eyebrow">Biblioteca archivada</p>
-                <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catálogo.</p>
+                <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catalogo.</p>
               </div>
             ) : null}
           </aside>

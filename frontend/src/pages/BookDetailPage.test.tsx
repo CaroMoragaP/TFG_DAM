@@ -60,6 +60,8 @@ describe("BookDetailPage", () => {
       description: "Arrakis.",
       cover_url: null,
       publisher: null,
+      collection: "Cronicas de Arrakis",
+      author_country: "Estados Unidos",
       authors: ["Frank Herbert"],
       genres: ["Sci-Fi"],
       format: "physical",
@@ -107,6 +109,8 @@ describe("BookDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Dune")).toBeInTheDocument();
     });
+    expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
+    expect(screen.getByText("Estados Unidos")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Estado"), {
       target: { value: "finished" },

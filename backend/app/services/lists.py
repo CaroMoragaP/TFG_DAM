@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from app.models.book import Book
 from app.models.book import BookAuthor
 from app.models.book import BookGenre
+from app.models.book import Author
 from app.models.book import Copy
 from app.models.library import UserLibrary
 from app.models.list import List
@@ -24,7 +25,11 @@ DEFAULT_LIST_SEEDS: tuple[tuple[str, ListType], ...] = (
 )
 
 LIST_BOOK_LOAD_OPTIONS = (
-    joinedload(ListBook.book).selectinload(Book.book_authors).joinedload(BookAuthor.author),
+    joinedload(ListBook.book).joinedload(Book.collection),
+    joinedload(ListBook.book)
+    .selectinload(Book.book_authors)
+    .joinedload(BookAuthor.author)
+    .joinedload(Author.country),
     joinedload(ListBook.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
 )
 

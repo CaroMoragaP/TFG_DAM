@@ -49,7 +49,7 @@ function renderPage() {
 }
 
 describe("ListsPage", () => {
-  it("shows list cards only and navigates to catalog with the list filter", async () => {
+  it("shows list cards only and navigates to the list detail page", async () => {
     apiMocks.fetchLists.mockResolvedValue([
       {
         id: 1,
@@ -72,7 +72,32 @@ describe("ListsPage", () => {
     expect(screen.queryByText("Lista seleccionada")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Favoritos").closest("article")!);
-    expect(navigateMock).toHaveBeenCalledWith("/catalogo?listId=1");
+    expect(navigateMock).toHaveBeenCalledWith("/listas/1");
+  });
+
+  it("keeps the catalog shortcut as a secondary action", async () => {
+    apiMocks.fetchLists.mockResolvedValue([
+      {
+        id: 3,
+        user_id: 1,
+        name: "Sci-Fi",
+        type: "custom",
+        created_at: "2026-04-19T00:00:00Z",
+        updated_at: "2026-04-19T00:00:00Z",
+        book_count: 2,
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
+    });
+
+    navigateMock.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Ver en catalogo" }));
+
+    expect(navigateMock).toHaveBeenCalledWith("/catalogo?listId=3");
   });
 
   it("keeps edit and delete actions from navigating by mistake", async () => {

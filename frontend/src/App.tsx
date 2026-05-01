@@ -7,6 +7,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LibrariesPage } from "./pages/LibrariesPage";
+import { ListDetailPage } from "./pages/ListDetailPage";
 import { LibrarySectionPage } from "./pages/LibrarySectionPage";
 import { ListsPage } from "./pages/ListsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -95,6 +96,10 @@ const router = createBrowserRouter([
       {
         path: "listas",
         element: <ListsPage />,
+      },
+      {
+        path: "listas/:id",
+        element: <ListDetailPage />,
       },
       {
         path: "bibliotecas",

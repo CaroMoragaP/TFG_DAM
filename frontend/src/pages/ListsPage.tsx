@@ -65,7 +65,7 @@ export function ListsPage() {
   }
 
   function handleNavigateToList(listId: number) {
-    navigate(`/catalogo?listId=${listId}`);
+    navigate(`/listas/${listId}`);
   }
 
   function handleCardKeyDown(event: KeyboardEvent<HTMLElement>, listId: number) {
@@ -138,7 +138,7 @@ export function ListsPage() {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    handleNavigateToList(list.id);
+                    navigate(`/catalogo?listId=${list.id}`);
                   }}
                 >
                   Ver en catalogo

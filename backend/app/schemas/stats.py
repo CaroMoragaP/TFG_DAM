@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from pydantic import BaseModel
+from pydantic import Field
 
 
 class StatsBreakdownItemOut(BaseModel):
@@ -63,6 +64,43 @@ class ReadingActivityOut(BaseModel):
     missing_dates: int
 
 
+class ReadingGoalOut(BaseModel):
+    year: int
+    target_books: int
+
+
+class ReadingGoalUpsert(BaseModel):
+    year: int = Field(ge=1, le=9999)
+    target_books: int = Field(ge=1, le=10000)
+
+
+class GoalProgressOut(BaseModel):
+    target: int
+    completed: int
+    percentage: float
+
+
+class MonthlyProgressItemOut(BaseModel):
+    month: str
+    started: int
+    finished: int
+
+
+class ReadingStreakOut(BaseModel):
+    current_months: int
+    best_months: int
+
+
+class StuckBookReminderOut(BaseModel):
+    copy_id: int
+    book_id: int
+    library_id: int
+    title: str
+    authors: list[str]
+    started_on: date
+    days_open: int
+
+
 class RecentFinishOut(BaseModel):
     copy_id: int
     book_id: int
@@ -73,7 +111,13 @@ class RecentFinishOut(BaseModel):
 
 
 class ReadingStatsOut(BaseModel):
+    goal_year: int
+    goal: ReadingGoalOut | None
+    goal_progress: GoalProgressOut
     status_counts: ReadingStatusCountsOut
+    monthly_progress: list[MonthlyProgressItemOut]
+    streak: ReadingStreakOut
+    stuck_reminders: list[StuckBookReminderOut]
     finished_by_year: list[FinishedByYearItemOut]
     rating_summary: RatingSummaryOut
     reading_activity: ReadingActivityOut

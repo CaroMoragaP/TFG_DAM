@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Sequence
+from datetime import date
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -19,15 +21,22 @@ from app.models.enums import CopyFormat
 from app.models.enums import ReadingStatus
 from app.models.library import Library
 from app.models.library import UserLibrary
+from app.models.user import ReadingGoal
 from app.schemas.stats import CatalogStatsOut
 from app.schemas.stats import CatalogTotalsOut
 from app.schemas.stats import FinishedByYearItemOut
+from app.schemas.stats import GoalProgressOut
+from app.schemas.stats import MonthlyProgressItemOut
 from app.schemas.stats import RatingDistributionItemOut
 from app.schemas.stats import RatingSummaryOut
 from app.schemas.stats import ReadingActivityOut
+from app.schemas.stats import ReadingGoalOut
+from app.schemas.stats import ReadingGoalUpsert
+from app.schemas.stats import ReadingStreakOut
 from app.schemas.stats import ReadingStatsOut
 from app.schemas.stats import ReadingStatusCountsOut
 from app.schemas.stats import RecentFinishOut
+from app.schemas.stats import StuckBookReminderOut
 from app.schemas.stats import StatsBreakdownItemOut
 from app.schemas.stats import StatsRankingItemOut
 from app.services.libraries import READ_ACCESS_ROLES
@@ -49,6 +58,21 @@ AUTHOR_SEX_LABELS = {
     "non_binary": "No binario",
     "unknown": "Sin dato",
 }
+
+MONTH_LABELS = (
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+)
 
 
 def get_catalog_stats(
@@ -142,10 +166,18 @@ def get_reading_stats(
     user_id: int,
     library_id: int | None = None,
 ) -> ReadingStatsOut:
+    today = date.today()
+    current_year = today.year
     rows = _get_scoped_reading_rows(
         db,
         user_id=user_id,
         library_id=library_id,
+    )
+    goal_rows = rows if library_id is None else _get_scoped_reading_rows(db, user_id=user_id, library_id=None)
+    goal = _get_reading_goal(
+        db,
+        user_id=user_id,
+        year=current_year,
     )
 
     status_counts = Counter(
@@ -161,7 +193,12 @@ def get_reading_stats(
     started = 0
     finished = 0
     missing_dates = 0
+    monthly_started_counts = Counter()
+    monthly_finished_counts = Counter()
+    finished_month_indexes: set[int] = set()
+    stuck_reminders: list[StuckBookReminderOut] = []
     recent_finishes: list[RecentFinishOut] = []
+    stuck_threshold = today - timedelta(days=30)
 
     for copy, user_copy in rows:
         if user_copy is None:
@@ -170,8 +207,12 @@ def get_reading_stats(
 
         if user_copy.start_date is not None:
             started += 1
+            if user_copy.start_date.year == current_year:
+                monthly_started_counts[user_copy.start_date.month] += 1
         if user_copy.end_date is not None:
             finished += 1
+            if user_copy.end_date.year == current_year:
+                monthly_finished_counts[user_copy.end_date.month] += 1
         if user_copy.start_date is None or user_copy.end_date is None:
             missing_dates += 1
 
@@ -185,6 +226,7 @@ def get_reading_stats(
             and user_copy.end_date is not None
         ):
             finished_by_year[user_copy.end_date.year] += 1
+            finished_month_indexes.add(_month_index(user_copy.end_date.year, user_copy.end_date.month))
             recent_finishes.append(
                 RecentFinishOut(
                     copy_id=copy.id,
@@ -196,17 +238,65 @@ def get_reading_stats(
                 ),
             )
 
+        if (
+            user_copy.reading_status == ReadingStatus.READING
+            and user_copy.end_date is None
+            and user_copy.start_date is not None
+            and user_copy.start_date <= stuck_threshold
+        ):
+            stuck_reminders.append(
+                StuckBookReminderOut(
+                    copy_id=copy.id,
+                    book_id=copy.book_id,
+                    library_id=copy.library_id,
+                    title=copy.book.title,
+                    authors=_serialize_authors(copy.book),
+                    started_on=user_copy.start_date,
+                    days_open=(today - user_copy.start_date).days,
+                ),
+            )
+
     recent_finishes.sort(
         key=lambda item: (item.finished_on, item.title.casefold(), item.copy_id),
         reverse=True,
     )
+    stuck_reminders.sort(
+        key=lambda item: (-item.days_open, item.title.casefold(), item.copy_id),
+    )
+
+    goal_target = goal.target_books if goal is not None else 0
+    goal_completed = _count_finished_in_year(goal_rows, current_year)
 
     return ReadingStatsOut(
+        goal_year=current_year,
+        goal=(
+            ReadingGoalOut(
+                year=goal.year,
+                target_books=goal.target_books,
+            )
+            if goal is not None
+            else None
+        ),
+        goal_progress=GoalProgressOut(
+            target=goal_target,
+            completed=goal_completed,
+            percentage=_percentage(goal_completed, goal_target),
+        ),
         status_counts=ReadingStatusCountsOut(
             pending=status_counts.get(ReadingStatus.PENDING.value, 0),
             reading=status_counts.get(ReadingStatus.READING.value, 0),
             finished=status_counts.get(ReadingStatus.FINISHED.value, 0),
         ),
+        monthly_progress=[
+            MonthlyProgressItemOut(
+                month=label,
+                started=monthly_started_counts.get(month_number, 0),
+                finished=monthly_finished_counts.get(month_number, 0),
+            )
+            for month_number, label in enumerate(MONTH_LABELS, start=1)
+        ],
+        streak=_build_reading_streak(finished_month_indexes, today=today),
+        stuck_reminders=stuck_reminders,
         finished_by_year=[
             FinishedByYearItemOut(year=year, count=count)
             for year, count in sorted(finished_by_year.items())
@@ -229,6 +319,35 @@ def get_reading_stats(
             missing_dates=missing_dates,
         ),
         recent_finishes=recent_finishes[:5],
+    )
+
+
+def upsert_reading_goal(
+    db: Session,
+    *,
+    user_id: int,
+    data: ReadingGoalUpsert,
+) -> ReadingGoalOut:
+    goal = _get_reading_goal(
+        db,
+        user_id=user_id,
+        year=data.year,
+    )
+    if goal is None:
+        goal = ReadingGoal(
+            user_id=user_id,
+            year=data.year,
+            target_books=data.target_books,
+        )
+        db.add(goal)
+    else:
+        goal.target_books = data.target_books
+
+    db.commit()
+    db.refresh(goal)
+    return ReadingGoalOut(
+        year=goal.year,
+        target_books=goal.target_books,
     )
 
 
@@ -318,6 +437,20 @@ def _get_primary_genre(book: Book):
     )
 
 
+def _get_reading_goal(
+    db: Session,
+    *,
+    user_id: int,
+    year: int,
+) -> ReadingGoal | None:
+    return db.scalar(
+        select(ReadingGoal).where(
+            ReadingGoal.user_id == user_id,
+            ReadingGoal.year == year,
+        ),
+    )
+
+
 def _build_distribution(
     counts: Counter[str],
     total: int,
@@ -377,10 +510,61 @@ def _publication_year_sort_key(label: str, count: int) -> tuple[int, int, str]:
     return (0, int(label), label)
 
 
+def _count_finished_in_year(
+    rows: Sequence[tuple[Copy, UserCopy | None]],
+    year: int,
+) -> int:
+    return sum(
+        1
+        for _copy, user_copy in rows
+        if user_copy is not None
+        and user_copy.reading_status == ReadingStatus.FINISHED
+        and user_copy.end_date is not None
+        and user_copy.end_date.year == year
+    )
+
+
+def _build_reading_streak(
+    finished_month_indexes: set[int],
+    *,
+    today: date,
+) -> ReadingStreakOut:
+    if not finished_month_indexes:
+        return ReadingStreakOut(current_months=0, best_months=0)
+
+    sorted_indexes = sorted(finished_month_indexes)
+    best_streak = 0
+    active_streak = 0
+    previous_index: int | None = None
+
+    for month_index in sorted_indexes:
+        if previous_index is not None and month_index == previous_index + 1:
+            active_streak += 1
+        else:
+            active_streak = 1
+        best_streak = max(best_streak, active_streak)
+        previous_index = month_index
+
+    current_streak = 0
+    current_month_index = _month_index(today.year, today.month)
+    while current_month_index in finished_month_indexes:
+        current_streak += 1
+        current_month_index -= 1
+
+    return ReadingStreakOut(
+        current_months=current_streak,
+        best_months=best_streak,
+    )
+
+
 def _percentage(count: int, total: int) -> float:
     if total <= 0:
         return 0.0
     return round((count / total) * 100, 2)
+
+
+def _month_index(year: int, month: int) -> int:
+    return (year * 12) + month
 
 
 def _serialize_authors(book: Book) -> list[str]:

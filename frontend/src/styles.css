@@ -212,6 +212,35 @@ dt {
   transform: translateY(-1px);
 }
 
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.8rem 1rem;
+  border: 1px solid transparent;
+  background: var(--brand);
+  color: #f8fafb;
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.button-primary:hover {
+  background: var(--brand-deep);
+  transform: translateY(-1px);
+}
+
+.button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
 .ghost-link:hover,
 .nav-link:hover,
 .auth-tab:hover {
@@ -779,6 +808,11 @@ dd {
   color: #f8fafb;
 }
 
+.status-chip.warning {
+  background: rgba(201, 107, 59, 0.16);
+  color: var(--accent);
+}
+
 .list-detail-hero,
 .list-detail-hero-aside,
 .list-detail-toolbar,
@@ -1123,6 +1157,49 @@ dd {
   grid-column: 1 / -1;
 }
 
+.stats-goal-panel {
+  gap: 1.25rem;
+}
+
+.stats-goal-layout,
+.stats-goal-summary,
+.stats-goal-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.stats-goal-layout {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  align-items: start;
+}
+
+.stats-goal-summary {
+  align-content: start;
+}
+
+.stats-goal-summary strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+  line-height: 0.92;
+  color: var(--brand-deep);
+}
+
+.stats-goal-summary span,
+.stats-goal-summary p,
+.stats-goal-summary small,
+.stats-goal-form small,
+.stats-recent-item small {
+  color: var(--text-muted);
+}
+
+.stats-goal-form {
+  align-content: start;
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(33, 79, 74, 0.12);
+}
+
 .stats-panel-header {
   display: flex;
   align-items: flex-start;
@@ -1217,6 +1294,7 @@ dd {
   .list-book-meta-grid,
   .lists-layout,
   .split-panel,
+  .stats-goal-layout,
   .stats-grid,
   .stats-toolbar,
   .stats-hero,

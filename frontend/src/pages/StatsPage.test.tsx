@@ -9,6 +9,7 @@ import { StatsPage } from "./StatsPage";
 const apiMocks = vi.hoisted(() => ({
   fetchCatalogStats: vi.fn(),
   fetchReadingStats: vi.fn(),
+  updateReadingGoal: vi.fn(),
 }));
 
 vi.mock("recharts", () => {
@@ -74,7 +75,86 @@ vi.mock("../libraries/ActiveLibraryProvider", () => ({
 vi.mock("../lib/api", () => ({
   fetchCatalogStats: apiMocks.fetchCatalogStats,
   fetchReadingStats: apiMocks.fetchReadingStats,
+  updateReadingGoal: apiMocks.updateReadingGoal,
 }));
+
+function buildMonthlyProgress() {
+  return [
+    { month: "Ene", started: 1, finished: 0 },
+    { month: "Feb", started: 1, finished: 1 },
+    { month: "Mar", started: 0, finished: 1 },
+    { month: "Abr", started: 1, finished: 0 },
+    { month: "May", started: 0, finished: 0 },
+    { month: "Jun", started: 0, finished: 0 },
+    { month: "Jul", started: 0, finished: 0 },
+    { month: "Ago", started: 0, finished: 0 },
+    { month: "Sep", started: 0, finished: 0 },
+    { month: "Oct", started: 0, finished: 0 },
+    { month: "Nov", started: 0, finished: 0 },
+    { month: "Dic", started: 0, finished: 0 },
+  ];
+}
+
+function buildReadingStats(overrides: Record<string, unknown> = {}) {
+  return {
+    goal_year: 2026,
+    goal: null,
+    goal_progress: {
+      target: 0,
+      completed: 2,
+      percentage: 0,
+    },
+    status_counts: {
+      pending: 4,
+      reading: 2,
+      finished: 4,
+    },
+    monthly_progress: buildMonthlyProgress(),
+    streak: {
+      current_months: 0,
+      best_months: 2,
+    },
+    stuck_reminders: [
+      {
+        copy_id: 10,
+        book_id: 3,
+        library_id: 1,
+        title: "Libro atascado",
+        authors: ["Autora Lenta"],
+        started_on: "2026-03-01",
+        days_open: 45,
+      },
+    ],
+    finished_by_year: [{ year: 2025, count: 3 }],
+    rating_summary: {
+      average: 4.5,
+      total_rated: 2,
+      distribution: [
+        { rating: 1, count: 0, percentage: 0 },
+        { rating: 2, count: 0, percentage: 0 },
+        { rating: 3, count: 0, percentage: 0 },
+        { rating: 4, count: 1, percentage: 50 },
+        { rating: 5, count: 1, percentage: 50 },
+      ],
+    },
+    reading_activity: {
+      started: 3,
+      finished: 2,
+      missing_dates: 5,
+    },
+    recent_finishes: [
+      {
+        copy_id: 7,
+        book_id: 3,
+        library_id: 1,
+        title: "Dune",
+        authors: ["Frank Herbert"],
+        finished_on: "2026-03-05",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 function renderPage(initialEntry = "/stats") {
   const queryClient = new QueryClient({
@@ -113,57 +193,14 @@ describe("StatsPage", () => {
         { key: "non_binary", label: "No binario", count: 1, percentage: 10 },
         { key: "unknown", label: "Sin dato", count: 1, percentage: 10 },
       ],
-      author_country_distribution: [
-        { key: "Espana", label: "Espana", count: 4, percentage: 40 },
-      ],
-      genre_distribution: [
-        { key: "Sci-Fi", label: "Sci-Fi", count: 6, percentage: 60 },
-      ],
-      publisher_distribution: [
-        { key: "Minotauro", label: "Minotauro", count: 4, percentage: 40 },
-      ],
-      publication_year_distribution: [
-        { key: "2024", label: "2024", count: 2, percentage: 20 },
-      ],
+      author_country_distribution: [{ key: "Espana", label: "Espana", count: 4, percentage: 40 }],
+      genre_distribution: [{ key: "Sci-Fi", label: "Sci-Fi", count: 6, percentage: 60 }],
+      publisher_distribution: [{ key: "Minotauro", label: "Minotauro", count: 4, percentage: 40 }],
+      publication_year_distribution: [{ key: "2024", label: "2024", count: 2, percentage: 20 }],
       top_authors: [{ label: "Frank Herbert", count: 2 }],
       top_genres: [{ label: "Sci-Fi", count: 6 }],
     });
-    apiMocks.fetchReadingStats.mockResolvedValue({
-      status_counts: {
-        pending: 4,
-        reading: 2,
-        finished: 4,
-      },
-      finished_by_year: [
-        { year: 2025, count: 3 },
-      ],
-      rating_summary: {
-        average: 4.5,
-        total_rated: 2,
-        distribution: [
-          { rating: 1, count: 0, percentage: 0 },
-          { rating: 2, count: 0, percentage: 0 },
-          { rating: 3, count: 0, percentage: 0 },
-          { rating: 4, count: 1, percentage: 50 },
-          { rating: 5, count: 1, percentage: 50 },
-        ],
-      },
-      reading_activity: {
-        started: 3,
-        finished: 2,
-        missing_dates: 5,
-      },
-      recent_finishes: [
-        {
-          copy_id: 7,
-          book_id: 3,
-          library_id: 1,
-          title: "Dune",
-          authors: ["Frank Herbert"],
-          finished_on: "2026-03-05",
-        },
-      ],
-    });
+    apiMocks.fetchReadingStats.mockResolvedValue(buildReadingStats());
 
     renderPage();
 
@@ -181,7 +218,8 @@ describe("StatsPage", () => {
       expect(apiMocks.fetchReadingStats).toHaveBeenCalledWith("token", { libraryId: undefined });
     });
 
-    await screen.findByText("Ultimos libros terminados");
+    await screen.findByText("Meta de lectura 2026");
+    expect(screen.getByText("Libros atascados")).toBeInTheDocument();
     expect(screen.getByText("Dune")).toBeInTheDocument();
   });
 
@@ -198,46 +236,38 @@ describe("StatsPage", () => {
         { key: "non_binary", label: "No binario", count: 0, percentage: 0 },
         { key: "unknown", label: "Sin dato", count: 0, percentage: 0 },
       ],
-      author_country_distribution: [
-        { key: "Chile", label: "Chile", count: 2, percentage: 50 },
-      ],
-      genre_distribution: [
-        { key: "Drama", label: "Drama", count: 2, percentage: 50 },
-      ],
-      publisher_distribution: [
-        { key: "Planeta", label: "Planeta", count: 2, percentage: 50 },
-      ],
-      publication_year_distribution: [
-        { key: "2020", label: "2020", count: 2, percentage: 50 },
-      ],
+      author_country_distribution: [{ key: "Chile", label: "Chile", count: 2, percentage: 50 }],
+      genre_distribution: [{ key: "Drama", label: "Drama", count: 2, percentage: 50 }],
+      publisher_distribution: [{ key: "Planeta", label: "Planeta", count: 2, percentage: 50 }],
+      publication_year_distribution: [{ key: "2020", label: "2020", count: 2, percentage: 50 }],
       top_authors: [{ label: "Isabel Allende", count: 2 }],
       top_genres: [{ label: "Drama", count: 2 }],
     });
-    apiMocks.fetchReadingStats.mockResolvedValue({
-      status_counts: {
-        pending: 1,
-        reading: 1,
-        finished: 2,
-      },
-      finished_by_year: [],
-      rating_summary: {
-        average: null,
-        total_rated: 0,
-        distribution: [
-          { rating: 1, count: 0, percentage: 0 },
-          { rating: 2, count: 0, percentage: 0 },
-          { rating: 3, count: 0, percentage: 0 },
-          { rating: 4, count: 0, percentage: 0 },
-          { rating: 5, count: 0, percentage: 0 },
-        ],
-      },
-      reading_activity: {
-        started: 0,
-        finished: 0,
-        missing_dates: 4,
-      },
-      recent_finishes: [],
-    });
+    apiMocks.fetchReadingStats.mockResolvedValue(
+      buildReadingStats({
+        goal: { year: 2026, target_books: 12 },
+        goal_progress: { target: 12, completed: 2, percentage: 16.67 },
+        finished_by_year: [],
+        rating_summary: {
+          average: null,
+          total_rated: 0,
+          distribution: [
+            { rating: 1, count: 0, percentage: 0 },
+            { rating: 2, count: 0, percentage: 0 },
+            { rating: 3, count: 0, percentage: 0 },
+            { rating: 4, count: 0, percentage: 0 },
+            { rating: 5, count: 0, percentage: 0 },
+          ],
+        },
+        reading_activity: {
+          started: 0,
+          finished: 0,
+          missing_dates: 4,
+        },
+        recent_finishes: [],
+        stuck_reminders: [],
+      }),
+    );
 
     renderPage("/stats?tab=reading&library=all");
 
@@ -251,6 +281,63 @@ describe("StatsPage", () => {
 
     await waitFor(() => {
       expect(apiMocks.fetchReadingStats).toHaveBeenCalledWith("token", { libraryId: 2 });
+    });
+  });
+
+  it("saves the annual reading goal and refreshes reading stats", async () => {
+    apiMocks.fetchCatalogStats.mockResolvedValue({
+      totals: {
+        total: 0,
+        physical: 0,
+        digital: 0,
+      },
+      author_sex_distribution: [],
+      author_country_distribution: [],
+      genre_distribution: [],
+      publisher_distribution: [],
+      publication_year_distribution: [],
+      top_authors: [],
+      top_genres: [],
+    });
+    apiMocks.fetchReadingStats
+      .mockResolvedValueOnce(
+        buildReadingStats({
+          goal: { year: 2026, target_books: 12 },
+          goal_progress: { target: 12, completed: 2, percentage: 16.67 },
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildReadingStats({
+          goal: { year: 2026, target_books: 24 },
+          goal_progress: { target: 24, completed: 2, percentage: 8.33 },
+        }),
+      );
+    apiMocks.updateReadingGoal.mockResolvedValue({
+      year: 2026,
+      target_books: 24,
+    });
+
+    renderPage("/stats?tab=reading&library=all");
+
+    await screen.findByText("Meta de lectura 2026");
+    fireEvent.change(screen.getByLabelText("Libros objetivo en 2026"), {
+      target: { value: "24" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar meta" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateReadingGoal).toHaveBeenCalledWith("token", {
+        year: 2026,
+        target_books: 24,
+      });
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.fetchReadingStats).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("24")).toBeInTheDocument();
     });
   });
 });

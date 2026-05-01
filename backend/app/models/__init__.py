@@ -20,6 +20,7 @@ from app.models.library import Library
 from app.models.library import UserLibrary
 from app.models.list import List
 from app.models.list import ListBook
+from app.models.user import ReadingGoal
 from app.models.user import User
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "ListBook",
     "ListType",
     "Publisher",
+    "ReadingGoal",
     "ReadingStatus",
     "UserCopy",
     "User",

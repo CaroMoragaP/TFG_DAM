@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -20,6 +20,7 @@ import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   fetchCatalogStats,
   fetchReadingStats,
+  updateReadingGoal,
   type ReadingStats,
   type StatsBreakdownItem,
   type StatsRankingItem,
@@ -80,6 +81,10 @@ function normalizeLibraryValue(value: string | null) {
 
 function hasData(items: StatsBreakdownItem[]) {
   return items.some((item) => item.count > 0);
+}
+
+function hasMonthlyProgress(items: ReadingStats["monthly_progress"]) {
+  return items.some((item) => item.started > 0 || item.finished > 0);
 }
 
 function topSlice(items: StatsBreakdownItem[], size: number) {
@@ -196,7 +201,7 @@ function BreakdownBarCard({
               <YAxis tickFormatter={formatPercentage} tick={{ fill: "#5f6b7f", fontSize: 12 }} />
               <Tooltip
                 formatter={(value, _name, entry) => [
-                  `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} · ${entry.payload.count} ${countLabel}`,
+                  `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} - ${entry.payload.count} ${countLabel}`,
                   "Peso",
                 ]}
               />
@@ -252,7 +257,7 @@ function BreakdownPieCard({
             </Pie>
             <Tooltip
               formatter={(value, _name, entry) => [
-                `${numberFormatter.format(typeof value === "number" ? value : Number(value ?? 0))} libros · ${formatPercentage(entry.payload.percentage)}`,
+                `${numberFormatter.format(typeof value === "number" ? value : Number(value ?? 0))} libros - ${formatPercentage(entry.payload.percentage)}`,
                 entry.payload.label,
               ]}
             />
@@ -334,14 +339,128 @@ function RecentFinishesCard({ items }: { items: ReadingStats["recent_finishes"] 
   );
 }
 
+function ReadingGoalCard({
+  data,
+  goalDraft,
+  onGoalDraftChange,
+  onSubmit,
+  isSaving,
+  errorMessage,
+  isScopedToLibrary,
+}: {
+  data: ReadingStats;
+  goalDraft: string;
+  onGoalDraftChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  isSaving: boolean;
+  errorMessage: string | null;
+  isScopedToLibrary: boolean;
+}) {
+  const hasGoal = data.goal !== null;
+  const parsedGoal = Number(goalDraft);
+  const isGoalValid = Number.isInteger(parsedGoal) && parsedGoal >= 1;
+
+  return (
+    <article className="panel stats-panel stats-panel-wide stats-goal-panel">
+      <div className="stats-panel-header">
+        <div>
+          <p className="eyebrow">Objetivo anual</p>
+          <h3>Meta de lectura {data.goal_year}</h3>
+        </div>
+        <span className="status-chip active">Global</span>
+      </div>
+      <div className="stats-goal-layout">
+        <div className="stats-goal-summary">
+          <strong>{formatPercentage(data.goal_progress.percentage)}</strong>
+          <span>
+            {data.goal_progress.completed} de {numberFormatter.format(data.goal_progress.target)}{" "}
+            libros
+          </span>
+          <p>
+            {hasGoal
+              ? "Tu porcentaje de cumplimiento se calcula con todos los libros terminados este ano."
+              : "Aun no has definido una meta anual. Puedes crearla desde este panel."}
+          </p>
+          <small>
+            {isScopedToLibrary
+              ? "La meta es global y no cambia al filtrar una biblioteca concreta."
+              : "La meta refleja tu progreso personal agregado entre todas las bibliotecas."}
+          </small>
+        </div>
+
+        <form className="stats-goal-form" onSubmit={onSubmit}>
+          <label className="field-group" htmlFor="reading-goal-input">
+            Libros objetivo en {data.goal_year}
+            <input
+              id="reading-goal-input"
+              type="number"
+              min={1}
+              step={1}
+              value={goalDraft}
+              onChange={(event) => onGoalDraftChange(event.target.value)}
+              placeholder="12"
+            />
+          </label>
+          <button
+            className="button-primary"
+            type="submit"
+            disabled={isSaving || !goalDraft.trim() || !isGoalValid}
+          >
+            {isSaving ? "Guardando..." : hasGoal ? "Actualizar meta" : "Guardar meta"}
+          </button>
+          {!goalDraft.trim() ? (
+            <small>Introduce un numero entero mayor o igual que 1.</small>
+          ) : null}
+          {goalDraft.trim() && !isGoalValid ? (
+            <p className="field-error">La meta anual debe ser un numero entero positivo.</p>
+          ) : null}
+          {errorMessage ? <p className="field-error">{errorMessage}</p> : null}
+        </form>
+      </div>
+    </article>
+  );
+}
+
+function StuckRemindersCard({ items }: { items: ReadingStats["stuck_reminders"] }) {
+  return (
+    <article className="panel stats-panel">
+      <div className="stats-panel-header">
+        <div>
+          <p className="eyebrow">Seguimiento</p>
+          <h3>Libros atascados</h3>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <div className="stats-empty-chart">
+          <p>No hay lecturas atascadas segun el umbral actual de 30 dias.</p>
+        </div>
+      ) : (
+        <div className="stats-recent-list">
+          {items.map((item) => (
+            <Link key={item.copy_id} className="stats-recent-item" to={`/libros/${item.copy_id}`}>
+              <div>
+                <strong>{item.title}</strong>
+                <span>{item.authors.join(", ") || "Autor sin registrar"}</span>
+                <small>
+                  Empezado el {dateFormatter.format(new Date(item.started_on))} -{" "}
+                  {numberFormatter.format(item.days_open)} dias abierto
+                </small>
+              </div>
+              <span className="status-chip warning">{item.days_open} dias</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export function StatsPage() {
   const { token } = useAuth();
-  const {
-    isLibrariesError,
-    isLibrariesLoading,
-    libraries,
-  } = useActiveLibrary();
+  const queryClient = useQueryClient();
+  const { isLibrariesError, isLibrariesLoading, libraries } = useActiveLibrary();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [goalDraft, setGoalDraft] = useState("");
 
   const tab = normalizeTab(searchParams.get("tab"));
   const libraryValue = normalizeLibraryValue(searchParams.get("library"));
@@ -378,6 +497,29 @@ export function StatsPage() {
     enabled: Boolean(token && tab === "reading"),
   });
 
+  useEffect(() => {
+    if (!readingQuery.data) {
+      return;
+    }
+
+    setGoalDraft(
+      readingQuery.data.goal?.target_books ? String(readingQuery.data.goal.target_books) : "",
+    );
+  }, [readingQuery.data?.goal?.target_books, readingQuery.data?.goal_year]);
+
+  const updateGoalMutation = useMutation({
+    mutationFn: (targetBooks: number) =>
+      updateReadingGoal(token ?? "", {
+        year: readingQuery.data?.goal_year ?? new Date().getFullYear(),
+        target_books: targetBooks,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["stats", "reading"],
+      });
+    },
+  });
+
   const activeLibrary = selectedLibraryId
     ? availableLibraries.find((library) => library.id === selectedLibraryId) ?? null
     : null;
@@ -386,11 +528,28 @@ export function StatsPage() {
     activeQuery.error instanceof Error
       ? activeQuery.error.message
       : "No se pudieron cargar las estadisticas.";
+  const goalErrorMessage =
+    updateGoalMutation.error instanceof Error
+      ? updateGoalMutation.error.message
+      : updateGoalMutation.isError
+        ? "No se pudo guardar la meta anual."
+        : null;
 
   function updateSearchParam(key: "tab" | "library", value: string) {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.set(key, value);
     setSearchParams(nextSearchParams, { replace: true });
+  }
+
+  async function handleGoalSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const targetBooks = Number(goalDraft);
+    if (!Number.isInteger(targetBooks) || targetBooks < 1) {
+      return;
+    }
+
+    await updateGoalMutation.mutateAsync(targetBooks);
   }
 
   return (
@@ -405,7 +564,9 @@ export function StatsPage() {
           </p>
         </div>
         <div className="stats-hero-aside">
-          <span className="status-chip active">{activeLibrary ? activeLibrary.name : "Todas mis bibliotecas"}</span>
+          <span className="status-chip active">
+            {activeLibrary ? activeLibrary.name : "Todas mis bibliotecas"}
+          </span>
           <p>Las metricas de lectura siempre se calculan con tus datos personales.</p>
         </div>
       </div>
@@ -534,6 +695,28 @@ export function StatsPage() {
 
       {tab === "reading" && readingQuery.data ? (
         <>
+          <div className="stats-grid">
+            <ReadingGoalCard
+              data={readingQuery.data}
+              goalDraft={goalDraft}
+              onGoalDraftChange={setGoalDraft}
+              onSubmit={handleGoalSubmit}
+              isSaving={updateGoalMutation.isPending}
+              errorMessage={goalErrorMessage}
+              isScopedToLibrary={Boolean(activeLibrary)}
+            />
+            <MetricCard
+              eyebrow="Racha"
+              label="Meses consecutivos actuales"
+              value={numberFormatter.format(readingQuery.data.streak.current_months)}
+            />
+            <MetricCard
+              eyebrow="Racha"
+              label="Mejor racha historica"
+              value={numberFormatter.format(readingQuery.data.streak.best_months)}
+            />
+          </div>
+
           <div className="stats-grid stats-grid-metrics">
             {readingStatusCards.map((card) => (
               <MetricCard
@@ -557,6 +740,47 @@ export function StatsPage() {
           </div>
 
           <div className="stats-grid">
+            <article className="panel stats-panel stats-panel-wide">
+              <div className="stats-panel-header">
+                <div>
+                  <p className="eyebrow">Progreso mensual</p>
+                  <h3>Iniciados y terminados por mes</h3>
+                </div>
+              </div>
+              {hasMonthlyProgress(readingQuery.data.monthly_progress) ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={readingQuery.data.monthly_progress}
+                    margin={{ top: 12, right: 18, left: 4, bottom: 12 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 36, 51, 0.12)" />
+                    <XAxis dataKey="month" tick={{ fill: "#5f6b7f", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "#5f6b7f", fontSize: 12 }} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `${typeof value === "number" ? value : Number(value ?? 0)} libros`,
+                        name === "started" ? "Iniciados" : "Terminados",
+                      ]}
+                    />
+                    <Legend
+                      formatter={(value) => (value === "started" ? "Iniciados" : "Terminados")}
+                    />
+                    <Bar dataKey="started" name="started" radius={[10, 10, 0, 0]} fill="#214f4a" />
+                    <Bar
+                      dataKey="finished"
+                      name="finished"
+                      radius={[10, 10, 0, 0]}
+                      fill="#c96b3b"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="stats-empty-chart">
+                  <p>Todavia no hay fechas suficientes este ano para construir el progreso mensual.</p>
+                </div>
+              )}
+            </article>
+
             <article className="panel stats-panel stats-panel-wide">
               <div className="stats-panel-header">
                 <div>
@@ -619,7 +843,7 @@ export function StatsPage() {
                     <YAxis tickFormatter={formatPercentage} tick={{ fill: "#5f6b7f", fontSize: 12 }} />
                     <Tooltip
                       formatter={(value, _name, entry) => [
-                        `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} · ${entry.payload.count} libros`,
+                        `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} - ${entry.payload.count} libros`,
                         `${entry.payload.rating} estrellas`,
                       ]}
                     />
@@ -633,6 +857,7 @@ export function StatsPage() {
               )}
             </article>
 
+            <StuckRemindersCard items={readingQuery.data.stuck_reminders} />
             <RecentFinishesCard items={readingQuery.data.recent_finishes} />
           </div>
         </>

@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import Body
 from fastapi import status
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,8 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.stats import CatalogStatsOut
+from app.schemas.stats import ReadingGoalOut
+from app.schemas.stats import ReadingGoalUpsert
 from app.schemas.stats import ReadingStatsOut
 from app.services.libraries import LibraryArchivedError
 from app.services.libraries import LibraryNotFoundError
@@ -18,6 +21,7 @@ from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import LibraryRoleRequiredError
 from app.services.stats import get_catalog_stats
 from app.services.stats import get_reading_stats
+from app.services.stats import upsert_reading_goal
 
 router = APIRouter(prefix="/stats")
 
@@ -68,3 +72,20 @@ def read_reading_stats(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LibraryArchivedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.put(
+    "/reading-goal",
+    response_model=ReadingGoalOut,
+    summary="Create or update the reading goal for the authenticated user",
+)
+def update_reading_goal(
+    payload: ReadingGoalUpsert = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ReadingGoalOut:
+    return upsert_reading_goal(
+        db,
+        user_id=current_user.id,
+        data=payload,
+    )

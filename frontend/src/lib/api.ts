@@ -189,6 +189,11 @@ export type UserCopyUpdatePayload = {
   personal_notes?: string | null;
 };
 
+export type ReadingGoalUpdatePayload = {
+  year: number;
+  target_books: number;
+};
+
 export type BooksQueryParams = {
   libraryId?: number;
   listId?: number;
@@ -227,12 +232,50 @@ export type CatalogStats = {
   top_genres: StatsRankingItem[];
 };
 
+export type ReadingGoal = {
+  year: number;
+  target_books: number;
+};
+
+export type GoalProgress = {
+  target: number;
+  completed: number;
+  percentage: number;
+};
+
+export type MonthlyProgressItem = {
+  month: string;
+  started: number;
+  finished: number;
+};
+
+export type ReadingStreak = {
+  current_months: number;
+  best_months: number;
+};
+
+export type StuckBookReminder = {
+  copy_id: number;
+  book_id: number;
+  library_id: number;
+  title: string;
+  authors: string[];
+  started_on: string;
+  days_open: number;
+};
+
 export type ReadingStats = {
+  goal_year: number;
+  goal: ReadingGoal | null;
+  goal_progress: GoalProgress;
   status_counts: {
     pending: number;
     reading: number;
     finished: number;
   };
+  monthly_progress: MonthlyProgressItem[];
+  streak: ReadingStreak;
+  stuck_reminders: StuckBookReminder[];
   finished_by_year: Array<{
     year: number;
     count: number;
@@ -773,4 +816,20 @@ export function fetchReadingStats(
   return apiFetch<ReadingStats>(`/stats/reading${queryString}`, undefined, {
     token,
   });
+}
+
+export function updateReadingGoal(
+  token: string,
+  payload: ReadingGoalUpdatePayload,
+): Promise<ReadingGoal> {
+  return apiFetch<ReadingGoal>(
+    "/stats/reading-goal",
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    {
+      token,
+    },
+  );
 }

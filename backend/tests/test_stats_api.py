@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
+from datetime import timedelta
+
 from fastapi.testclient import TestClient
+
 
 def register_user(
     client: TestClient,
@@ -124,9 +128,29 @@ def update_user_copy(
     assert response.status_code == 200
 
 
+def update_reading_goal(
+    client: TestClient,
+    headers: dict[str, str],
+    *,
+    year: int,
+    target_books: int,
+) -> dict[str, object]:
+    response = client.put(
+        "/stats/reading-goal",
+        headers=headers,
+        json={
+            "year": year,
+            "target_books": target_books,
+        },
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_stats_endpoints_aggregate_catalog_and_reading_views(
     client: TestClient,
 ) -> None:
+    current_year = date.today().year
     owner_headers = register_user(client, name="Ada", email="ada@example.com")
     personal_library_id = get_personal_library_id(client, owner_headers)
     shared_library_id = create_library(client, owner_headers, name="Club de lectura")
@@ -297,6 +321,28 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         "reading": 1,
         "finished": 2,
     }
+    assert reading_payload["goal_year"] == current_year
+    assert reading_payload["goal"] is None
+    assert reading_payload["goal_progress"] == {
+        "target": 0,
+        "completed": 1,
+        "percentage": 0.0,
+    }
+    assert reading_payload["monthly_progress"][1] == {
+        "month": "Feb",
+        "started": 1,
+        "finished": 0,
+    }
+    assert reading_payload["monthly_progress"][2] == {
+        "month": "Mar",
+        "started": 0,
+        "finished": 1,
+    }
+    assert reading_payload["streak"] == {
+        "current_months": 0,
+        "best_months": 1,
+    }
+    assert reading_payload["stuck_reminders"] == []
     assert reading_payload["finished_by_year"] == [
         {"year": 2025, "count": 1},
         {"year": 2026, "count": 1},
@@ -322,11 +368,19 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         headers=owner_headers,
     )
     assert scoped_reading_response.status_code == 200
-    assert scoped_reading_response.json()["status_counts"] == {
+    scoped_reading_payload = scoped_reading_response.json()
+    assert scoped_reading_payload["status_counts"] == {
         "pending": 11,
         "reading": 0,
         "finished": 1,
     }
+    assert scoped_reading_payload["goal_progress"] == {
+        "target": 0,
+        "completed": 1,
+        "percentage": 0.0,
+    }
+    assert scoped_reading_payload["monthly_progress"][1]["started"] == 0
+    assert scoped_reading_payload["monthly_progress"][2]["finished"] == 0
 
     forbidden_stats_response = client.get(
         f"/stats/catalog?library_id={personal_library_id}",
@@ -348,6 +402,163 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         headers=owner_headers,
     )
     assert archived_stats_response.status_code == 409
+
+
+def test_reading_goal_endpoint_and_extended_reading_stats(
+    client: TestClient,
+) -> None:
+    today = date.today()
+    current_year = today.year
+    stuck_start = (today - timedelta(days=45)).isoformat()
+    fresh_start = (today - timedelta(days=7)).isoformat()
+    headers = register_user(client, name="Goal User", email="goals@example.com")
+    library_id = get_personal_library_id(client, headers)
+
+    january = create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="January Finish",
+        author="Autor Uno",
+        genre="Ensayo",
+        reading_status="finished",
+    )
+    update_user_copy(
+        client,
+        headers,
+        copy_id=int(january["id"]),
+        reading_status="finished",
+        start_date=f"{current_year}-01-03",
+        end_date=f"{current_year}-01-20",
+    )
+
+    february = create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="February Finish",
+        author="Autor Dos",
+        genre="Ensayo",
+        reading_status="finished",
+    )
+    update_user_copy(
+        client,
+        headers,
+        copy_id=int(february["id"]),
+        reading_status="finished",
+        start_date=f"{current_year}-02-01",
+        end_date=f"{current_year}-02-28",
+    )
+
+    april = create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="April Finish",
+        author="Autor Tres",
+        genre="Ensayo",
+        reading_status="finished",
+    )
+    update_user_copy(
+        client,
+        headers,
+        copy_id=int(april["id"]),
+        reading_status="finished",
+        start_date=f"{current_year}-04-05",
+        end_date=f"{current_year}-04-18",
+    )
+
+    create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="Old Finish",
+        author="Autor Cuatro",
+        genre="Ensayo",
+        reading_status="finished",
+    )
+
+    stuck = create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="Stuck Book",
+        author="Autor Cinco",
+        genre="Drama",
+        reading_status="reading",
+    )
+    update_user_copy(
+        client,
+        headers,
+        copy_id=int(stuck["id"]),
+        reading_status="reading",
+        start_date=stuck_start,
+    )
+
+    fresh = create_book(
+        client,
+        headers,
+        library_id=library_id,
+        title="Fresh Reading",
+        author="Autor Seis",
+        genre="Drama",
+        reading_status="reading",
+    )
+    update_user_copy(
+        client,
+        headers,
+        copy_id=int(fresh["id"]),
+        reading_status="reading",
+        start_date=fresh_start,
+    )
+
+    goal_payload = update_reading_goal(
+        client,
+        headers,
+        year=current_year,
+        target_books=12,
+    )
+    assert goal_payload == {
+        "year": current_year,
+        "target_books": 12,
+    }
+
+    updated_goal_payload = update_reading_goal(
+        client,
+        headers,
+        year=current_year,
+        target_books=18,
+    )
+    assert updated_goal_payload == {
+        "year": current_year,
+        "target_books": 18,
+    }
+
+    reading_response = client.get("/stats/reading", headers=headers)
+    assert reading_response.status_code == 200
+    reading_payload = reading_response.json()
+    assert reading_payload["goal"] == {
+        "year": current_year,
+        "target_books": 18,
+    }
+    assert reading_payload["goal_progress"] == {
+        "target": 18,
+        "completed": 3,
+        "percentage": 16.67,
+    }
+    assert reading_payload["monthly_progress"][:4] == [
+        {"month": "Ene", "started": 1, "finished": 1},
+        {"month": "Feb", "started": 1, "finished": 1},
+        {"month": "Mar", "started": 1, "finished": 0},
+        {"month": "Abr", "started": 2, "finished": 1},
+    ]
+    assert reading_payload["streak"] == {
+        "current_months": 0,
+        "best_months": 2,
+    }
+    assert [item["title"] for item in reading_payload["stuck_reminders"]] == ["Stuck Book"]
+    assert reading_payload["stuck_reminders"][0]["days_open"] >= 30
+    assert reading_payload["recent_finishes"][0]["title"] == "April Finish"
 
 
 def test_book_endpoints_persist_author_sex(

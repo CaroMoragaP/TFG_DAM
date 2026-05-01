@@ -11,6 +11,7 @@ export type ListType = "wishlist" | "pending" | "custom";
 export type CopyFormat = "physical" | "digital";
 export type CopyStatus = "available" | "loaned" | "reserved";
 export type ReadingStatus = "pending" | "reading" | "finished";
+export type AuthorSex = "male" | "female" | "non_binary" | "unknown";
 
 export type User = {
   id: number;
@@ -72,6 +73,7 @@ export type Book = {
   publisher: string | null;
   collection: string | null;
   author_country: string | null;
+  author_sex: AuthorSex | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -94,6 +96,7 @@ export type CopyDetail = {
   publisher: string | null;
   collection: string | null;
   author_country: string | null;
+  author_sex: AuthorSex | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -112,6 +115,7 @@ export type BookMetadata = {
   publisher: string | null;
   collection: string | null;
   author_country: string | null;
+  author_sex: AuthorSex | null;
   authors: string[];
   genres: string[];
 };
@@ -145,6 +149,7 @@ export type BookCreatePayload = {
   publisher_name?: string | null;
   collection_name?: string | null;
   author_country_name?: string | null;
+  author_sex?: AuthorSex | null;
   authors: string[];
   genres: string[];
   format?: CopyFormat;
@@ -166,6 +171,7 @@ export type BookMetadataUpdatePayload = {
   publisher_name?: string | null;
   collection_name?: string | null;
   author_country_name?: string | null;
+  author_sex?: AuthorSex | null;
 };
 
 export type CopyUpdatePayload = {
@@ -192,6 +198,67 @@ export type BooksQueryParams = {
   authorCountry?: string;
   readingStatus?: ReadingStatus;
   minRating?: number;
+};
+
+export type StatsBreakdownItem = {
+  key: string;
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type StatsRankingItem = {
+  label: string;
+  count: number;
+};
+
+export type CatalogStats = {
+  totals: {
+    total: number;
+    physical: number;
+    digital: number;
+  };
+  author_sex_distribution: StatsBreakdownItem[];
+  author_country_distribution: StatsBreakdownItem[];
+  genre_distribution: StatsBreakdownItem[];
+  publisher_distribution: StatsBreakdownItem[];
+  publication_year_distribution: StatsBreakdownItem[];
+  top_authors: StatsRankingItem[];
+  top_genres: StatsRankingItem[];
+};
+
+export type ReadingStats = {
+  status_counts: {
+    pending: number;
+    reading: number;
+    finished: number;
+  };
+  finished_by_year: Array<{
+    year: number;
+    count: number;
+  }>;
+  rating_summary: {
+    average: number | null;
+    total_rated: number;
+    distribution: Array<{
+      rating: number;
+      count: number;
+      percentage: number;
+    }>;
+  };
+  reading_activity: {
+    started: number;
+    finished: number;
+    missing_dates: number;
+  };
+  recent_finishes: Array<{
+    copy_id: number;
+    book_id: number;
+    library_id: number;
+    title: string;
+    authors: string[];
+    finished_on: string;
+  }>;
 };
 
 export type LibraryCreatePayload = {
@@ -678,6 +745,32 @@ export function fetchOpenLibraryBook(
   });
 
   return apiFetch<ExternalBookLookup>(`/external/open-library${queryString}`, undefined, {
+    token,
+  });
+}
+
+export function fetchCatalogStats(
+  token: string,
+  params?: { libraryId?: number },
+): Promise<CatalogStats> {
+  const queryString = buildQueryString({
+    library_id: params?.libraryId,
+  });
+
+  return apiFetch<CatalogStats>(`/stats/catalog${queryString}`, undefined, {
+    token,
+  });
+}
+
+export function fetchReadingStats(
+  token: string,
+  params?: { libraryId?: number },
+): Promise<ReadingStats> {
+  const queryString = buildQueryString({
+    library_id: params?.libraryId,
+  });
+
+  return apiFetch<ReadingStats>(`/stats/reading${queryString}`, undefined, {
     token,
   });
 }

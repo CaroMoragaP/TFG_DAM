@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import {
   ApiError,
+  type AuthorSex,
   fetchOpenLibraryBook,
   type Book,
   type ExternalBookLookup,
@@ -14,6 +15,7 @@ export type BookFormValues = {
   libraryId: string;
   title: string;
   author: string;
+  authorSex: AuthorSex | "";
   authorCountry: string;
   publicationYear: string;
   isbn: string;
@@ -43,6 +45,7 @@ const emptyFormValues = (defaultLibraryId: number | null): BookFormValues => ({
   libraryId: defaultLibraryId ? String(defaultLibraryId) : "",
   title: "",
   author: "",
+  authorSex: "",
   authorCountry: "",
   publicationYear: "",
   isbn: "",
@@ -58,6 +61,7 @@ function bookToFormValues(book: Book): BookFormValues {
     libraryId: String(book.library_id),
     title: book.title,
     author: book.authors[0] ?? "",
+    authorSex: book.author_sex ?? "",
     authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
@@ -303,6 +307,20 @@ export function BookModal({
               Autor
               <input value={formValues.author} onChange={(event) => handleFieldChange("author", event.target.value)} />
               {errors.author ? <p className="field-error">{errors.author}</p> : null}
+            </label>
+
+            <label className="field-group">
+              Sexo del autor
+              <select
+                value={formValues.authorSex}
+                onChange={(event) => handleFieldChange("authorSex", event.target.value as AuthorSex | "")}
+              >
+                <option value="">Sin dato</option>
+                <option value="male">Hombre</option>
+                <option value="female">Mujer</option>
+                <option value="non_binary">No binario</option>
+                <option value="unknown">Desconocido</option>
+              </select>
             </label>
 
             <label className="field-group">

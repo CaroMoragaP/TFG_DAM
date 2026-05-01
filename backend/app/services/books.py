@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
+from app.core.book_fields import normalize_author_sex
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
@@ -75,6 +76,7 @@ BOOK_LOAD_OPTIONS = (
     selectinload(Book.book_authors).joinedload(BookAuthor.author).joinedload(Author.country),
     selectinload(Book.book_genres).joinedload(BookGenre.genre),
 )
+_UNSET = object()
 
 
 def create_book(
@@ -323,10 +325,15 @@ def update_book_metadata(
             BookAuthor(author=author)
             for author in _resolve_authors(db, data.authors or [])
         ]
-    if "author_country_name" in data.model_fields_set:
-        _assign_primary_author_country(
+    if "author_country_name" in data.model_fields_set or "author_sex" in data.model_fields_set:
+        _assign_primary_author_metadata(
             book.book_authors,
-            _resolve_country(db, data.author_country_name),
+            country=(
+                _resolve_country(db, data.author_country_name)
+                if "author_country_name" in data.model_fields_set
+                else _UNSET
+            ),
+            sex=data.author_sex if "author_sex" in data.model_fields_set else _UNSET,
         )
     if "genres" in data.model_fields_set:
         book.book_genres = [
@@ -371,6 +378,7 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         publisher=book.publisher.name if book.publisher is not None else None,
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
+        author_sex=_serialize_primary_author_sex(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -402,6 +410,7 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
         publisher=book.publisher.name if book.publisher is not None else None,
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
+        author_sex=_serialize_primary_author_sex(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -428,6 +437,7 @@ def serialize_book_metadata(book: Book) -> BookMetadataOut:
         publisher=book.publisher.name if book.publisher is not None else None,
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
+        author_sex=_serialize_primary_author_sex(book),
         authors=[
             relation.author.name
             for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
@@ -450,10 +460,6 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
     authors = _resolve_authors(db, data.authors)
     genres = _resolve_genres(db, data.genres)
     book_authors = [BookAuthor(author=author) for author in authors]
-    _assign_primary_author_country(
-        book_authors,
-        _resolve_country(db, data.author_country_name),
-    )
 
     book = Book(
         title=data.title,
@@ -470,9 +476,10 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
         BookGenre(genre=genre)
         for genre in genres
     ]
-    _assign_primary_author_country(
+    _assign_primary_author_metadata(
         book.book_authors,
-        _resolve_country(db, data.author_country_name),
+        country=_resolve_country(db, data.author_country_name),
+        sex=data.author_sex,
     )
     db.flush()
     return book
@@ -625,15 +632,20 @@ def _ensure_unique_isbn(
         raise DuplicateBookIsbnError("Ya existe otro libro con ese ISBN.")
 
 
-def _assign_primary_author_country(
+def _assign_primary_author_metadata(
     book_authors: list[BookAuthor],
-    country: Country | None,
+    *,
+    country: Country | None | object = _UNSET,
+    sex: str | None | object = _UNSET,
 ) -> None:
     if not book_authors:
         return
 
     primary_relation = min(book_authors, key=lambda item: item.author.name.casefold())
-    primary_relation.author.country = country
+    if country is not _UNSET:
+        primary_relation.author.country = country
+    if sex is not _UNSET:
+        primary_relation.author.sex = sex
 
 
 def _serialize_primary_author_country(book: Book) -> str | None:
@@ -644,6 +656,14 @@ def _serialize_primary_author_country(book: Book) -> str | None:
     if primary_relation.author.country is None:
         return None
     return primary_relation.author.country.name
+
+
+def _serialize_primary_author_sex(book: Book) -> str | None:
+    if not book.book_authors:
+        return None
+
+    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    return normalize_author_sex(primary_relation.author.sex, invalid_fallback="unknown")
 
 
 def _assert_copy_access(

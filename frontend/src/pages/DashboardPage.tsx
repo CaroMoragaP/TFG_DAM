@@ -207,6 +207,7 @@ export function DashboardPage() {
       library_id: libraryId,
       title: values.title.trim(),
       authors: [values.author.trim()],
+      author_sex: values.authorSex || null,
       author_country_name: values.authorCountry.trim() || null,
       publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
       isbn: values.isbn.trim() || null,

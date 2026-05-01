@@ -5,6 +5,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
+from app.core.book_fields import normalize_author_sex
 from app.models.enums import CopyFormat
 from app.models.enums import CopyStatus
 from app.models.enums import ReadingStatus
@@ -47,6 +48,7 @@ class BookCreate(BaseModel):
     publisher_name: str | None = Field(default=None, max_length=255)
     collection_name: str | None = Field(default=None, max_length=255)
     author_country_name: str | None = Field(default=None, max_length=120)
+    author_sex: str | None = Field(default=None, max_length=50)
     authors: list[str] = Field(default_factory=list)
     genres: list[str] = Field(default_factory=list)
     format: CopyFormat = CopyFormat.PHYSICAL
@@ -71,12 +73,18 @@ class BookCreate(BaseModel):
         "publisher_name",
         "collection_name",
         "author_country_name",
+        "author_sex",
         "physical_location",
         "digital_location",
     )
     @classmethod
     def normalize_optional_fields(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
+
+    @field_validator("author_sex")
+    @classmethod
+    def normalize_author_sex_value(cls, value: str | None) -> str | None:
+        return normalize_author_sex(value)
 
     @field_validator("authors", "genres")
     @classmethod
@@ -93,6 +101,7 @@ class BookUpdate(BaseModel):
     publisher_name: str | None = Field(default=None, max_length=255)
     collection_name: str | None = Field(default=None, max_length=255)
     author_country_name: str | None = Field(default=None, max_length=120)
+    author_sex: str | None = Field(default=None, max_length=50)
     authors: list[str] | None = None
     genres: list[str] | None = None
     format: CopyFormat | None = None
@@ -120,12 +129,18 @@ class BookUpdate(BaseModel):
         "publisher_name",
         "collection_name",
         "author_country_name",
+        "author_sex",
         "physical_location",
         "digital_location",
     )
     @classmethod
     def normalize_optional_fields(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
+
+    @field_validator("author_sex")
+    @classmethod
+    def normalize_optional_author_sex_value(cls, value: str | None) -> str | None:
+        return normalize_author_sex(value)
 
     @field_validator("authors", "genres")
     @classmethod
@@ -157,6 +172,7 @@ class BookMetadataUpdate(BaseModel):
     publisher_name: str | None = Field(default=None, max_length=255)
     collection_name: str | None = Field(default=None, max_length=255)
     author_country_name: str | None = Field(default=None, max_length=120)
+    author_sex: str | None = Field(default=None, max_length=50)
     authors: list[str] | None = None
     genres: list[str] | None = None
 
@@ -180,10 +196,16 @@ class BookMetadataUpdate(BaseModel):
         "publisher_name",
         "collection_name",
         "author_country_name",
+        "author_sex",
     )
     @classmethod
     def normalize_metadata_optional_fields(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
+
+    @field_validator("author_sex")
+    @classmethod
+    def normalize_metadata_author_sex_value(cls, value: str | None) -> str | None:
+        return normalize_author_sex(value)
 
     @field_validator("authors", "genres")
     @classmethod
@@ -235,6 +257,7 @@ class BookOut(BaseModel):
     publisher: str | None
     collection: str | None
     author_country: str | None
+    author_sex: str | None
     authors: list[str]
     genres: list[str]
     format: CopyFormat
@@ -259,6 +282,7 @@ class CopyDetailOut(BaseModel):
     publisher: str | None
     collection: str | None
     author_country: str | None
+    author_sex: str | None
     authors: list[str]
     genres: list[str]
     format: CopyFormat
@@ -279,6 +303,7 @@ class BookMetadataOut(BaseModel):
     publisher: str | None
     collection: str | None
     author_country: str | None
+    author_sex: str | None
     authors: list[str]
     genres: list[str]
 

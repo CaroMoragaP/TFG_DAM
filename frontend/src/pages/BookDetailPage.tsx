@@ -25,6 +25,13 @@ const statusLabels: Record<ReadingStatus, string> = {
   finished: "Leido",
 };
 
+const authorSexLabels = {
+  male: "Hombre",
+  female: "Mujer",
+  non_binary: "No binario",
+  unknown: "Desconocido",
+} as const;
+
 function toBookMetadata(detail: CopyDetail): BookMetadata {
   return {
     id: detail.book_id,
@@ -36,6 +43,7 @@ function toBookMetadata(detail: CopyDetail): BookMetadata {
     publisher: detail.publisher,
     collection: detail.collection,
     author_country: detail.author_country,
+    author_sex: detail.author_sex,
     authors: detail.authors,
     genres: detail.genres,
   };
@@ -108,6 +116,7 @@ export function BookDetailPage() {
       updateBookMetadataRequest(token ?? "", copyQuery.data!.book_id, {
         title: payload.title.trim(),
         authors: payload.author.trim() ? [payload.author.trim()] : [],
+        author_sex: payload.authorSex || null,
         author_country_name: payload.authorCountry.trim() || null,
         publication_year: payload.publicationYear.trim() ? Number(payload.publicationYear) : null,
         isbn: payload.isbn.trim() || null,
@@ -156,6 +165,7 @@ export function BookDetailPage() {
   const genre = detail?.genres[0] ?? "-";
   const collection = detail?.collection ?? "-";
   const authorCountry = detail?.author_country ?? "-";
+  const authorSex = detail?.author_sex ? authorSexLabels[detail.author_sex] : "-";
   const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
   const isUserDataPending = updateUserDataMutation.isPending;
 
@@ -241,6 +251,10 @@ export function BookDetailPage() {
                   <div>
                     <dt>Pais autor</dt>
                     <dd>{authorCountry}</dd>
+                  </div>
+                  <div>
+                    <dt>Sexo autor</dt>
+                    <dd>{authorSex}</dd>
                   </div>
                   <div>
                     <dt>Ano</dt>

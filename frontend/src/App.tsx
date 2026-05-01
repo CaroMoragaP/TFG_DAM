@@ -3,14 +3,15 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PrivateLayout } from "./layouts/PrivateLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
+import { AuthPage } from "./pages/AuthPage";
 import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { AuthPage } from "./pages/AuthPage";
 import { LibrariesPage } from "./pages/LibrariesPage";
 import { LibrarySectionPage } from "./pages/LibrarySectionPage";
 import { ListsPage } from "./pages/ListsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicHomePage } from "./pages/PublicHomePage";
+import { StatsPage } from "./pages/StatsPage";
 
 const router = createBrowserRouter([
   {
@@ -66,8 +67,8 @@ const router = createBrowserRouter([
         element: (
           <LibrarySectionPage
             eyebrow="Historial"
-            title="Leídos"
-            description="Aquí vivirá el archivo de libros terminados con filtros y notas personales."
+            title="Leidos"
+            description="Aqui vivira el archivo de libros terminados con filtros y notas personales."
           />
         ),
       },
@@ -75,9 +76,9 @@ const router = createBrowserRouter([
         path: "pendiente",
         element: (
           <LibrarySectionPage
-            eyebrow="Planificación"
+            eyebrow="Planificacion"
             title="Pendiente"
-            description="Pantalla placeholder para la pila de próximas lecturas y prioridades."
+            description="Pantalla placeholder para la pila de proximas lecturas y prioridades."
           />
         ),
       },
@@ -86,8 +87,8 @@ const router = createBrowserRouter([
         element: (
           <LibrarySectionPage
             eyebrow="Comunidad"
-            title="Reseñas"
-            description="Aquí se integrarán las reseñas, comentarios y valoraciones de la biblioteca."
+            title="Resenas"
+            description="Aqui se integraran las resenas, comentarios y valoraciones de la biblioteca."
           />
         ),
       },
@@ -101,13 +102,7 @@ const router = createBrowserRouter([
       },
       {
         path: "stats",
-        element: (
-          <LibrarySectionPage
-            eyebrow="Analítica"
-            title="Stats"
-            description="Módulo inicial para futuras métricas de lectura, actividad y progreso."
-          />
-        ),
+        element: <StatsPage />,
       },
     ],
   },

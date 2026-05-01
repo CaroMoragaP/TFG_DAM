@@ -11,7 +11,7 @@ const navigationItems = [
   { to: "/leidos", label: "Leídos" },
   { to: "/pendiente", label: "Pendiente" },
   { to: "/resenas", label: "Reseñas" },
-  { to: "/stats", label: "Stats" },
+  { to: "/stats", label: "Estadisticas" },
 ];
 
 export function PrivateLayout() {

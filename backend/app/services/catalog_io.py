@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.author_names import build_structured_author_name
 from app.core.author_names import is_placeholder_author
 from app.core.author_names import normalize_author_lookup_key
+from app.core.themes import map_theme_candidates
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
@@ -61,7 +62,8 @@ NATIVE_HEADER_SET = {
     "coleccion",
     "pais_autor",
     "sexo_autor",
-    "generos",
+    "genero_literario",
+    "temas",
     "formato",
     "ubicacion_fisica",
     "ubicacion_digital",
@@ -84,7 +86,8 @@ EXPORT_FIELDNAMES = [
     "coleccion",
     "pais_autor",
     "sexo_autor",
-    "generos",
+    "genero_literario",
+    "temas",
     "formato",
     "ubicacion_fisica",
     "ubicacion_digital",
@@ -93,6 +96,9 @@ EXPORT_FIELDNAMES = [
     "valoracion",
     "url_portada",
 ]
+_COPY_STATUS_VALUES = {"available", "loaned", "reserved"}
+_READING_STATUS_VALUES = {"pending", "reading", "finished"}
+_COPY_FORMAT_VALUES = {"physical", "digital"}
 
 
 def preview_catalog_import(
@@ -252,6 +258,7 @@ def export_catalog_csv(
     list_id: int | None = None,
     q: str | None = None,
     genre: str | None = None,
+    theme: str | None = None,
     collection: str | None = None,
     author_country: str | None = None,
     reading_status=None,
@@ -264,6 +271,7 @@ def export_catalog_csv(
         list_id=list_id,
         q=q,
         genre=genre,
+        theme=theme,
         collection=collection,
         author_country=author_country,
         reading_status=reading_status,
@@ -295,13 +303,14 @@ def export_catalog_csv(
                 "descripcion": copy.book.description or "",
                 "editorial": copy.book.publisher.name if copy.book.publisher is not None else "",
                 "coleccion": copy.book.collection.name if copy.book.collection is not None else "",
+                "genero_literario": copy.book.genre or "",
                 "pais_autor": primary_author.country.name
                 if primary_author is not None and primary_author.country is not None
                 else "",
                 "sexo_autor": primary_author.sex if primary_author is not None and primary_author.sex is not None else "",
-                "generos": " | ".join(
-                    relation.genre.name
-                    for relation in sorted(copy.book.book_genres, key=lambda item: item.genre.name.casefold())
+                "temas": " | ".join(
+                    relation.theme.name
+                    for relation in sorted(copy.book.book_themes, key=lambda item: item.theme.name.casefold())
                 ),
                 "formato": copy.format.value,
                 "ubicacion_fisica": copy.physical_location or "",
@@ -328,6 +337,8 @@ def _read_csv_rows(file_bytes: bytes) -> list[tuple[int, dict[str, str]]]:
 
     if decoded is None:
         raise ValueError("No se pudo leer el CSV con una codificacion compatible.")
+
+    decoded = _repair_mojibake_text(decoded)
 
     reader = csv.DictReader(StringIO(decoded))
     if reader.fieldnames is None:
@@ -366,13 +377,16 @@ def _build_reference_payload(row: dict[str, str]) -> CatalogImportRowPayload:
         primary_author_last_name=structured_author.last_name,
         primary_author_display_name=structured_author.display_name,
         authors=authors,
-        genres=[indexed_row["genero"].strip()] if _optional_text(indexed_row.get("genero")) else [],
+        genre=_optional_text(indexed_row.get("genero_literario")),
+        themes=map_theme_candidates(
+            [indexed_row["genero"].strip()] if _optional_text(indexed_row.get("genero")) else [],
+        ),
         physical_location=_optional_text(indexed_row.get("ubicacion")),
     )
 
 
 def _build_native_payload(row: dict[str, str]) -> CatalogImportRowPayload:
-    indexed_row = _normalize_row_keys(row)
+    indexed_row = _repair_shifted_native_row(_normalize_row_keys(row))
     structured_author = build_structured_author_name(
         first_name=indexed_row.get("autor_nombre"),
         last_name=indexed_row.get("autor_apellido"),
@@ -397,7 +411,8 @@ def _build_native_payload(row: dict[str, str]) -> CatalogImportRowPayload:
         primary_author_last_name=structured_author.last_name,
         primary_author_display_name=structured_author.display_name,
         authors=authors,
-        genres=_split_pipe_separated(indexed_row.get("generos")),
+        genre=_optional_text(indexed_row.get("genero_literario")),
+        themes=map_theme_candidates(_split_pipe_separated(indexed_row.get("temas") or indexed_row.get("generos"))),
         format=_optional_text(indexed_row.get("formato")) or "physical",
         physical_location=_optional_text(indexed_row.get("ubicacion_fisica")),
         digital_location=_optional_text(indexed_row.get("ubicacion_digital")),
@@ -563,3 +578,59 @@ def _split_pipe_separated(value: str | None) -> list[str]:
         seen.add(key)
         values.append(candidate)
     return values
+
+
+def _repair_mojibake_text(value: str) -> str:
+    repaired = value
+    for _ in range(2):
+        next_value = _repair_single_mojibake_pass(repaired)
+        if next_value == repaired:
+            break
+        repaired = next_value
+    return repaired
+
+
+def _repair_single_mojibake_pass(value: str) -> str:
+    if "Ã" not in value and "Â" not in value:
+        return value
+
+    for source_encoding in ("latin-1", "cp1252"):
+        try:
+            repaired = value.encode(source_encoding).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+        if repaired != value:
+            return repaired
+
+    return value
+
+
+def _repair_shifted_native_row(indexed_row: dict[str, str]) -> dict[str, str]:
+    if _optional_text(indexed_row.get("url_portada")) is not None:
+        return indexed_row
+
+    potential_cover_url = _optional_text(indexed_row.get("valoracion"))
+    if potential_cover_url is None or not potential_cover_url.startswith(("http://", "https://")):
+        return indexed_row
+
+    theme_column = "temas" if "temas" in indexed_row else "generos"
+    if _optional_text(indexed_row.get(theme_column)) not in _COPY_FORMAT_VALUES:
+        return indexed_row
+
+    if _optional_text(indexed_row.get("ubicacion_digital")) not in _COPY_STATUS_VALUES:
+        return indexed_row
+
+    if _optional_text(indexed_row.get("estado_copia")) not in _READING_STATUS_VALUES:
+        return indexed_row
+
+    repaired_row = dict(indexed_row)
+    repaired_row["url_portada"] = repaired_row.get("valoracion") or ""
+    repaired_row["valoracion"] = repaired_row.get("estado_lectura") or ""
+    repaired_row["estado_lectura"] = repaired_row.get("estado_copia") or ""
+    repaired_row["estado_copia"] = repaired_row.get("ubicacion_digital") or ""
+    repaired_row["ubicacion_digital"] = repaired_row.get("ubicacion_fisica") or ""
+    repaired_row["ubicacion_fisica"] = repaired_row.get("formato") or ""
+    repaired_row["formato"] = repaired_row.get(theme_column) or ""
+    repaired_row[theme_column] = repaired_row.get("sexo_autor") or ""
+    repaired_row["sexo_autor"] = ""
+    return repaired_row

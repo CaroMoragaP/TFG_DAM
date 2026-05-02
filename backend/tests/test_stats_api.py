@@ -70,7 +70,7 @@ def create_book(
     library_id: int,
     title: str,
     author: str,
-    genre: str,
+    theme: str,
     reading_status: str = "pending",
     user_rating: int | None = None,
     author_country: str | None = None,
@@ -78,6 +78,7 @@ def create_book(
     publisher_name: str | None = None,
     publication_year: int | None = None,
     format: str = "physical",
+    genre: str = "narrativo",
 ) -> dict[str, object]:
     response = client.post(
         "/books",
@@ -86,7 +87,8 @@ def create_book(
             "library_id": library_id,
             "title": title,
             "authors": [author],
-            "genres": [genre],
+            "genre": genre,
+            "themes": [theme] if theme else [],
             "reading_status": reading_status,
             "user_rating": user_rating,
             "author_country_name": author_country,
@@ -170,7 +172,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         library_id=personal_library_id,
         title="Dune",
         author="Frank Herbert",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="reading",
         user_rating=5,
         author_country="Estados Unidos",
@@ -195,7 +197,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         library_id=personal_library_id,
         title="Hyperion",
         author="Dan Simmons",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="pending",
         author_country="Estados Unidos",
         author_sex="male",
@@ -211,7 +213,8 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         library_id=shared_library_id,
         title="Emma",
         author="Jane Austen",
-        genre="Clasico",
+        theme="Clasico",
+        genre="didáctico",
         reading_status="finished",
         user_rating=4,
         author_country="Reino Unido",
@@ -236,7 +239,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         library_id=shared_library_id,
         title="Project Hail Mary",
         author="Andy Weir",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="reading",
         author_country="Estados Unidos",
         author_sex="male",
@@ -252,7 +255,8 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
             library_id=personal_library_id,
             title=f"Libro editorial {index}",
             author="Autor repetido" if index <= 3 else f"Autor {index}",
-            genre="Ensayo",
+            theme="Ciencias sociales",
+            genre="didáctico",
             author_sex="unknown",
             publisher_name=f"Editorial {index}",
             publication_year=2000 + index,
@@ -265,6 +269,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         library_id=personal_library_id,
         title="Sin genero",
         author="Autor sin datos",
+        theme="",
         genre="",
         author_country=None,
         author_sex=None,
@@ -300,7 +305,8 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         for item in catalog_payload["publisher_distribution"]
     )
     assert catalog_payload["top_authors"][0] == {"label": "Autor repetido", "count": 3}
-    assert catalog_payload["top_genres"][0] == {"label": "Ensayo", "count": 9}
+    assert catalog_payload["top_genres"][0] == {"label": "didáctico", "count": 10}
+    assert catalog_payload["top_themes"][0] == {"label": "Ciencias sociales", "count": 9}
 
     scoped_catalog_response = client.get(
         f"/stats/catalog?library_id={shared_library_id}",
@@ -420,7 +426,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="January Finish",
         author="Autor Uno",
-        genre="Ensayo",
+        theme="Ciencias sociales",
+        genre="didáctico",
         reading_status="finished",
     )
     update_user_copy(
@@ -438,7 +445,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="February Finish",
         author="Autor Dos",
-        genre="Ensayo",
+        theme="Ciencias sociales",
+        genre="didáctico",
         reading_status="finished",
     )
     update_user_copy(
@@ -456,7 +464,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="April Finish",
         author="Autor Tres",
-        genre="Ensayo",
+        theme="Ciencias sociales",
+        genre="didáctico",
         reading_status="finished",
     )
     update_user_copy(
@@ -474,7 +483,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="Old Finish",
         author="Autor Cuatro",
-        genre="Ensayo",
+        theme="Ciencias sociales",
+        genre="didáctico",
         reading_status="finished",
     )
 
@@ -484,7 +494,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="Stuck Book",
         author="Autor Cinco",
-        genre="Drama",
+        theme="Drama",
+        genre="dramático",
         reading_status="reading",
     )
     update_user_copy(
@@ -501,7 +512,8 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         library_id=library_id,
         title="Fresh Reading",
         author="Autor Seis",
-        genre="Drama",
+        theme="Drama",
+        genre="dramático",
         reading_status="reading",
     )
     update_user_copy(
@@ -573,7 +585,7 @@ def test_book_endpoints_persist_author_sex(
         library_id=library_id,
         title="Neuromancer",
         author="William Gibson",
-        genre="Cyberpunk",
+        theme="Cyberpunk",
         author_country="Canada",
         author_sex="male",
     )
@@ -585,7 +597,8 @@ def test_book_endpoints_persist_author_sex(
         json={
             "title": "Neuromancer",
             "authors": ["William Gibson"],
-            "genres": ["Cyberpunk"],
+            "genre": "narrativo",
+            "themes": ["Ciencia ficcion"],
             "author_country_name": "Canada",
             "author_sex": "male",
         },

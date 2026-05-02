@@ -10,6 +10,12 @@ import {
   type Library,
   type ReadingStatus,
 } from "../lib/api";
+import {
+  LITERARY_GENRE_OPTIONS,
+  MAX_BOOK_THEMES,
+  normalizeThemeSelection,
+} from "../lib/bookMetadata";
+import { ThemeSelector } from "./ThemeSelector";
 
 export type BookFormValues = {
   libraryId: string;
@@ -22,6 +28,7 @@ export type BookFormValues = {
   isbn: string;
   publisherName: string;
   genre: string;
+  themes: string[];
   collection: string;
   readingStatus: ReadingStatus;
   coverUrl: string;
@@ -31,7 +38,7 @@ export type BookFormValues = {
 type BookModalProps = {
   book: Book | null;
   defaultLibraryId: number | null;
-  genres: string[];
+  themeOptions: string[];
   isOpen: boolean;
   isSaving: boolean;
   libraries: Library[];
@@ -54,6 +61,7 @@ const emptyFormValues = (defaultLibraryId: number | null): BookFormValues => ({
   isbn: "",
   publisherName: "",
   genre: "",
+  themes: [],
   collection: "",
   readingStatus: "pending",
   coverUrl: "",
@@ -71,7 +79,8 @@ function bookToFormValues(book: Book): BookFormValues {
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
     publisherName: book.publisher ?? "",
-    genre: book.genres[0] ?? "",
+    genre: book.genre ?? "",
+    themes: normalizeThemeSelection(book.themes),
     collection: book.collection ?? "",
     readingStatus: book.reading_status,
     coverUrl: book.cover_url ?? "",
@@ -122,6 +131,10 @@ function buildValidationErrors(
     }
   }
 
+  if (values.themes.length > MAX_BOOK_THEMES) {
+    errors.themes = `Selecciona como maximo ${MAX_BOOK_THEMES} temas.`;
+  }
+
   return errors;
 }
 
@@ -141,15 +154,19 @@ function applyImportedBook(
     publicationYear: importedBook.publication_year ? String(importedBook.publication_year) : "",
     isbn: importedBook.isbn ?? "",
     publisherName: importedBook.publisher_name ?? "",
-    genre: importedBook.genres[0] ?? "",
+    themes: normalizeThemeSelection(importedBook.themes),
     coverUrl: importedBook.cover_url ?? "",
   };
+}
+
+function buildAuthorDisplayName(firstName: string, lastName: string) {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
 }
 
 export function BookModal({
   book,
   defaultLibraryId,
-  genres,
+  themeOptions,
   isOpen,
   isSaving,
   libraries,
@@ -178,12 +195,23 @@ export function BookModal({
     mutationFn: async () => {
       const isbn = formValues.isbn.trim();
       const title = formValues.title.trim();
+      const author = buildAuthorDisplayName(formValues.authorFirstName, formValues.authorLastName);
+      const publisher = formValues.publisherName.trim();
 
       if (!isbn && !title) {
         throw new Error("Escribe un ISBN o un titulo antes de buscar.");
       }
 
-      return fetchOpenLibraryBook(token, isbn ? { isbn } : { q: title });
+      return fetchOpenLibraryBook(
+        token,
+        isbn
+          ? { isbn }
+          : {
+              title,
+              author: author || undefined,
+              publisher: publisher || undefined,
+            },
+      );
     },
     onSuccess: (importedBook) => {
       setErrors((currentErrors) => {
@@ -197,6 +225,7 @@ export function BookModal({
         delete nextErrors.isbn;
         delete nextErrors.publisherName;
         delete nextErrors.genre;
+        delete nextErrors.themes;
         delete nextErrors.collection;
         delete nextErrors.coverUrl;
         return nextErrors;
@@ -214,9 +243,6 @@ export function BookModal({
       }));
     },
   });
-
-  const genreOptions =
-    !formValues.genre || genres.includes(formValues.genre) ? genres : [formValues.genre, ...genres];
 
   if (!isOpen) {
     return null;
@@ -394,17 +420,25 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              Genero
+              Genero literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
                 <option value="">Sin genero</option>
-                {genreOptions.map((genre) => (
-                  <option key={genre} value={genre}>
-                    {genre}
+                {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                  <option key={genreOption.value} value={genreOption.value}>
+                    {genreOption.label}
                   </option>
                 ))}
               </select>
               {errors.genre ? <p className="field-error">{errors.genre}</p> : null}
             </label>
+
+            <ThemeSelector
+              error={errors.themes}
+              helperText={`Selecciona hasta ${MAX_BOOK_THEMES} temas principales.`}
+              options={themeOptions}
+              selectedThemes={formValues.themes}
+              onChange={(nextThemes) => handleFieldChange("themes", nextThemes)}
+            />
 
             <label className="field-group">
               Coleccion
@@ -471,4 +505,8 @@ export function BookModal({
       </div>
     </div>
   );
+}
+
+export function buildBookPayloadThemes(values: Pick<BookFormValues, "themes">) {
+  return normalizeThemeSelection(values.themes);
 }

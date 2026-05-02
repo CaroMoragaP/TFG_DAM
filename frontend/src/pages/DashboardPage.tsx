@@ -3,19 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { buildBookPayloadThemes, BookModal, type BookFormValues } from "../components/BookModal";
 import { AddToListModal } from "../components/AddToListModal";
 import { BookCard } from "../components/BookCard";
-import { BookModal, type BookFormValues } from "../components/BookModal";
 import { CatalogImportModal } from "../components/CatalogImportModal";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { LITERARY_GENRE_OPTIONS } from "../lib/bookMetadata";
 import {
   addBookToListRequest,
   commitCatalogImportRequest,
   createBookRequest,
   exportCatalogRequest,
   fetchBooks,
-  fetchGenres,
+  fetchThemes,
   fetchLists,
   previewCatalogImportRequest,
   updateCopyRequest,
@@ -50,6 +51,7 @@ export function DashboardPage() {
   const libraryParam = searchParams.get("library") ?? "";
   const listIdParam = searchParams.get("listId") ?? "";
   const genre = searchParams.get("genre") ?? "";
+  const theme = searchParams.get("theme") ?? "";
   const collection = searchParams.get("collection") ?? "";
   const authorCountry = searchParams.get("authorCountry") ?? "";
   const readingStatus = (searchParams.get("readingStatus") ?? "") as ReadingStatus | "";
@@ -94,9 +96,9 @@ export function DashboardPage() {
     };
   }, [q, searchDraft, searchParams, setSearchParams]);
 
-  const genresQuery = useQuery({
-    queryKey: ["genres"],
-    queryFn: () => fetchGenres(token ?? ""),
+  const themesQuery = useQuery({
+    queryKey: ["themes"],
+    queryFn: () => fetchThemes(token ?? ""),
     enabled: Boolean(token),
   });
 
@@ -108,6 +110,7 @@ export function DashboardPage() {
         listId: selectedListId ?? "all",
         q,
         genre,
+        theme,
         collection,
         authorCountry,
         readingStatus,
@@ -120,6 +123,7 @@ export function DashboardPage() {
         listId: selectedListId,
         q,
         genre: genre || undefined,
+        theme: theme || undefined,
         collection: collection || undefined,
         authorCountry: authorCountry || undefined,
         readingStatus: readingStatus || undefined,
@@ -139,7 +143,7 @@ export function DashboardPage() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["books"] }),
-        queryClient.invalidateQueries({ queryKey: ["genres"] }),
+        queryClient.invalidateQueries({ queryKey: ["themes"] }),
       ]);
       setIsCreateModalOpen(false);
     },
@@ -196,7 +200,7 @@ export function DashboardPage() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["books"] }),
-        queryClient.invalidateQueries({ queryKey: ["genres"] }),
+        queryClient.invalidateQueries({ queryKey: ["themes"] }),
       ]);
       setImportError(null);
       setImportPreview(null);
@@ -219,7 +223,7 @@ export function DashboardPage() {
     booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 
   function updateFilter(
-    key: "library" | "listId" | "genre" | "collection" | "authorCountry" | "readingStatus" | "minRating",
+    key: "library" | "listId" | "genre" | "theme" | "collection" | "authorCountry" | "readingStatus" | "minRating",
     value: string,
   ) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -261,7 +265,8 @@ export function DashboardPage() {
       publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
       isbn: values.isbn.trim() || null,
       publisher_name: values.publisherName.trim() || null,
-      genres: values.genre.trim() ? [values.genre.trim()] : [],
+      genre: values.genre.trim() || null,
+      themes: buildBookPayloadThemes(values),
       collection_name: values.collection.trim() || null,
       cover_url: values.coverUrl.trim() || null,
       reading_status: values.readingStatus,
@@ -309,6 +314,7 @@ export function DashboardPage() {
         listId: selectedListId,
         q,
         genre: genre || undefined,
+        theme: theme || undefined,
         collection: collection || undefined,
         authorCountry: authorCountry || undefined,
         readingStatus: readingStatus || undefined,
@@ -408,12 +414,24 @@ export function DashboardPage() {
           </label>
 
           <label className="field-group">
-            Genero
+            Genero literario
             <select value={genre} onChange={(event) => updateFilter("genre", event.target.value)}>
               <option value="">Todos</option>
-              {(genresQuery.data ?? []).map((genreOption) => (
-                <option key={genreOption} value={genreOption}>
-                  {genreOption}
+              {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                <option key={genreOption.value} value={genreOption.value}>
+                  {genreOption.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
+            Tema
+            <select value={theme} onChange={(event) => updateFilter("theme", event.target.value)}>
+              <option value="">Todos</option>
+              {(themesQuery.data ?? []).map((themeOption) => (
+                <option key={themeOption} value={themeOption}>
+                  {themeOption}
                 </option>
               ))}
             </select>
@@ -532,7 +550,7 @@ export function DashboardPage() {
       <BookModal
         book={null}
         defaultLibraryId={defaultCreateLibraryId}
-        genres={genresQuery.data ?? []}
+        themeOptions={themesQuery.data ?? []}
         isOpen={isCreateModalOpen}
         isSaving={createBookMutation.isPending}
         libraries={editableLibraries}

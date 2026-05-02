@@ -29,10 +29,12 @@ class CatalogStatsOut(BaseModel):
     author_sex_distribution: list[StatsBreakdownItemOut]
     author_country_distribution: list[StatsBreakdownItemOut]
     genre_distribution: list[StatsBreakdownItemOut]
+    theme_distribution: list[StatsBreakdownItemOut]
     publisher_distribution: list[StatsBreakdownItemOut]
     publication_year_distribution: list[StatsBreakdownItemOut]
     top_authors: list[StatsRankingItemOut]
     top_genres: list[StatsRankingItemOut]
+    top_themes: list[StatsRankingItemOut]
 
 
 class ReadingStatusCountsOut(BaseModel):

@@ -50,7 +50,8 @@ class ListBookSummary(BaseModel):
     book_id: int
     title: str
     authors: list[str]
-    genres: list[str]
+    genre: str | None
+    themes: list[str]
     collection: str | None
     author_country: str | None
     cover_url: str | None

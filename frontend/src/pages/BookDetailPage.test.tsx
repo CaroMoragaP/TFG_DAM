@@ -7,6 +7,7 @@ import { BookDetailPage } from "./BookDetailPage";
 
 const apiMocks = vi.hoisted(() => ({
   fetchCopyById: vi.fn(),
+  fetchThemes: vi.fn(),
   fetchUserCopyData: vi.fn(),
   updateUserCopyDataRequest: vi.fn(),
   updateCopyRequest: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock("../libraries/ActiveLibraryProvider", () => ({
 vi.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
   fetchCopyById: apiMocks.fetchCopyById,
+  fetchThemes: apiMocks.fetchThemes,
   fetchUserCopyData: apiMocks.fetchUserCopyData,
   updateUserCopyDataRequest: apiMocks.updateUserCopyDataRequest,
   updateCopyRequest: apiMocks.updateCopyRequest,
@@ -69,12 +71,14 @@ describe("BookDetailPage", () => {
         display_name: "Frank Herbert",
       },
       authors: ["Frank Herbert"],
-      genres: ["Sci-Fi"],
+      genre: "narrativo",
+      themes: ["Ciencia ficcion"],
       format: "physical",
       physical_location: null,
       digital_location: null,
       status: "available",
     });
+    apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion", "Fantasia"]);
     apiMocks.fetchUserCopyData.mockResolvedValue({
       copy_id: 7,
       reading_status: "reading",

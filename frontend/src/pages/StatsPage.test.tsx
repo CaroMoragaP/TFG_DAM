@@ -195,10 +195,12 @@ describe("StatsPage", () => {
       ],
       author_country_distribution: [{ key: "Espana", label: "Espana", count: 4, percentage: 40 }],
       genre_distribution: [{ key: "Sci-Fi", label: "Sci-Fi", count: 6, percentage: 60 }],
+      theme_distribution: [{ key: "Sci-Fi", label: "Sci-Fi", count: 6, percentage: 60 }],
       publisher_distribution: [{ key: "Minotauro", label: "Minotauro", count: 4, percentage: 40 }],
       publication_year_distribution: [{ key: "2024", label: "2024", count: 2, percentage: 20 }],
       top_authors: [{ label: "Frank Herbert", count: 2 }],
       top_genres: [{ label: "Sci-Fi", count: 6 }],
+      top_themes: [{ label: "Sci-Fi", count: 6 }],
     });
     apiMocks.fetchReadingStats.mockResolvedValue(buildReadingStats());
 
@@ -238,10 +240,12 @@ describe("StatsPage", () => {
       ],
       author_country_distribution: [{ key: "Chile", label: "Chile", count: 2, percentage: 50 }],
       genre_distribution: [{ key: "Drama", label: "Drama", count: 2, percentage: 50 }],
+      theme_distribution: [{ key: "Drama", label: "Drama", count: 2, percentage: 50 }],
       publisher_distribution: [{ key: "Planeta", label: "Planeta", count: 2, percentage: 50 }],
       publication_year_distribution: [{ key: "2020", label: "2020", count: 2, percentage: 50 }],
       top_authors: [{ label: "Isabel Allende", count: 2 }],
       top_genres: [{ label: "Drama", count: 2 }],
+      top_themes: [{ label: "Drama", count: 2 }],
     });
     apiMocks.fetchReadingStats.mockResolvedValue(
       buildReadingStats({
@@ -294,10 +298,12 @@ describe("StatsPage", () => {
       author_sex_distribution: [],
       author_country_distribution: [],
       genre_distribution: [],
+      theme_distribution: [],
       publisher_distribution: [],
       publication_year_distribution: [],
       top_authors: [],
       top_genres: [],
+      top_themes: [],
     });
     apiMocks.fetchReadingStats
       .mockResolvedValueOnce(

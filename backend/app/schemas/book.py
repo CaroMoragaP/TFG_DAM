@@ -7,6 +7,8 @@ from pydantic import field_validator
 
 from app.core.author_names import build_structured_author_name
 from app.core.book_fields import normalize_author_sex
+from app.core.book_fields import normalize_literary_genre
+from app.core.themes import normalize_theme_list
 from app.models.enums import CopyFormat
 from app.models.enums import CopyStatus
 from app.models.enums import ReadingStatus
@@ -55,7 +57,8 @@ class BookCreate(BaseModel):
     primary_author_last_name: str | None = Field(default=None, max_length=255)
     primary_author_display_name: str | None = Field(default=None, max_length=255)
     authors: list[str] = Field(default_factory=list)
-    genres: list[str] = Field(default_factory=list)
+    genre: str | None = Field(default=None, max_length=32)
+    themes: list[str] = Field(default_factory=list)
     format: CopyFormat = CopyFormat.PHYSICAL
     physical_location: str | None = Field(default=None, max_length=255)
     digital_location: str | None = Field(default=None, max_length=500)
@@ -94,10 +97,20 @@ class BookCreate(BaseModel):
     def normalize_author_sex_value(cls, value: str | None) -> str | None:
         return normalize_author_sex(value)
 
-    @field_validator("authors", "genres")
+    @field_validator("genre")
+    @classmethod
+    def normalize_genre_value(cls, value: str | None) -> str | None:
+        return normalize_literary_genre(value)
+
+    @field_validator("authors")
     @classmethod
     def normalize_collections(cls, value: list[str]) -> list[str]:
         return _normalize_name_list(value)
+
+    @field_validator("themes")
+    @classmethod
+    def normalize_theme_values(cls, value: list[str]) -> list[str]:
+        return normalize_theme_list(value)
 
     @field_validator("primary_author_display_name")
     @classmethod
@@ -127,7 +140,8 @@ class BookUpdate(BaseModel):
     primary_author_last_name: str | None = Field(default=None, max_length=255)
     primary_author_display_name: str | None = Field(default=None, max_length=255)
     authors: list[str] | None = None
-    genres: list[str] | None = None
+    genre: str | None = Field(default=None, max_length=32)
+    themes: list[str] | None = None
     format: CopyFormat | None = None
     physical_location: str | None = Field(default=None, max_length=255)
     digital_location: str | None = Field(default=None, max_length=500)
@@ -169,7 +183,12 @@ class BookUpdate(BaseModel):
     def normalize_optional_author_sex_value(cls, value: str | None) -> str | None:
         return normalize_author_sex(value)
 
-    @field_validator("authors", "genres")
+    @field_validator("genre")
+    @classmethod
+    def normalize_optional_genre_value(cls, value: str | None) -> str | None:
+        return normalize_literary_genre(value)
+
+    @field_validator("authors")
     @classmethod
     def normalize_optional_collections(
         cls,
@@ -178,6 +197,16 @@ class BookUpdate(BaseModel):
         if value is None:
             return None
         return _normalize_name_list(value)
+
+    @field_validator("themes")
+    @classmethod
+    def normalize_optional_theme_values(
+        cls,
+        value: list[str] | None,
+    ) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_theme_list(value)
 
     @field_validator("format", "status")
     @classmethod
@@ -204,7 +233,8 @@ class BookMetadataUpdate(BaseModel):
     primary_author_last_name: str | None = Field(default=None, max_length=255)
     primary_author_display_name: str | None = Field(default=None, max_length=255)
     authors: list[str] | None = None
-    genres: list[str] | None = None
+    genre: str | None = Field(default=None, max_length=32)
+    themes: list[str] | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -240,7 +270,12 @@ class BookMetadataUpdate(BaseModel):
     def normalize_metadata_author_sex_value(cls, value: str | None) -> str | None:
         return normalize_author_sex(value)
 
-    @field_validator("authors", "genres")
+    @field_validator("genre")
+    @classmethod
+    def normalize_metadata_genre_value(cls, value: str | None) -> str | None:
+        return normalize_literary_genre(value)
+
+    @field_validator("authors")
     @classmethod
     def normalize_metadata_optional_collections(
         cls,
@@ -249,6 +284,16 @@ class BookMetadataUpdate(BaseModel):
         if value is None:
             return None
         return _normalize_name_list(value)
+
+    @field_validator("themes")
+    @classmethod
+    def normalize_metadata_theme_values(
+        cls,
+        value: list[str] | None,
+    ) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_theme_list(value)
 
 
 class CopyUpdate(BaseModel):
@@ -293,7 +338,8 @@ class BookOut(BaseModel):
     author_sex: str | None
     primary_author: PrimaryAuthorOut | None = None
     authors: list[str]
-    genres: list[str]
+    genre: str | None
+    themes: list[str]
     format: CopyFormat
     physical_location: str | None
     digital_location: str | None
@@ -319,7 +365,8 @@ class CopyDetailOut(BaseModel):
     author_sex: str | None
     primary_author: PrimaryAuthorOut | None = None
     authors: list[str]
-    genres: list[str]
+    genre: str | None
+    themes: list[str]
     format: CopyFormat
     physical_location: str | None
     digital_location: str | None
@@ -341,6 +388,7 @@ class BookMetadataOut(BaseModel):
     author_sex: str | None
     primary_author: PrimaryAuthorOut | None = None
     authors: list[str]
-    genres: list[str]
+    genre: str | None
+    themes: list[str]
 
     model_config = ConfigDict(from_attributes=True)

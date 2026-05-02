@@ -87,7 +87,7 @@ export function BookCard({
           </div>
           <div>
             <dt>Genero</dt>
-            <dd>{book.genres[0] ?? "-"}</dd>
+            <dd>{book.genre ?? "-"}</dd>
           </div>
           <div>
             <dt>Coleccion</dt>

@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { ApiError, type AuthorSex, type BookMetadata } from "../lib/api";
+import {
+  LITERARY_GENRE_OPTIONS,
+  MAX_BOOK_THEMES,
+  normalizeThemeSelection,
+} from "../lib/bookMetadata";
+import { ThemeSelector } from "./ThemeSelector";
 
 export type BookMetadataValues = {
   title: string;
@@ -11,6 +17,7 @@ export type BookMetadataValues = {
   publicationYear: string;
   isbn: string;
   genre: string;
+  themes: string[];
   collection: string;
   coverUrl: string;
   description: string;
@@ -21,6 +28,7 @@ type BookMetadataModalProps = {
   book: BookMetadata | null;
   isOpen: boolean;
   isSaving: boolean;
+  themeOptions: string[];
   onClose: () => void;
   onSubmit: (values: BookMetadataValues) => Promise<void>;
 };
@@ -37,6 +45,7 @@ function emptyValues(): BookMetadataValues {
     publicationYear: "",
     isbn: "",
     genre: "",
+    themes: [],
     collection: "",
     coverUrl: "",
     description: "",
@@ -53,7 +62,8 @@ function toFormValues(book: BookMetadata): BookMetadataValues {
     authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
-    genre: book.genres[0] ?? "",
+    genre: book.genre ?? "",
+    themes: normalizeThemeSelection(book.themes),
     collection: book.collection ?? "",
     coverUrl: book.cover_url ?? "",
     description: book.description ?? "",
@@ -65,6 +75,7 @@ export function BookMetadataModal({
   book,
   isOpen,
   isSaving,
+  themeOptions,
   onClose,
   onSubmit,
 }: BookMetadataModalProps) {
@@ -199,9 +210,24 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Genero principal
-              <input value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)} />
+              Genero literario
+              <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
+                <option value="">Sin genero</option>
+                {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                  <option key={genreOption.value} value={genreOption.value}>
+                    {genreOption.label}
+                  </option>
+                ))}
+              </select>
             </label>
+
+            <ThemeSelector
+              error={errors.themes}
+              helperText={`Selecciona hasta ${MAX_BOOK_THEMES} temas principales.`}
+              options={themeOptions}
+              selectedThemes={formValues.themes}
+              onChange={(nextThemes) => handleFieldChange("themes", nextThemes)}
+            />
 
             <label className="field-group">
               Coleccion

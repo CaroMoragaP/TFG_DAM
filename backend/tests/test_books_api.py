@@ -87,11 +87,12 @@ def create_book(
     *,
     title: str,
     author: str,
-    genre: str,
+    theme: str,
     reading_status: str,
     user_rating: int | None,
     collection: str | None = None,
     author_country: str | None = None,
+    genre: str = "narrativo",
 ) -> dict[str, object]:
     response = client.post(
         "/books",
@@ -101,7 +102,8 @@ def create_book(
             "title": title,
             "authors": [author],
             "author_country_name": author_country,
-            "genres": [genre],
+            "genre": genre,
+            "themes": [theme] if theme else [],
             "collection_name": collection,
             "reading_status": reading_status,
             "user_rating": user_rating,
@@ -136,7 +138,7 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
         personal_library_id,
         title="Dune",
         author="Frank Herbert",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="reading",
         user_rating=5,
         collection="Cronicas de Arrakis",
@@ -148,7 +150,7 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
         personal_library_id,
         title="Hyperion",
         author="Dan Simmons",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="pending",
         user_rating=4,
     )
@@ -158,7 +160,8 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
         shared_library_id,
         title="Emma",
         author="Jane Austen",
-        genre="Clasico",
+        theme="Clasico",
+        genre="didáctico",
         reading_status="finished",
         user_rating=3,
     )
@@ -182,9 +185,13 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     assert rating_response.status_code == 200
     assert {book["title"] for book in rating_response.json()} == {"Dune", "Hyperion"}
 
-    genre_response = client.get("/books?genre=sci-fi", headers=headers)
+    genre_response = client.get("/books?genre=narrativo", headers=headers)
     assert genre_response.status_code == 200
     assert {book["title"] for book in genre_response.json()} == {"Dune", "Hyperion"}
+
+    theme_response = client.get("/books?theme=sci-fi", headers=headers)
+    assert theme_response.status_code == 200
+    assert {book["title"] for book in theme_response.json()} == {"Dune", "Hyperion"}
 
     collection_response = client.get("/books?collection=cronicas de arrakis", headers=headers)
     assert collection_response.status_code == 200
@@ -207,14 +214,14 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     assert [book["title"] for book in scoped_response.json()] == ["Emma"]
 
     combined_response = client.get(
-        "/books?q=dune&genre=sci-fi&reading_status=reading&min_rating=5",
+        "/books?q=dune&genre=narrativo&theme=sci-fi&reading_status=reading&min_rating=5",
         headers=headers,
     )
     assert combined_response.status_code == 200
     assert [book["title"] for book in combined_response.json()] == ["Dune"]
 
 
-def test_copy_detail_user_data_and_list_genres(
+def test_copy_detail_user_data_and_list_themes(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -227,7 +234,7 @@ def test_copy_detail_user_data_and_list_genres(
         library_id,
         title="Neuromancer",
         author="William Gibson",
-        genre="Cyberpunk",
+        theme="Cyberpunk",
         reading_status="pending",
         user_rating=None,
     )
@@ -271,7 +278,8 @@ def test_copy_detail_user_data_and_list_genres(
             "title": "Neuromancer",
             "authors": ["William Gibson"],
             "author_country_name": "Estados Unidos",
-            "genres": ["Cyberpunk"],
+            "genre": "narrativo",
+            "themes": ["Ciencia ficcion"],
             "collection_name": "Sprawl",
             "description": "Un clasico cyberpunk.",
         },
@@ -301,9 +309,11 @@ def test_copy_detail_user_data_and_list_genres(
     assert books_response.status_code == 200
     assert [book["title"] for book in books_response.json()] == ["Neuromancer"]
 
-    genres_response = client.get("/genres", headers=headers)
-    assert genres_response.status_code == 200
-    assert genres_response.json() == ["Cyberpunk"]
+    themes_response = client.get("/themes", headers=headers)
+    assert themes_response.status_code == 200
+    assert "Ciencia ficci\u00f3n" in themes_response.json()
+    assert "Fantas\u00eda" in themes_response.json()
+    assert len(themes_response.json()) == 23
 
     db_session.execute(
         delete(UserCopy).where(
@@ -331,7 +341,7 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
         personal_library_id,
         title="Dune",
         author="Frank Herbert",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="reading",
         user_rating=5,
     )
@@ -348,7 +358,8 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
             "library_id": shared_library_id,
             "title": "Dune",
             "authors": ["Frank Herbert"],
-            "genres": ["Sci-Fi"],
+            "genre": "narrativo",
+            "themes": ["Sci-Fi"],
             "reading_status": "finished",
             "user_rating": 4,
             "isbn": "9780441172719",
@@ -363,7 +374,7 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
         personal_library_id,
         title="Hyperion",
         author="Dan Simmons",
-        genre="Sci-Fi",
+        theme="Sci-Fi",
         reading_status="pending",
         user_rating=3,
     )
@@ -414,6 +425,44 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
     assert hyperion["title"] == "Hyperion"
 
 
+def test_books_reject_invalid_or_excessive_themes(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    invalid_response = client.post(
+        "/books",
+        headers=headers,
+        json={
+            "library_id": library_id,
+            "title": "Libro invalido",
+            "authors": ["Autora"],
+            "genre": "narrativo",
+            "themes": ["Tema libre"],
+            "reading_status": "pending",
+        },
+    )
+    assert invalid_response.status_code == 422
+
+    excessive_response = client.post(
+        "/books",
+        headers=headers,
+        json={
+            "library_id": library_id,
+            "title": "Libro sobrecargado",
+            "authors": ["Autora"],
+            "genre": "narrativo",
+            "themes": [
+                "Fantasia",
+                "Terror",
+                "Humor",
+                "Suspense",
+            ],
+            "reading_status": "pending",
+        },
+    )
+    assert excessive_response.status_code == 422
+
+
 def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient) -> None:
     owner_headers = register_user(client)
     shared_library_id = create_library(client, owner_headers, name="Club de lectura")
@@ -450,7 +499,8 @@ def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient
             "library_id": shared_library_id,
             "title": "Solaris",
             "authors": ["Stanislaw Lem"],
-            "genres": ["Sci-Fi"],
+            "genre": "narrativo",
+            "themes": ["Sci-Fi"],
             "reading_status": "pending",
         },
     )
@@ -464,7 +514,8 @@ def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient
             "library_id": shared_library_id,
             "title": "Fahrenheit 451",
             "authors": ["Ray Bradbury"],
-            "genres": ["Sci-Fi"],
+            "genre": "narrativo",
+            "themes": ["Sci-Fi"],
             "reading_status": "pending",
         },
     )
@@ -517,7 +568,7 @@ def test_catalog_csv_preview_commit_and_export(client: TestClient, monkeypatch) 
             authors=[author] if author is not None else [],
             publication_year=None,
             isbn=isbn,
-            genres=[],
+            themes=[],
             cover_url=f"https://example.com/{suffix}.jpg",
             publisher_name=publisher,
         )
@@ -580,8 +631,8 @@ def test_catalog_csv_preview_preserves_existing_isbn_and_cover_url(client: TestC
     monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fail_lookup_by_metadata)
 
     csv_payload = (
-        "biblioteca,titulo,autores,autor_nombre,autor_apellido,autor_display_name,isbn,anio_publicacion,descripcion,editorial,coleccion,pais_autor,sexo_autor,generos,formato,ubicacion_fisica,ubicacion_digital,estado_copia,estado_lectura,valoracion,url_portada\r\n"
-        "Personal,Ficciones,Jorge Luis Borges,Jorge Luis,Borges,Jorge Luis Borges,9780307950928,1944,,Emece,,,Narrativo,physical,Caja 1,,available,pending,,https://example.com/original.jpg\r\n"
+        "biblioteca,titulo,autores,autor_nombre,autor_apellido,autor_display_name,isbn,anio_publicacion,descripcion,editorial,coleccion,pais_autor,sexo_autor,genero_literario,temas,formato,ubicacion_fisica,ubicacion_digital,estado_copia,estado_lectura,valoracion,url_portada\r\n"
+        "Personal,Ficciones,Jorge Luis Borges,Jorge Luis,Borges,Jorge Luis Borges,9780307950928,1944,,Emece,,,,Narrativo,,physical,Caja 1,,available,pending,,https://example.com/original.jpg\r\n"
     ).encode("utf-8")
 
     preview_response = client.post(
@@ -652,7 +703,7 @@ def test_catalog_csv_preview_uses_enriched_isbn_for_duplicate_detection(
             authors=["Jorge Luis Borges"],
             publication_year=None,
             isbn="9780307950928",
-            genres=[],
+            themes=[],
             cover_url=f"https://example.com/{cover_suffix}.jpg",
             publisher_name="Emece",
         )

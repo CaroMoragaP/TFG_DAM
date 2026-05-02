@@ -25,8 +25,8 @@ from app.schemas.catalog_io import CatalogImportPreviewOut
 from app.services.books import DuplicateBookCopyError
 from app.services.books import DuplicateBookIsbnError
 from app.services.books import create_book
-from app.services.books import list_genres
 from app.services.books import list_books
+from app.services.books import list_themes
 from app.services.books import serialize_book_metadata
 from app.services.books import serialize_book_copy
 from app.services.books import update_book_metadata
@@ -56,6 +56,7 @@ def read_books(
     q: str | None = Query(default=None),
     reading_status: ReadingStatus | None = Query(default=None),
     genre: str | None = Query(default=None),
+    theme: str | None = Query(default=None),
     collection: str | None = Query(default=None),
     author_country: str | None = Query(default=None),
     min_rating: int | None = Query(default=None, ge=1, le=5),
@@ -71,6 +72,7 @@ def read_books(
             q=q,
             reading_status=reading_status,
             genre=genre,
+            theme=theme,
             collection=collection,
             author_country=author_country,
             min_rating=min_rating,
@@ -88,16 +90,16 @@ def read_books(
 
 
 @router.get(
-    "/genres",
+    "/themes",
     response_model=list[str],
-    summary="List catalog genres",
+    summary="List catalog themes",
 )
-def read_genres(
+def read_themes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[str]:
     del current_user
-    return list_genres(db)
+    return list_themes(db)
 
 
 @router.post(
@@ -190,6 +192,7 @@ def export_catalog_entry(
     q: str | None = Query(default=None),
     reading_status: ReadingStatus | None = Query(default=None),
     genre: str | None = Query(default=None),
+    theme: str | None = Query(default=None),
     collection: str | None = Query(default=None),
     author_country: str | None = Query(default=None),
     min_rating: int | None = Query(default=None, ge=1, le=5),
@@ -204,6 +207,7 @@ def export_catalog_entry(
             list_id=list_id,
             q=q,
             genre=genre,
+            theme=theme,
             collection=collection,
             author_country=author_country,
             reading_status=reading_status,

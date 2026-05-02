@@ -254,7 +254,7 @@ export function ListDetailPage() {
                     <dl className="list-book-meta-grid">
                       <div>
                         <dt>Genero</dt>
-                        <dd>{book.genres[0] ?? "-"}</dd>
+                        <dd>{book.genre ?? "-"}</dd>
                       </div>
                       <div>
                         <dt>Coleccion</dt>

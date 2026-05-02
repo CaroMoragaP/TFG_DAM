@@ -8,6 +8,7 @@ import httpx
 from app.core.author_names import StructuredAuthorName
 from app.core.author_names import normalize_author_lookup_key
 from app.core.author_names import split_author_name_heuristic
+from app.core.themes import map_theme_candidates
 from app.schemas.author import PrimaryAuthorOut
 from app.schemas.external_book import ExternalBookLookupOut
 
@@ -15,6 +16,23 @@ OPEN_LIBRARY_BASE_URL = "https://openlibrary.org"
 OPEN_LIBRARY_TIMEOUT_SECONDS = 10.0
 OPEN_LIBRARY_SEARCH_LIMIT = 10
 _NON_ALNUM_RE = re.compile(r"[^0-9a-z]+")
+OPEN_LIBRARY_SEARCH_FIELDS = ",".join(
+    (
+        "title",
+        "author_name",
+        "first_publish_year",
+        "isbn",
+        "subject",
+        "cover_i",
+        "publisher",
+        "editions",
+        "editions.title",
+        "editions.isbn",
+        "editions.cover_i",
+        "editions.publisher",
+        "editions.publish_year",
+    ),
+)
 
 
 class ExternalBookLookupNotFoundError(ValueError):
@@ -96,7 +114,7 @@ def _lookup_by_isbn(client: httpx.Client, isbn: str) -> ExternalBookLookupOut:
         primary_author=_build_primary_author(_normalize_name_items(book_data.get("authors"))),
         publication_year=_extract_year(book_data.get("publish_date")),
         isbn=_extract_identifier_isbn(book_data, fallback=isbn),
-        genres=_normalize_name_items(book_data.get("subjects")),
+        themes=map_theme_candidates(_normalize_name_items(book_data.get("subjects"))),
         cover_url=_extract_cover_url(book_data.get("cover")),
         publisher_name=_extract_first_name(book_data.get("publishers")),
     )
@@ -105,7 +123,11 @@ def _lookup_by_isbn(client: httpx.Client, isbn: str) -> ExternalBookLookupOut:
 def _lookup_by_query(client: httpx.Client, query: str) -> ExternalBookLookupOut:
     response = client.get(
         "/search.json",
-        params={"q": query, "limit": 1},
+        params={
+            "q": query,
+            "limit": 1,
+            "fields": OPEN_LIBRARY_SEARCH_FIELDS,
+        },
     )
     response.raise_for_status()
 
@@ -131,13 +153,17 @@ def _lookup_by_metadata(
     author: str | None,
     publisher: str | None,
 ) -> ExternalBookLookupOut:
-    response = client.get(
-        "/search.json",
-        params={
-            "q": _build_metadata_query(title=title, author=author, publisher=publisher),
-            "limit": OPEN_LIBRARY_SEARCH_LIMIT,
-        },
-    )
+    params: dict[str, object] = {
+        "title": title,
+        "limit": OPEN_LIBRARY_SEARCH_LIMIT,
+        "fields": OPEN_LIBRARY_SEARCH_FIELDS,
+    }
+    if author is not None:
+        params["author"] = author
+    if publisher is not None:
+        params["publisher"] = publisher
+
+    response = client.get("/search.json", params=params)
     response.raise_for_status()
 
     payload = response.json()
@@ -165,6 +191,15 @@ def _lookup_by_metadata(
 
         ranked_candidates.append((ranking, result))
 
+    if publisher is not None:
+        publisher_matched_candidates = [
+            item
+            for item in ranked_candidates
+            if item[0][2] >= 85
+        ]
+        if publisher_matched_candidates:
+            ranked_candidates = publisher_matched_candidates
+
     if not ranked_candidates:
         raise ExternalBookLookupNotFoundError("No se encontraron resultados fiables en Open Library.")
 
@@ -173,7 +208,8 @@ def _lookup_by_metadata(
 
 
 def _build_search_lookup_output(doc: dict[str, object]) -> ExternalBookLookupOut | None:
-    title = _clean_text(doc.get("title"))
+    candidate_titles = _extract_candidate_titles(doc)
+    title = candidate_titles[0] if candidate_titles else None
     if title is None:
         return None
 
@@ -182,11 +218,11 @@ def _build_search_lookup_output(doc: dict[str, object]) -> ExternalBookLookupOut
         title=title,
         authors=authors,
         primary_author=_build_primary_author(authors),
-        publication_year=_coerce_int(doc.get("first_publish_year")),
-        isbn=_extract_first_string(doc.get("isbn")),
-        genres=_normalize_string_list(doc.get("subject")),
-        cover_url=_build_cover_url(doc.get("cover_i")),
-        publisher_name=_extract_first_string(doc.get("publisher")),
+        publication_year=_extract_search_publication_year(doc),
+        isbn=_extract_search_isbn(doc),
+        themes=map_theme_candidates(_normalize_string_list(doc.get("subject"))),
+        cover_url=_extract_search_cover_url(doc),
+        publisher_name=_extract_search_publisher(doc),
     )
 
 
@@ -323,14 +359,6 @@ def _clean_text(value: object) -> str | None:
     return normalized or None
 
 
-def _build_metadata_query(*, title: str, author: str | None, publisher: str | None) -> str:
-    return " ".join(
-        value
-        for value in (title, author, publisher)
-        if value is not None
-    )
-
-
 def _rank_metadata_match(
     candidate: dict[str, object],
     *,
@@ -338,13 +366,13 @@ def _rank_metadata_match(
     author: str | None,
     publisher: str | None,
 ) -> tuple[int, int, int] | None:
-    candidate_title = _clean_text(candidate.get("title"))
-    if candidate_title is None:
+    candidate_titles = _extract_candidate_titles(candidate)
+    if not candidate_titles:
         return None
 
-    title_score = _match_score(
+    title_score = _best_match_score(
         title,
-        candidate_title,
+        candidate_titles,
         minimum_ratio=0.92,
         minimum_token_overlap=0.8,
         minimum_contained_length=6,
@@ -368,7 +396,7 @@ def _rank_metadata_match(
     if publisher is not None:
         publisher_score = _best_match_score(
             publisher,
-            _normalize_string_list(candidate.get("publisher")),
+            _extract_candidate_publishers(candidate),
             minimum_ratio=0.88,
             minimum_token_overlap=0.7,
             minimum_contained_length=5,
@@ -450,3 +478,100 @@ def _normalize_match_text(value: str | None) -> str | None:
     compact = _NON_ALNUM_RE.sub(" ", normalized)
     compact = " ".join(compact.split())
     return compact or None
+
+
+def _extract_search_editions(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, dict):
+        return []
+
+    docs = value.get("docs")
+    if not isinstance(docs, list):
+        return []
+
+    return [doc for doc in docs if isinstance(doc, dict)]
+
+
+def _append_unique_string(values: list[str], seen: set[str], candidate: str | None) -> None:
+    if candidate is None:
+        return
+
+    key = candidate.casefold()
+    if key in seen:
+        return
+
+    seen.add(key)
+    values.append(candidate)
+
+
+def _extract_candidate_titles(doc: dict[str, object]) -> list[str]:
+    candidate_titles: list[str] = []
+    seen: set[str] = set()
+
+    _append_unique_string(candidate_titles, seen, _clean_text(doc.get("title")))
+    for edition in _extract_search_editions(doc.get("editions")):
+        _append_unique_string(candidate_titles, seen, _clean_text(edition.get("title")))
+
+    return candidate_titles
+
+
+def _extract_candidate_publishers(doc: dict[str, object]) -> list[str]:
+    candidate_publishers = _normalize_string_list(doc.get("publisher"))
+    seen = {publisher.casefold() for publisher in candidate_publishers}
+
+    for edition in _extract_search_editions(doc.get("editions")):
+        for publisher in _normalize_string_list(edition.get("publisher")):
+            _append_unique_string(candidate_publishers, seen, publisher)
+
+    return candidate_publishers
+
+
+def _extract_search_publication_year(doc: dict[str, object]) -> int | None:
+    publication_year = _coerce_int(doc.get("first_publish_year"))
+    if publication_year is not None:
+        return publication_year
+
+    for edition in _extract_search_editions(doc.get("editions")):
+        edition_year = _coerce_int(edition.get("publish_year"))
+        if edition_year is not None:
+            return edition_year
+
+    return None
+
+
+def _extract_search_isbn(doc: dict[str, object]) -> str | None:
+    isbn = _extract_first_string(doc.get("isbn"))
+    if isbn is not None:
+        return isbn
+
+    for edition in _extract_search_editions(doc.get("editions")):
+        edition_isbn = _extract_first_string(edition.get("isbn"))
+        if edition_isbn is not None:
+            return edition_isbn
+
+    return None
+
+
+def _extract_search_cover_url(doc: dict[str, object]) -> str | None:
+    cover_url = _build_cover_url(doc.get("cover_i"))
+    if cover_url is not None:
+        return cover_url
+
+    for edition in _extract_search_editions(doc.get("editions")):
+        edition_cover_url = _build_cover_url(edition.get("cover_i"))
+        if edition_cover_url is not None:
+            return edition_cover_url
+
+    return None
+
+
+def _extract_search_publisher(doc: dict[str, object]) -> str | None:
+    publisher = _extract_first_string(doc.get("publisher"))
+    if publisher is not None:
+        return publisher
+
+    for edition in _extract_search_editions(doc.get("editions")):
+        edition_publisher = _extract_first_string(edition.get("publisher"))
+        if edition_publisher is not None:
+            return edition_publisher
+
+    return None

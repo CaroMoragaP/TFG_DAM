@@ -60,7 +60,8 @@ def create_book(
             "library_id": library_id,
             "title": title,
             "authors": ["Octavia Butler"],
-            "genres": ["Sci-Fi"],
+            "genre": "narrativo",
+            "themes": ["Ciencia ficcion"],
             "reading_status": "pending",
         },
     )

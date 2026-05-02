@@ -659,9 +659,15 @@ export function StatsPage() {
               data={buildCountryPieData(catalogQuery.data.author_country_distribution)}
             />
             <BreakdownBarCard
-              title="Distribucion por genero"
+              title="Distribucion por genero literario"
               eyebrow="Catalogo"
               data={topSlice(catalogQuery.data.genre_distribution, 10)}
+              countLabel="libros"
+            />
+            <BreakdownBarCard
+              title="Distribucion por temas"
+              eyebrow="Catalogo"
+              data={topSlice(catalogQuery.data.theme_distribution, 10)}
               countLabel="libros"
             />
             <BreakdownBarCard
@@ -684,10 +690,16 @@ export function StatsPage() {
               emptyText="Todavia no hay autores suficientes para construir un ranking."
             />
             <RankingCard
-              title="Top generos"
+              title="Top generos literarios"
               eyebrow="Ranking"
               items={catalogQuery.data.top_genres}
               emptyText="Todavia no hay generos suficientes para construir un ranking."
+            />
+            <RankingCard
+              title="Top temas"
+              eyebrow="Ranking"
+              items={catalogQuery.data.top_themes}
+              emptyText="Todavia no hay temas suficientes para construir un ranking."
             />
           </div>
         </>

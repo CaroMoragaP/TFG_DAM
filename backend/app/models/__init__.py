@@ -3,12 +3,12 @@
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
+from app.models.book import BookTheme
 from app.models.book import Collection
-from app.models.book import BookGenre
 from app.models.book import Copy
 from app.models.book import Country
-from app.models.book import Genre
 from app.models.book import Publisher
+from app.models.book import Theme
 from app.models.book import UserCopy
 from app.models.enums import CopyFormat
 from app.models.enums import CopyStatus
@@ -27,13 +27,12 @@ __all__ = [
     "Author",
     "Book",
     "BookAuthor",
+    "BookTheme",
     "Collection",
-    "BookGenre",
     "Copy",
     "CopyFormat",
     "CopyStatus",
     "Country",
-    "Genre",
     "Library",
     "LibraryType",
     "List",
@@ -42,6 +41,7 @@ __all__ = [
     "Publisher",
     "ReadingGoal",
     "ReadingStatus",
+    "Theme",
     "UserCopy",
     "User",
     "UserLibrary",

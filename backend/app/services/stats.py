@@ -14,7 +14,7 @@ from app.core.book_fields import normalize_author_sex
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
-from app.models.book import BookGenre
+from app.models.book import BookTheme
 from app.models.book import Copy
 from app.models.book import UserCopy
 from app.models.enums import CopyFormat
@@ -49,7 +49,7 @@ COPY_STATS_LOAD_OPTIONS = (
     .selectinload(Book.book_authors)
     .joinedload(BookAuthor.author)
     .joinedload(Author.country),
-    joinedload(Copy.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
+    joinedload(Copy.book).selectinload(Book.book_themes).joinedload(BookTheme.theme),
 )
 
 AUTHOR_SEX_LABELS = {
@@ -97,15 +97,16 @@ def get_catalog_stats(
     author_sex_counts = Counter()
     author_country_counts = Counter()
     genre_counts = Counter()
+    theme_counts = Counter()
     publisher_counts = Counter()
     publication_year_counts = Counter()
     top_author_counts = Counter()
     top_genre_counts = Counter()
+    top_theme_counts = Counter()
 
     for copy in copies:
         book = copy.book
         primary_author = _get_primary_author(book)
-        primary_genre = _get_primary_genre(book)
 
         sex_key = normalize_author_sex(
             primary_author.sex if primary_author is not None else None,
@@ -118,7 +119,7 @@ def get_catalog_stats(
             if primary_author is not None and primary_author.country is not None
             else "Sin pais"
         ] += 1
-        genre_counts[primary_genre.name if primary_genre is not None else "Sin genero"] += 1
+        genre_counts[book.genre if book.genre is not None else "Sin genero"] += 1
         publisher_counts[book.publisher.name if book.publisher is not None else "Sin editorial"] += 1
         publication_year_counts[
             str(book.publication_year) if book.publication_year is not None else "Sin ano"
@@ -129,7 +130,16 @@ def get_catalog_stats(
         else:
             top_author_counts["Autor sin registrar"] += 1
 
-        top_genre_counts[primary_genre.name if primary_genre is not None else "Sin genero"] += 1
+        top_genre_counts[book.genre if book.genre is not None else "Sin genero"] += 1
+
+        serialized_themes = _serialize_themes(book)
+        if not serialized_themes:
+            theme_counts["Sin temas"] += 1
+            top_theme_counts["Sin temas"] += 1
+        else:
+            for theme in serialized_themes:
+                theme_counts[theme] += 1
+                top_theme_counts[theme] += 1
 
     return CatalogStatsOut(
         totals=totals,
@@ -144,6 +154,7 @@ def get_catalog_stats(
         ],
         author_country_distribution=_build_distribution(author_country_counts, total_copies),
         genre_distribution=_build_distribution(genre_counts, total_copies),
+        theme_distribution=_build_distribution(theme_counts, total_copies),
         publisher_distribution=_build_distribution(
             publisher_counts,
             total_copies,
@@ -157,6 +168,7 @@ def get_catalog_stats(
         ),
         top_authors=_build_ranking(top_author_counts),
         top_genres=_build_ranking(top_genre_counts),
+        top_themes=_build_ranking(top_theme_counts),
     )
 
 
@@ -427,14 +439,11 @@ def _get_primary_author(book: Book) -> Author | None:
     )
 
 
-def _get_primary_genre(book: Book):
-    if not book.book_genres:
-        return None
-
-    return min(
-        (relation.genre for relation in book.book_genres),
-        key=lambda genre: genre.name.casefold(),
-    )
+def _serialize_themes(book: Book) -> list[str]:
+    return [
+        relation.theme.name
+        for relation in sorted(book.book_themes, key=lambda item: item.theme.name.casefold())
+    ]
 
 
 def _get_reading_goal(

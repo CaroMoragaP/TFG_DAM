@@ -11,6 +11,6 @@ class ExternalBookLookupOut(BaseModel):
     primary_author: PrimaryAuthorOut | None = None
     publication_year: int | None = None
     isbn: str | None = None
-    genres: list[str]
+    themes: list[str]
     cover_url: str | None = None
     publisher_name: str | None = None

@@ -73,20 +73,26 @@ class Author(Base):
     )
 
 
-class Genre(Base):
-    __tablename__ = "genres"
+class Theme(Base):
+    __tablename__ = "themes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
 
-    book_genres: Mapped[list["BookGenre"]] = relationship(
-        back_populates="genre",
+    book_themes: Mapped[list["BookTheme"]] = relationship(
+        back_populates="theme",
         cascade="all, delete-orphan",
     )
 
 
 class Book(Base):
     __tablename__ = "books"
+    __table_args__ = (
+        CheckConstraint(
+            "genre IS NULL OR genre IN ('narrativo', 'lírico', 'dramático', 'didáctico')",
+            name="ck_books_genre_allowed_values",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -102,6 +108,7 @@ class Book(Base):
         ForeignKey("collections.id", ondelete="SET NULL"),
         nullable=True,
     )
+    genre: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     publisher: Mapped["Publisher | None"] = relationship(back_populates="books")
     collection: Mapped["Collection | None"] = relationship(back_populates="books")
@@ -109,7 +116,7 @@ class Book(Base):
         back_populates="book",
         cascade="all, delete-orphan",
     )
-    book_genres: Mapped[list["BookGenre"]] = relationship(
+    book_themes: Mapped[list["BookTheme"]] = relationship(
         back_populates="book",
         cascade="all, delete-orphan",
     )
@@ -139,23 +146,23 @@ class BookAuthor(Base):
     author: Mapped["Author"] = relationship(back_populates="book_authors")
 
 
-class BookGenre(Base):
-    __tablename__ = "book_genres"
+class BookTheme(Base):
+    __tablename__ = "book_themes"
     __table_args__ = (
-        UniqueConstraint("book_id", "genre_id", name="uq_book_genres_book_id_genre_id"),
+        UniqueConstraint("book_id", "theme_id", name="uq_book_themes_book_id_theme_id"),
     )
 
     book_id: Mapped[int] = mapped_column(
         ForeignKey("books.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    genre_id: Mapped[int] = mapped_column(
-        ForeignKey("genres.id", ondelete="CASCADE"),
+    theme_id: Mapped[int] = mapped_column(
+        ForeignKey("themes.id", ondelete="CASCADE"),
         primary_key=True,
     )
 
-    book: Mapped["Book"] = relationship(back_populates="book_genres")
-    genre: Mapped["Genre"] = relationship(back_populates="book_genres")
+    book: Mapped["Book"] = relationship(back_populates="book_themes")
+    theme: Mapped["Theme"] = relationship(back_populates="book_themes")
 
 
 class Copy(Base):

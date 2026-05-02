@@ -57,7 +57,8 @@ export type ListBookSummary = {
   book_id: number;
   title: string;
   authors: string[];
-  genres: string[];
+  genre: string | null;
+  themes: string[];
   collection: string | null;
   author_country: string | null;
   cover_url: string | null;
@@ -81,7 +82,8 @@ export type Book = {
   author_sex: AuthorSex | null;
   primary_author: PrimaryAuthor | null;
   authors: string[];
-  genres: string[];
+  genre: string | null;
+  themes: string[];
   format: CopyFormat;
   physical_location: string | null;
   digital_location: string | null;
@@ -105,7 +107,8 @@ export type CopyDetail = {
   author_sex: AuthorSex | null;
   primary_author: PrimaryAuthor | null;
   authors: string[];
-  genres: string[];
+  genre: string | null;
+  themes: string[];
   format: CopyFormat;
   physical_location: string | null;
   digital_location: string | null;
@@ -125,7 +128,8 @@ export type BookMetadata = {
   author_sex: AuthorSex | null;
   primary_author: PrimaryAuthor | null;
   authors: string[];
-  genres: string[];
+  genre: string | null;
+  themes: string[];
 };
 
 export type UserCopyData = {
@@ -143,7 +147,7 @@ export type ExternalBookLookup = {
   primary_author: PrimaryAuthor | null;
   publication_year: number | null;
   isbn: string | null;
-  genres: string[];
+  themes: string[];
   cover_url: string | null;
   publisher_name: string | null;
 };
@@ -163,7 +167,8 @@ export type BookCreatePayload = {
   primary_author_last_name?: string | null;
   primary_author_display_name?: string | null;
   authors: string[];
-  genres: string[];
+  genre?: string | null;
+  themes: string[];
   format?: CopyFormat;
   physical_location?: string | null;
   digital_location?: string | null;
@@ -178,7 +183,8 @@ export type BookMetadataUpdatePayload = {
   publication_year?: number | null;
   cover_url?: string | null;
   authors?: string[];
-  genres?: string[];
+  genre?: string | null;
+  themes?: string[];
   description?: string | null;
   publisher_name?: string | null;
   collection_name?: string | null;
@@ -203,7 +209,8 @@ export type CatalogImportRowPayload = {
   primary_author_last_name: string | null;
   primary_author_display_name: string | null;
   authors: string[];
-  genres: string[];
+  genre: string | null;
+  themes: string[];
   format: CopyFormat;
   physical_location: string | null;
   digital_location: string | null;
@@ -267,6 +274,7 @@ export type BooksQueryParams = {
   listId?: number;
   q?: string;
   genre?: string;
+  theme?: string;
   collection?: string;
   authorCountry?: string;
   readingStatus?: ReadingStatus;
@@ -294,10 +302,12 @@ export type CatalogStats = {
   author_sex_distribution: StatsBreakdownItem[];
   author_country_distribution: StatsBreakdownItem[];
   genre_distribution: StatsBreakdownItem[];
+  theme_distribution: StatsBreakdownItem[];
   publisher_distribution: StatsBreakdownItem[];
   publication_year_distribution: StatsBreakdownItem[];
   top_authors: StatsRankingItem[];
   top_genres: StatsRankingItem[];
+  top_themes: StatsRankingItem[];
 };
 
 export type ReadingGoal = {
@@ -762,8 +772,8 @@ export function removeBookFromListRequest(
   );
 }
 
-export function fetchGenres(token: string): Promise<string[]> {
-  return apiFetch<string[]>("/genres", undefined, {
+export function fetchThemes(token: string): Promise<string[]> {
+  return apiFetch<string[]>("/themes", undefined, {
     token,
   });
 }
@@ -777,6 +787,7 @@ export function fetchBooks(
     list_id: params.listId,
     q: params.q?.trim() || undefined,
     genre: params.genre?.trim() || undefined,
+    theme: params.theme?.trim() || undefined,
     collection: params.collection?.trim() || undefined,
     author_country: params.authorCountry?.trim() || undefined,
     reading_status: params.readingStatus,
@@ -854,6 +865,7 @@ export function exportCatalogRequest(
     list_id: params.listId,
     q: params.q?.trim() || undefined,
     genre: params.genre?.trim() || undefined,
+    theme: params.theme?.trim() || undefined,
     collection: params.collection?.trim() || undefined,
     author_country: params.authorCountry?.trim() || undefined,
     reading_status: params.readingStatus,
@@ -942,11 +954,14 @@ export function updateUserCopyDataRequest(
 
 export function fetchOpenLibraryBook(
   token: string,
-  params: { isbn?: string; q?: string },
+  params: { isbn?: string; q?: string; title?: string; author?: string; publisher?: string },
 ): Promise<ExternalBookLookup> {
   const queryString = buildQueryString({
     isbn: params.isbn?.trim() || undefined,
     q: params.q?.trim() || undefined,
+    title: params.title?.trim() || undefined,
+    author: params.author?.trim() || undefined,
+    publisher: params.publisher?.trim() || undefined,
   });
 
   return apiFetch<ExternalBookLookup>(`/external/open-library${queryString}`, undefined, {

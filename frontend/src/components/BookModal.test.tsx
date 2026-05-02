@@ -1,6 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const apiMocks = vi.hoisted(() => ({
+  fetchOpenLibraryBook: vi.fn(),
+}));
+
+vi.mock("../lib/api", async () => {
+  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+  return {
+    ...actual,
+    fetchOpenLibraryBook: apiMocks.fetchOpenLibraryBook,
+  };
+});
 
 import { BookModal } from "./BookModal";
 import type { Book, Library } from "../lib/api";
@@ -38,7 +50,8 @@ const book: Book = {
     display_name: "Frank Herbert",
   },
   authors: ["Frank Herbert"],
-  genres: ["Sci-Fi"],
+  genre: "narrativo",
+  themes: ["Ciencia ficcion"],
   format: "physical",
   physical_location: null,
   digital_location: null,
@@ -47,7 +60,7 @@ const book: Book = {
   user_rating: 5,
 };
 
-function renderModal(mode: "create" | "edit") {
+function renderModal(mode: "create" | "edit", themeOptions = ["Ciencia ficcion", "Fantasia"]) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -62,7 +75,7 @@ function renderModal(mode: "create" | "edit") {
       <BookModal
         book={mode === "edit" ? book : null}
         defaultLibraryId={1}
-        genres={["Sci-Fi", "Fantasia"]}
+        themeOptions={themeOptions}
         isOpen={true}
         isSaving={false}
         libraries={libraries}
@@ -78,6 +91,10 @@ function renderModal(mode: "create" | "edit") {
 }
 
 describe("BookModal", () => {
+  beforeEach(() => {
+    apiMocks.fetchOpenLibraryBook.mockReset();
+  });
+
   it("shows inline validation when required fields are empty in create mode", async () => {
     const { onSubmit } = renderModal("create");
     const librarySelect = screen.getByLabelText("Biblioteca destino") as HTMLSelectElement;
@@ -120,6 +137,76 @@ describe("BookModal", () => {
           publisherName: "Minotauro",
         }),
       );
+    });
+  });
+
+  it("limits theme selection to three options", async () => {
+    const { onSubmit } = renderModal("create", [
+      "Ciencia ficcion",
+      "Fantasia",
+      "Suspense",
+      "Terror",
+    ]);
+
+    fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Neuromante" } });
+    fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
+    fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ciencia ficcion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fantasia" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suspense" }));
+    expect(screen.getByRole("button", { name: "Terror" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          themes: ["Ciencia ficcion", "Fantasia", "Suspense"],
+        }),
+      );
+    });
+  });
+
+  it("searches Open Library with title, author, and publisher when ISBN is empty", async () => {
+    apiMocks.fetchOpenLibraryBook.mockResolvedValue({
+      title: "Del amor y otros demonios",
+      authors: ["Gabriel Garcia Marquez"],
+      primary_author: {
+        first_name: "Gabriel",
+        last_name: "Garcia Marquez",
+        display_name: "Gabriel Garcia Marquez",
+      },
+      publication_year: 1994,
+      isbn: "9780307474721",
+      themes: ["Literatura"],
+      cover_url: "https://example.com/cover.jpg",
+      publisher_name: "De Bolsillo",
+    });
+
+    renderModal("create");
+
+    fireEvent.change(screen.getByLabelText("Titulo"), {
+      target: { value: "Del amor y otros demonios" },
+    });
+    fireEvent.change(screen.getByLabelText("Nombre del autor"), {
+      target: { value: "Gabriel" },
+    });
+    fireEvent.change(screen.getByLabelText("Apellido del autor"), {
+      target: { value: "Garcia Marquez" },
+    });
+    fireEvent.change(screen.getByLabelText("Editorial"), {
+      target: { value: "De Bolsillo" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Buscar en Open Library" }));
+
+    await waitFor(() => {
+      expect(apiMocks.fetchOpenLibraryBook).toHaveBeenCalledWith("token", {
+        title: "Del amor y otros demonios",
+        author: "Gabriel Garcia Marquez",
+        publisher: "De Bolsillo",
+      });
     });
   });
 });

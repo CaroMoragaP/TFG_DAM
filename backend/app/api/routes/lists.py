@@ -138,11 +138,12 @@ def read_list_books(
                     key=lambda item: item.author.display_name.casefold(),
                 )
             ],
-            genres=[
-                relation.genre.name
+            genre=entry.book.genre,
+            themes=[
+                relation.theme.name
                 for relation in sorted(
-                    entry.book.book_genres,
-                    key=lambda item: item.genre.name.casefold(),
+                    entry.book.book_themes,
+                    key=lambda item: item.theme.name.casefold(),
                 )
             ],
             collection=entry.book.collection.name if entry.book.collection is not None else None,

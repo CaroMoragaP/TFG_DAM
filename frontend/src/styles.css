@@ -302,6 +302,10 @@ dt {
   font-weight: 600;
 }
 
+.field-span-full {
+  grid-column: 1 / -1;
+}
+
 .field-group input {
   width: 100%;
   border: 1px solid rgba(33, 79, 74, 0.16);
@@ -735,6 +739,46 @@ dd {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
+}
+
+.theme-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.theme-selector-counter {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.theme-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.theme-chip {
+  border: 1px solid rgba(33, 79, 74, 0.16);
+  border-radius: 16px;
+  padding: 0.8rem 0.95rem;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--brand-deep);
+  font-weight: 600;
+  text-align: left;
+}
+
+.theme-chip.active {
+  border-color: rgba(33, 79, 74, 0.42);
+  background: rgba(33, 79, 74, 0.12);
+  color: var(--brand);
+}
+
+.theme-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .list-picker,

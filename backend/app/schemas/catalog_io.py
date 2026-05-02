@@ -22,7 +22,8 @@ class CatalogImportRowPayload(BaseModel):
     primary_author_last_name: str | None = None
     primary_author_display_name: str | None = None
     authors: list[str] = Field(default_factory=list)
-    genres: list[str] = Field(default_factory=list)
+    genre: str | None = None
+    themes: list[str] = Field(default_factory=list)
     format: CopyFormat = CopyFormat.PHYSICAL
     physical_location: str | None = None
     digital_location: str | None = None

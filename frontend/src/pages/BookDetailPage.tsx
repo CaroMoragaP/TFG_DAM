@@ -9,6 +9,7 @@ import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   deleteCopyRequest,
   fetchCopyById,
+  fetchThemes,
   fetchUserCopyData,
   updateBookMetadataRequest,
   updateCopyRequest,
@@ -46,7 +47,8 @@ function toBookMetadata(detail: CopyDetail): BookMetadata {
     author_sex: detail.author_sex,
     primary_author: detail.primary_author,
     authors: detail.authors,
-    genres: detail.genres,
+    genre: detail.genre,
+    themes: detail.themes,
   };
 }
 
@@ -76,6 +78,11 @@ export function BookDetailPage() {
     queryKey: ["copy-user-data", copyId],
     queryFn: () => fetchUserCopyData(token ?? "", copyId),
     enabled: Boolean(token && isValidCopyId),
+  });
+  const themesQuery = useQuery({
+    queryKey: ["themes"],
+    queryFn: () => fetchThemes(token ?? ""),
+    enabled: Boolean(token),
   });
 
   useEffect(() => {
@@ -128,7 +135,8 @@ export function BookDetailPage() {
         author_country_name: payload.authorCountry.trim() || null,
         publication_year: payload.publicationYear.trim() ? Number(payload.publicationYear) : null,
         isbn: payload.isbn.trim() || null,
-        genres: payload.genre.trim() ? [payload.genre.trim()] : [],
+        genre: payload.genre.trim() || null,
+        themes: payload.themes,
         collection_name: payload.collection.trim() || null,
         cover_url: payload.coverUrl.trim() || null,
         description: payload.description.trim() || null,
@@ -138,7 +146,7 @@ export function BookDetailPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["copy", copyId] }),
         queryClient.invalidateQueries({ queryKey: ["books"] }),
-        queryClient.invalidateQueries({ queryKey: ["genres"] }),
+        queryClient.invalidateQueries({ queryKey: ["themes"] }),
       ]);
       setIsBookModalOpen(false);
     },
@@ -170,7 +178,8 @@ export function BookDetailPage() {
   const canEditCopy = Boolean(library && !library.is_archived && library.role !== "viewer");
   const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
   const author = detail?.primary_author?.display_name ?? detail?.authors[0] ?? "Autor sin registrar";
-  const genre = detail?.genres[0] ?? "-";
+  const genre = detail?.genre ?? "-";
+  const themes = detail?.themes ?? [];
   const collection = detail?.collection ?? "-";
   const authorCountry = detail?.author_country ?? "-";
   const authorSex = detail?.author_sex ? authorSexLabels[detail.author_sex] : "-";
@@ -249,8 +258,12 @@ export function BookDetailPage() {
 
                 <dl className="detail-meta-grid">
                   <div>
-                    <dt>Genero</dt>
+                    <dt>Genero literario</dt>
                     <dd>{genre}</dd>
+                  </div>
+                  <div>
+                    <dt>Temas</dt>
+                    <dd>{themes.length > 0 ? themes.join(", ") : "-"}</dd>
                   </div>
                   <div>
                     <dt>Coleccion</dt>
@@ -462,6 +475,7 @@ export function BookDetailPage() {
         book={detail ? toBookMetadata(detail) : null}
         isOpen={isBookModalOpen}
         isSaving={updateBookMutation.isPending}
+        themeOptions={themesQuery.data ?? []}
         onClose={() => setIsBookModalOpen(false)}
         onSubmit={async (values) => {
           await updateBookMutation.mutateAsync(values);

@@ -7,7 +7,7 @@ import { DashboardPage } from "./DashboardPage";
 
 const apiMocks = vi.hoisted(() => ({
   fetchBooks: vi.fn(),
-  fetchGenres: vi.fn(),
+  fetchThemes: vi.fn(),
   fetchLists: vi.fn(),
   createBookRequest: vi.fn(),
   updateCopyRequest: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock("../libraries/ActiveLibraryProvider", () => ({
 vi.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
   fetchBooks: apiMocks.fetchBooks,
-  fetchGenres: apiMocks.fetchGenres,
+  fetchThemes: apiMocks.fetchThemes,
   fetchLists: apiMocks.fetchLists,
   createBookRequest: apiMocks.createBookRequest,
   updateCopyRequest: apiMocks.updateCopyRequest,
@@ -106,7 +106,7 @@ function renderPage(initialEntry = "/catalogo?listId=2") {
 
 describe("DashboardPage", () => {
   it("reads listId from the URL, hides the default library panel, and allows clearing the filter", async () => {
-    apiMocks.fetchGenres.mockResolvedValue([]);
+    apiMocks.fetchThemes.mockResolvedValue([]);
     apiMocks.fetchLists.mockResolvedValue([
       {
         id: 2,
@@ -139,7 +139,8 @@ describe("DashboardPage", () => {
             display_name: "Frank Herbert",
           },
           authors: ["Frank Herbert"],
-          genres: ["Sci-Fi"],
+          genre: "narrativo",
+          themes: ["Sci-Fi"],
           format: "physical",
           physical_location: null,
           digital_location: null,

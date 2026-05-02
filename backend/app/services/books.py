@@ -14,28 +14,31 @@ from app.core.author_names import StructuredAuthorName
 from app.core.author_names import build_structured_author_name
 from app.core.author_names import normalize_author_lookup_key
 from app.core.book_fields import normalize_author_sex
+from app.core.book_fields import normalize_literary_genre
+from app.core.themes import list_theme_labels
+from app.core.themes import normalize_theme
 from app.models.book import Author
 from app.models.book import Book
 from app.models.book import BookAuthor
+from app.models.book import BookTheme
 from app.models.book import Collection
-from app.models.book import BookGenre
 from app.models.book import Copy
 from app.models.book import Country
-from app.models.book import Genre
 from app.models.book import Publisher
+from app.models.book import Theme
 from app.models.book import UserCopy
 from app.models.enums import ReadingStatus
 from app.models.enums import UserLibraryRole
 from app.models.library import Library
 from app.models.library import UserLibrary
 from app.models.list import ListBook
+from app.schemas.author import PrimaryAuthorOut
 from app.schemas.book import BookCreate
 from app.schemas.book import BookMetadataOut
 from app.schemas.book import BookMetadataUpdate
 from app.schemas.book import BookOut
 from app.schemas.book import CopyDetailOut
 from app.schemas.book import CopyUpdate
-from app.schemas.author import PrimaryAuthorOut
 from app.services.libraries import CATALOG_MANAGEMENT_ROLES
 from app.services.libraries import READ_ACCESS_ROLES
 from app.services.libraries import LibraryArchivedError
@@ -104,13 +107,13 @@ COPY_LOAD_OPTIONS = (
     .selectinload(Book.book_authors)
     .joinedload(BookAuthor.author)
     .joinedload(Author.country),
-    joinedload(Copy.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
+    joinedload(Copy.book).selectinload(Book.book_themes).joinedload(BookTheme.theme),
 )
 BOOK_LOAD_OPTIONS = (
     joinedload(Book.collection),
     joinedload(Book.publisher),
     selectinload(Book.book_authors).joinedload(BookAuthor.author).joinedload(Author.country),
-    selectinload(Book.book_genres).joinedload(BookGenre.genre),
+    selectinload(Book.book_themes).joinedload(BookTheme.theme),
 )
 _UNSET = object()
 
@@ -148,6 +151,7 @@ def list_books(
     list_id: int | None = None,
     q: str | None = None,
     genre: str | None = None,
+    theme: str | None = None,
     collection: str | None = None,
     author_country: str | None = None,
     reading_status: ReadingStatus | None = None,
@@ -178,8 +182,8 @@ def list_books(
         .outerjoin(BookAuthor, BookAuthor.book_id == Book.id)
         .outerjoin(Author, Author.id == BookAuthor.author_id)
         .outerjoin(Country, Country.id == Author.country_id)
-        .outerjoin(BookGenre, BookGenre.book_id == Book.id)
-        .outerjoin(Genre, Genre.id == BookGenre.genre_id)
+        .outerjoin(BookTheme, BookTheme.book_id == Book.id)
+        .outerjoin(Theme, Theme.id == BookTheme.theme_id)
         .options(*COPY_LOAD_OPTIONS)
         .where(
             UserLibrary.user_id == user_id,
@@ -202,12 +206,21 @@ def list_books(
                 func.lower(func.coalesce(Book.isbn, "")).like(like_pattern),
                 func.lower(func.coalesce(Publisher.name, "")).like(like_pattern),
                 func.lower(func.coalesce(Author.display_name, "")).like(like_pattern),
+                func.lower(func.coalesce(Theme.name, "")).like(like_pattern),
             ),
         )
 
-    normalized_genre = genre.strip().lower() if genre else None
+    normalized_genre = normalize_literary_genre(genre, invalid_fallback="__invalid__")
+    if normalized_genre == "__invalid__":
+        return []
     if normalized_genre:
-        stmt = stmt.where(func.lower(func.coalesce(Genre.name, "")) == normalized_genre)
+        stmt = stmt.where(Book.genre == normalized_genre)
+
+    normalized_theme = normalize_theme(theme, invalid_fallback="__invalid__")
+    if normalized_theme == "__invalid__":
+        return []
+    if normalized_theme:
+        stmt = stmt.where(Theme.name == normalized_theme)
 
     normalized_collection = collection.strip().lower() if collection else None
     if normalized_collection:
@@ -239,9 +252,9 @@ def list_books(
     return _hydrate_copy_personal_fields(rows)
 
 
-def list_genres(db: Session) -> list[str]:
-    stmt = select(Genre.name).order_by(func.lower(Genre.name).asc(), Genre.name.asc())
-    return list(db.scalars(stmt).all())
+def list_themes(db: Session) -> list[str]:
+    del db
+    return list_theme_labels()
 
 
 def get_book_copy(
@@ -335,6 +348,8 @@ def update_book_metadata(
         book.publisher = _resolve_publisher(db, data.publisher_name)
     if "collection_name" in data.model_fields_set:
         book.collection = _resolve_collection(db, data.collection_name)
+    if "genre" in data.model_fields_set:
+        book.genre = data.genre
     if _author_fields_present(data):
         book.book_authors = [
             BookAuthor(author=author)
@@ -350,10 +365,10 @@ def update_book_metadata(
             ),
             sex=data.author_sex if "author_sex" in data.model_fields_set else _UNSET,
         )
-    if "genres" in data.model_fields_set:
-        book.book_genres = [
-            BookGenre(genre=genre)
-            for genre in _resolve_genres(db, data.genres or [])
+    if "themes" in data.model_fields_set:
+        book.book_themes = [
+            BookTheme(theme=theme)
+            for theme in _resolve_themes(db, data.themes or [])
         ]
 
     db.commit()
@@ -397,10 +412,8 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         author_sex=_serialize_primary_author_sex(book),
         primary_author=_serialize_primary_author(primary_author),
         authors=_serialize_book_authors(book),
-        genres=[
-            relation.genre.name
-            for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
-        ],
+        genre=book.genre,
+        themes=_serialize_book_themes(book),
         format=copy.format,
         physical_location=copy.physical_location,
         digital_location=copy.digital_location,
@@ -428,10 +441,8 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
         author_sex=_serialize_primary_author_sex(book),
         primary_author=_serialize_primary_author(primary_author),
         authors=_serialize_book_authors(book),
-        genres=[
-            relation.genre.name
-            for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
-        ],
+        genre=book.genre,
+        themes=_serialize_book_themes(book),
         format=copy.format,
         physical_location=copy.physical_location,
         digital_location=copy.digital_location,
@@ -454,10 +465,8 @@ def serialize_book_metadata(book: Book) -> BookMetadataOut:
         author_sex=_serialize_primary_author_sex(book),
         primary_author=_serialize_primary_author(primary_author),
         authors=_serialize_book_authors(book),
-        genres=[
-            relation.genre.name
-            for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
-        ],
+        genre=book.genre,
+        themes=_serialize_book_themes(book),
     )
 
 
@@ -474,7 +483,7 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
     publisher = _resolve_publisher(db, data.publisher_name)
     collection = _resolve_collection(db, data.collection_name)
     authors = _resolve_authors(db, _build_author_inputs(data))
-    genres = _resolve_genres(db, data.genres)
+    themes = _resolve_themes(db, data.themes)
     book_authors = [BookAuthor(author=author) for author in authors]
 
     book = Book(
@@ -485,12 +494,13 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
         cover_url=data.cover_url,
         publisher=publisher,
         collection=collection,
+        genre=data.genre,
     )
     db.add(book)
     book.book_authors = book_authors
-    book.book_genres = [
-        BookGenre(genre=genre)
-        for genre in genres
+    book.book_themes = [
+        BookTheme(theme=theme)
+        for theme in themes
     ]
     _assign_primary_author_metadata(
         book.book_authors,
@@ -620,19 +630,23 @@ def _resolve_country(db: Session, name: str | None) -> Country | None:
     return country
 
 
-def _resolve_genres(db: Session, names: list[str]) -> list[Genre]:
-    genres: list[Genre] = []
+def _resolve_themes(db: Session, names: list[str]) -> list[Theme]:
+    themes: list[Theme] = []
 
     for name in names:
-        stmt = select(Genre).where(func.lower(Genre.name) == name.lower())
-        genre = db.scalar(stmt)
-        if genre is None:
-            genre = Genre(name=name)
-            db.add(genre)
-            db.flush()
-        genres.append(genre)
+        canonical_name = normalize_theme(name)
+        if canonical_name is None:
+            continue
 
-    return genres
+        stmt = select(Theme).where(Theme.name == canonical_name)
+        theme = db.scalar(stmt)
+        if theme is None:
+            theme = Theme(name=canonical_name)
+            db.add(theme)
+            db.flush()
+        themes.append(theme)
+
+    return themes
 
 
 def _ensure_unique_isbn(
@@ -706,6 +720,13 @@ def _serialize_book_authors(book: Book) -> list[str]:
             book.book_authors,
             key=lambda item: item.author.display_name.casefold(),
         )
+    ]
+
+
+def _serialize_book_themes(book: Book) -> list[str]:
+    return [
+        relation.theme.name
+        for relation in sorted(book.book_themes, key=lambda item: item.theme.name.casefold())
     ]
 
 

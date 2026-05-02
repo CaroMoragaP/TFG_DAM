@@ -80,11 +80,40 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "genres",
+        "themes",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name", name="uq_genres_name"),
+        sa.UniqueConstraint("name", name="uq_themes_name"),
+    )
+    theme_table = sa.table("themes", sa.column("name", sa.String(length=120)))
+    op.bulk_insert(
+        theme_table,
+        [
+            {"name": "Fantas\u00eda"},
+            {"name": "Ficci\u00f3n hist\u00f3rica"},
+            {"name": "Terror"},
+            {"name": "Humor"},
+            {"name": "Literatura"},
+            {"name": "Magia"},
+            {"name": "Misterio e historias de detectives"},
+            {"name": "Obras de teatro"},
+            {"name": "Poes\u00eda"},
+            {"name": "Rom\u00e1ntica"},
+            {"name": "Ciencia ficci\u00f3n"},
+            {"name": "Historias cortas"},
+            {"name": "Suspense"},
+            {"name": "Juvenil"},
+            {"name": "Infantil"},
+            {"name": "Historia"},
+            {"name": "Biograf\u00eda"},
+            {"name": "Ciencias sociales"},
+            {"name": "Salud y bienestar"},
+            {"name": "Artes"},
+            {"name": "Ciencia y matem\u00e1ticas"},
+            {"name": "Negocios y finanzas"},
+            {"name": "Idiomas"},
+        ],
     )
 
     op.create_table(
@@ -96,6 +125,11 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("cover_url", sa.String(length=500), nullable=True),
         sa.Column("publisher_id", sa.Integer(), nullable=True),
+        sa.Column("genre", sa.String(length=32), nullable=True),
+        sa.CheckConstraint(
+            "genre IS NULL OR genre IN ('narrativo', 'lírico', 'dramático', 'didáctico')",
+            name="ck_books_genre_allowed_values",
+        ),
         sa.ForeignKeyConstraint(["publisher_id"], ["publishers.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("isbn", name="uq_books_isbn"),
@@ -144,22 +178,22 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "book_genres",
+        "book_themes",
         sa.Column("book_id", sa.Integer(), nullable=False),
-        sa.Column("genre_id", sa.Integer(), nullable=False),
+        sa.Column("theme_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["book_id"], ["books.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["genre_id"], ["genres.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("book_id", "genre_id"),
+        sa.ForeignKeyConstraint(["theme_id"], ["themes.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("book_id", "theme_id"),
         sa.UniqueConstraint(
             "book_id",
-            "genre_id",
-            name="uq_book_genres_book_id_genre_id",
+            "theme_id",
+            name="uq_book_themes_book_id_theme_id",
         ),
     )
     op.create_index(
-        op.f("ix_book_genres_genre_id"),
-        "book_genres",
-        ["genre_id"],
+        op.f("ix_book_themes_theme_id"),
+        "book_themes",
+        ["theme_id"],
         unique=False,
     )
 
@@ -186,8 +220,8 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_copies_book_id"), table_name="copies")
     op.drop_table("copies")
 
-    op.drop_index(op.f("ix_book_genres_genre_id"), table_name="book_genres")
-    op.drop_table("book_genres")
+    op.drop_index(op.f("ix_book_themes_theme_id"), table_name="book_themes")
+    op.drop_table("book_themes")
 
     op.drop_index(op.f("ix_book_authors_author_id"), table_name="book_authors")
     op.drop_table("book_authors")
@@ -198,7 +232,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_books_title"), table_name="books")
     op.drop_table("books")
 
-    op.drop_table("genres")
+    op.drop_table("themes")
     op.drop_table("authors")
     op.drop_table("publishers")
     op.drop_table("libraries")

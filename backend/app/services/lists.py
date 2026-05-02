@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app.models.book import Book
 from app.models.book import BookAuthor
-from app.models.book import BookGenre
+from app.models.book import BookTheme
 from app.models.book import Author
 from app.models.book import Copy
 from app.models.library import UserLibrary
@@ -30,7 +30,7 @@ LIST_BOOK_LOAD_OPTIONS = (
     .selectinload(Book.book_authors)
     .joinedload(BookAuthor.author)
     .joinedload(Author.country),
-    joinedload(ListBook.book).selectinload(Book.book_genres).joinedload(BookGenre.genre),
+    joinedload(ListBook.book).selectinload(Book.book_themes).joinedload(BookTheme.theme),
 )
 
 

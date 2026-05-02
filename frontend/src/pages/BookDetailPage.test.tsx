@@ -63,6 +63,11 @@ describe("BookDetailPage", () => {
       collection: "Cronicas de Arrakis",
       author_country: "Estados Unidos",
       author_sex: "male",
+      primary_author: {
+        first_name: "Frank",
+        last_name: "Herbert",
+        display_name: "Frank Herbert",
+      },
       authors: ["Frank Herbert"],
       genres: ["Sci-Fi"],
       format: "physical",

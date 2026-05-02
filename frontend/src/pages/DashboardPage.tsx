@@ -6,20 +6,30 @@ import { useAuth } from "../auth/AuthProvider";
 import { AddToListModal } from "../components/AddToListModal";
 import { BookCard } from "../components/BookCard";
 import { BookModal, type BookFormValues } from "../components/BookModal";
+import { CatalogImportModal } from "../components/CatalogImportModal";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   addBookToListRequest,
+  commitCatalogImportRequest,
   createBookRequest,
+  exportCatalogRequest,
   fetchBooks,
   fetchGenres,
   fetchLists,
+  previewCatalogImportRequest,
   updateCopyRequest,
   type Book,
   type BookCreatePayload,
+  type CatalogImportPreview,
+  type CatalogImportPreviewRow,
   type ReadingStatus,
   type UserList,
 } from "../lib/api";
+
+function buildAuthorDisplayName(firstName: string, lastName: string) {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+}
 
 export function DashboardPage() {
   const { token } = useAuth();
@@ -27,9 +37,13 @@ export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [bookForListModal, setBookForListModal] = useState<Book | null>(null);
   const [addToListError, setAddToListError] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<CatalogImportPreview | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const queryClient = useQueryClient();
 
   const q = searchParams.get("q") ?? "";
@@ -164,6 +178,35 @@ export function DashboardPage() {
     },
   });
 
+  const previewImportMutation = useMutation({
+    mutationFn: ({ libraryId, file }: { libraryId: number; file: File }) =>
+      previewCatalogImportRequest(token ?? "", libraryId, file),
+    onSuccess: (preview) => {
+      setImportPreview(preview);
+      setImportError(null);
+    },
+    onError: (error) => {
+      setImportError(error instanceof Error ? error.message : "No se pudo analizar el CSV.");
+    },
+  });
+
+  const commitImportMutation = useMutation({
+    mutationFn: ({ libraryId, rows }: { libraryId: number; rows: CatalogImportPreviewRow[] }) =>
+      commitCatalogImportRequest(token ?? "", libraryId, rows),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["books"] }),
+        queryClient.invalidateQueries({ queryKey: ["genres"] }),
+      ]);
+      setImportError(null);
+      setImportPreview(null);
+      setIsImportModalOpen(false);
+    },
+    onError: (error) => {
+      setImportError(error instanceof Error ? error.message : "No se pudo completar la importacion.");
+    },
+  });
+
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
   const visibleLists = listsQuery.data ?? [];
   const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
@@ -206,11 +249,18 @@ export function DashboardPage() {
     const payload: BookCreatePayload = {
       library_id: libraryId,
       title: values.title.trim(),
-      authors: [values.author.trim()],
+      primary_author_first_name: values.authorFirstName.trim() || null,
+      primary_author_last_name: values.authorLastName.trim() || null,
+      primary_author_display_name:
+        buildAuthorDisplayName(values.authorFirstName, values.authorLastName) || null,
+      authors: buildAuthorDisplayName(values.authorFirstName, values.authorLastName)
+        ? [buildAuthorDisplayName(values.authorFirstName, values.authorLastName)]
+        : [],
       author_sex: values.authorSex || null,
       author_country_name: values.authorCountry.trim() || null,
       publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,
       isbn: values.isbn.trim() || null,
+      publisher_name: values.publisherName.trim() || null,
       genres: values.genre.trim() ? [values.genre.trim()] : [],
       collection_name: values.collection.trim() || null,
       cover_url: values.coverUrl.trim() || null,
@@ -243,6 +293,40 @@ export function DashboardPage() {
     });
   }
 
+  async function handlePreviewImport(libraryId: number, file: File) {
+    await previewImportMutation.mutateAsync({ libraryId, file });
+  }
+
+  async function handleConfirmImport(libraryId: number, rows: CatalogImportPreviewRow[]) {
+    await commitImportMutation.mutateAsync({ libraryId, rows });
+  }
+
+  async function handleExportCatalog() {
+    setIsExporting(true);
+    try {
+      const blob = await exportCatalogRequest(token ?? "", {
+        libraryId: selectedLibraryId,
+        listId: selectedListId,
+        q,
+        genre: genre || undefined,
+        collection: collection || undefined,
+        authorCountry: authorCountry || undefined,
+        readingStatus: readingStatus || undefined,
+        minRating,
+      });
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = "catalogo.csv";
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
@@ -251,14 +335,36 @@ export function DashboardPage() {
           <h2>Mi catalogo</h2>
           <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
         </div>
-        <button
-          className="submit-button catalog-add-button"
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-          disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
-        >
-          + Anadir libro
-        </button>
+        <div className="inline-actions">
+          <button
+            className="ghost-link compact-action"
+            type="button"
+            onClick={() => {
+              setImportError(null);
+              setImportPreview(null);
+              setIsImportModalOpen(true);
+            }}
+            disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
+          >
+            Importar CSV
+          </button>
+          <button
+            className="ghost-link compact-action"
+            type="button"
+            onClick={() => void handleExportCatalog()}
+            disabled={booksQuery.isPending || isExporting}
+          >
+            {isExporting ? "Exportando..." : "Exportar CSV"}
+          </button>
+          <button
+            className="submit-button catalog-add-button"
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
+          >
+            + Anadir libro
+          </button>
+        </div>
       </div>
 
       <div className="panel catalog-toolbar">
@@ -439,6 +545,26 @@ export function DashboardPage() {
         }}
         onSubmit={handleSubmitBook}
         token={token ?? ""}
+      />
+
+      <CatalogImportModal
+        defaultLibraryId={defaultCreateLibraryId}
+        errorMessage={importError}
+        isImporting={commitImportMutation.isPending}
+        isOpen={isImportModalOpen}
+        isPreviewing={previewImportMutation.isPending}
+        libraries={editableLibraries}
+        preview={importPreview}
+        onClose={() => {
+          if (previewImportMutation.isPending || commitImportMutation.isPending) {
+            return;
+          }
+          setIsImportModalOpen(false);
+          setImportPreview(null);
+          setImportError(null);
+        }}
+        onConfirm={handleConfirmImport}
+        onPreview={handlePreviewImport}
       />
 
       <CopyEditModal

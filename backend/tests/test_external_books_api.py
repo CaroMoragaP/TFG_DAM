@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes import external_books as external_books_route
+from app.services import external_books as external_books_service
 from app.services.external_books import ExternalBookLookupNotFoundError
 from app.services.external_books import ExternalBookLookupServiceError
 
@@ -83,3 +85,111 @@ def test_open_library_endpoint_bad_gateway(client: TestClient, monkeypatch) -> N
 
     response = client.get("/external/open-library?q=kafka", headers=headers)
     assert response.status_code == 502
+
+
+def test_lookup_open_library_book_by_metadata_prefers_author_match(monkeypatch) -> None:
+    payload = {
+        "docs": [
+            {
+                "title": "Ficciones",
+                "author_name": ["Otro Autor"],
+                "first_publish_year": 1944,
+                "isbn": ["1111111111"],
+                "cover_i": 1,
+                "publisher": ["Emece"],
+            },
+            {
+                "title": "Ficciones",
+                "author_name": ["Jorge Luis Borges"],
+                "first_publish_year": 1944,
+                "isbn": ["2222222222"],
+                "cover_i": 2,
+                "publisher": ["Emece"],
+            },
+        ],
+    }
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            del args
+            del kwargs
+
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            del exc_type
+            del exc
+            del tb
+
+        def get(self, path: str, params: dict[str, object]) -> FakeResponse:
+            assert path == "/search.json"
+            assert params["limit"] == external_books_service.OPEN_LIBRARY_SEARCH_LIMIT
+            return FakeResponse()
+
+    monkeypatch.setattr(external_books_service.httpx, "Client", FakeClient)
+
+    result = external_books_service.lookup_open_library_book_by_metadata(
+        title="Ficciones",
+        author="Jorge Luis Borges",
+        publisher="Emecé",
+    )
+
+    assert result.isbn == "2222222222"
+    assert result.cover_url == "https://covers.openlibrary.org/b/id/2-L.jpg"
+
+
+def test_lookup_open_library_book_by_metadata_rejects_doubtful_matches(monkeypatch) -> None:
+    payload = {
+        "docs": [
+            {
+                "title": "Ficciones",
+                "author_name": ["Otro Autor"],
+                "first_publish_year": 1944,
+                "isbn": ["1111111111"],
+                "cover_i": 1,
+                "publisher": ["Emece"],
+            },
+        ],
+    }
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            del args
+            del kwargs
+
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            del exc_type
+            del exc
+            del tb
+
+        def get(self, path: str, params: dict[str, object]) -> FakeResponse:
+            assert path == "/search.json"
+            del params
+            return FakeResponse()
+
+    monkeypatch.setattr(external_books_service.httpx, "Client", FakeClient)
+
+    with pytest.raises(ExternalBookLookupNotFoundError):
+        external_books_service.lookup_open_library_book_by_metadata(
+            title="Ficciones",
+            author="Jorge Luis Borges",
+            publisher="Emecé",
+        )

@@ -32,6 +32,11 @@ const book: Book = {
   collection: "Cronicas de Arrakis",
   author_country: "Estados Unidos",
   author_sex: "male",
+  primary_author: {
+    first_name: "Frank",
+    last_name: "Herbert",
+    display_name: "Frank Herbert",
+  },
   authors: ["Frank Herbert"],
   genres: ["Sci-Fi"],
   format: "physical",
@@ -97,5 +102,24 @@ describe("BookModal", () => {
     expect(screen.queryByText("Estado inicial")).not.toBeInTheDocument();
     expect(screen.queryByText("Rating")).not.toBeInTheDocument();
     expect(screen.getByText("Biblioteca")).toBeInTheDocument();
+  });
+
+  it("includes publisher in submitted values", async () => {
+    const { onSubmit } = renderModal("create");
+
+    fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Neuromante" } });
+    fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
+    fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });
+    fireEvent.change(screen.getByLabelText("Editorial"), { target: { value: "Minotauro" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publisherName: "Minotauro",
+        }),
+      );
+    });
   });
 });

@@ -125,7 +125,7 @@ def get_catalog_stats(
         ] += 1
 
         if primary_author is not None:
-            top_author_counts[primary_author.name] += 1
+            top_author_counts[primary_author.display_name] += 1
         else:
             top_author_counts["Autor sin registrar"] += 1
 
@@ -423,7 +423,7 @@ def _get_primary_author(book: Book) -> Author | None:
 
     return min(
         (relation.author for relation in book.book_authors),
-        key=lambda author: author.name.casefold(),
+        key=lambda author: author.display_name.casefold(),
     )
 
 
@@ -569,11 +569,11 @@ def _month_index(year: int, month: int) -> int:
 
 def _serialize_authors(book: Book) -> list[str]:
     authors = _sorted_book_authors(book.book_authors)
-    return [author.name for author in authors]
+    return [author.display_name for author in authors]
 
 
 def _sorted_book_authors(book_authors: Sequence[BookAuthor]) -> list[Author]:
     return sorted(
         (relation.author for relation in book_authors),
-        key=lambda author: author.name.casefold(),
+        key=lambda author: author.display_name.casefold(),
     )

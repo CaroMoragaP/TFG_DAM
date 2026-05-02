@@ -10,6 +10,9 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
+from app.core.author_names import StructuredAuthorName
+from app.core.author_names import build_structured_author_name
+from app.core.author_names import normalize_author_lookup_key
 from app.core.book_fields import normalize_author_sex
 from app.models.book import Author
 from app.models.book import Book
@@ -32,6 +35,7 @@ from app.schemas.book import BookMetadataUpdate
 from app.schemas.book import BookOut
 from app.schemas.book import CopyDetailOut
 from app.schemas.book import CopyUpdate
+from app.schemas.author import PrimaryAuthorOut
 from app.services.libraries import CATALOG_MANAGEMENT_ROLES
 from app.services.libraries import READ_ACCESS_ROLES
 from app.services.libraries import LibraryArchivedError
@@ -59,6 +63,38 @@ class DuplicateBookCopyError(ValueError):
 
 class DuplicateBookIsbnError(ValueError):
     """Raised when trying to reuse an ISBN already assigned elsewhere."""
+
+
+def create_book_in_transaction(
+    db: Session,
+    *,
+    user_id: int,
+    data: BookCreate,
+) -> Copy:
+    del user_id
+    book = _get_or_create_book(db, data)
+    existing_copy = db.scalar(
+        select(Copy).where(
+            Copy.book_id == book.id,
+            Copy.library_id == data.library_id,
+        ),
+    )
+    if existing_copy is not None:
+        raise DuplicateBookCopyError(
+            "La biblioteca ya contiene un ejemplar de este libro.",
+        )
+
+    copy = Copy(
+        book=book,
+        library_id=data.library_id,
+        format=data.format,
+        physical_location=data.physical_location,
+        digital_location=data.digital_location,
+        status=data.status,
+    )
+    db.add(copy)
+    db.flush()
+    return copy
 
 
 COPY_LOAD_OPTIONS = (
@@ -92,28 +128,7 @@ def create_book(
         allowed_roles=CATALOG_MANAGEMENT_ROLES,
     )
 
-    book = _get_or_create_book(db, data)
-    existing_copy = db.scalar(
-        select(Copy).where(
-            Copy.book_id == book.id,
-            Copy.library_id == data.library_id,
-        ),
-    )
-    if existing_copy is not None:
-        raise DuplicateBookCopyError(
-            "La biblioteca ya contiene un ejemplar de este libro.",
-        )
-
-    copy = Copy(
-        book=book,
-        library_id=data.library_id,
-        format=data.format,
-        physical_location=data.physical_location,
-        digital_location=data.digital_location,
-        status=data.status,
-    )
-    db.add(copy)
-    db.flush()
+    copy = create_book_in_transaction(db, user_id=user_id, data=data)
     get_or_create_user_copy(
         db,
         user_id=user_id,
@@ -186,7 +201,7 @@ def list_books(
                 func.lower(Book.title).like(like_pattern),
                 func.lower(func.coalesce(Book.isbn, "")).like(like_pattern),
                 func.lower(func.coalesce(Publisher.name, "")).like(like_pattern),
-                func.lower(func.coalesce(Author.name, "")).like(like_pattern),
+                func.lower(func.coalesce(Author.display_name, "")).like(like_pattern),
             ),
         )
 
@@ -320,10 +335,10 @@ def update_book_metadata(
         book.publisher = _resolve_publisher(db, data.publisher_name)
     if "collection_name" in data.model_fields_set:
         book.collection = _resolve_collection(db, data.collection_name)
-    if "authors" in data.model_fields_set:
+    if _author_fields_present(data):
         book.book_authors = [
             BookAuthor(author=author)
-            for author in _resolve_authors(db, data.authors or [])
+            for author in _resolve_authors(db, _build_author_inputs(data))
         ]
     if "author_country_name" in data.model_fields_set or "author_sex" in data.model_fields_set:
         _assign_primary_author_metadata(
@@ -366,6 +381,7 @@ def serialize_book_copy(copy: Copy) -> BookOut:
     book = copy.book
     reading_status = getattr(copy, "_catalog_reading_status", ReadingStatus.PENDING)
     user_rating = getattr(copy, "_catalog_user_rating", None)
+    primary_author = _get_primary_author(book)
     return BookOut(
         id=copy.id,
         book_id=book.id,
@@ -379,10 +395,8 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
         author_sex=_serialize_primary_author_sex(book),
-        authors=[
-            relation.author.name
-            for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
-        ],
+        primary_author=_serialize_primary_author(primary_author),
+        authors=_serialize_book_authors(book),
         genres=[
             relation.genre.name
             for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
@@ -398,6 +412,7 @@ def serialize_book_copy(copy: Copy) -> BookOut:
 
 def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
     book = copy.book
+    primary_author = _get_primary_author(book)
     return CopyDetailOut(
         id=copy.id,
         book_id=book.id,
@@ -411,10 +426,8 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
         author_sex=_serialize_primary_author_sex(book),
-        authors=[
-            relation.author.name
-            for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
-        ],
+        primary_author=_serialize_primary_author(primary_author),
+        authors=_serialize_book_authors(book),
         genres=[
             relation.genre.name
             for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
@@ -427,6 +440,7 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
 
 
 def serialize_book_metadata(book: Book) -> BookMetadataOut:
+    primary_author = _get_primary_author(book)
     return BookMetadataOut(
         id=book.id,
         title=book.title,
@@ -438,10 +452,8 @@ def serialize_book_metadata(book: Book) -> BookMetadataOut:
         collection=book.collection.name if book.collection is not None else None,
         author_country=_serialize_primary_author_country(book),
         author_sex=_serialize_primary_author_sex(book),
-        authors=[
-            relation.author.name
-            for relation in sorted(book.book_authors, key=lambda item: item.author.name.casefold())
-        ],
+        primary_author=_serialize_primary_author(primary_author),
+        authors=_serialize_book_authors(book),
         genres=[
             relation.genre.name
             for relation in sorted(book.book_genres, key=lambda item: item.genre.name.casefold())
@@ -455,9 +467,13 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
         if existing_book is not None:
             return existing_book
 
+    existing_book = _find_existing_book_by_identity(db, data)
+    if existing_book is not None:
+        return existing_book
+
     publisher = _resolve_publisher(db, data.publisher_name)
     collection = _resolve_collection(db, data.collection_name)
-    authors = _resolve_authors(db, data.authors)
+    authors = _resolve_authors(db, _build_author_inputs(data))
     genres = _resolve_genres(db, data.genres)
     book_authors = [BookAuthor(author=author) for author in authors]
 
@@ -568,14 +584,20 @@ def _resolve_collection(db: Session, name: str | None) -> Collection | None:
     return collection
 
 
-def _resolve_authors(db: Session, names: list[str]) -> list[Author]:
+def _resolve_authors(db: Session, names: list[StructuredAuthorName]) -> list[Author]:
     authors: list[Author] = []
 
     for name in names:
-        stmt = select(Author).where(func.lower(Author.name) == name.lower())
+        if name.display_name is None:
+            continue
+        stmt = select(Author).where(func.lower(Author.display_name) == name.display_name.lower())
         author = db.scalar(stmt)
         if author is None:
-            author = Author(name=name)
+            author = Author(
+                first_name=name.first_name,
+                last_name=name.last_name,
+                display_name=name.display_name,
+            )
             db.add(author)
             db.flush()
         authors.append(author)
@@ -641,7 +663,7 @@ def _assign_primary_author_metadata(
     if not book_authors:
         return
 
-    primary_relation = min(book_authors, key=lambda item: item.author.name.casefold())
+    primary_relation = min(book_authors, key=lambda item: item.author.display_name.casefold())
     if country is not _UNSET:
         primary_relation.author.country = country
     if sex is not _UNSET:
@@ -652,7 +674,7 @@ def _serialize_primary_author_country(book: Book) -> str | None:
     if not book.book_authors:
         return None
 
-    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    primary_relation = min(book.book_authors, key=lambda item: item.author.display_name.casefold())
     if primary_relation.author.country is None:
         return None
     return primary_relation.author.country.name
@@ -662,8 +684,88 @@ def _serialize_primary_author_sex(book: Book) -> str | None:
     if not book.book_authors:
         return None
 
-    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    primary_relation = min(book.book_authors, key=lambda item: item.author.display_name.casefold())
     return normalize_author_sex(primary_relation.author.sex, invalid_fallback="unknown")
+
+
+def _serialize_primary_author(author: Author | None) -> PrimaryAuthorOut | None:
+    if author is None:
+        return None
+
+    return PrimaryAuthorOut(
+        first_name=author.first_name,
+        last_name=author.last_name,
+        display_name=author.display_name,
+    )
+
+
+def _serialize_book_authors(book: Book) -> list[str]:
+    return [
+        relation.author.display_name
+        for relation in sorted(
+            book.book_authors,
+            key=lambda item: item.author.display_name.casefold(),
+        )
+    ]
+
+
+def _get_primary_author(book: Book) -> Author | None:
+    if not book.book_authors:
+        return None
+
+    return min(
+        (relation.author for relation in book.book_authors),
+        key=lambda author: author.display_name.casefold(),
+    )
+
+
+def _author_fields_present(data: BookMetadataUpdate) -> bool:
+    return bool(
+        {"authors", "primary_author_first_name", "primary_author_last_name", "primary_author_display_name"}
+        & data.model_fields_set
+    )
+
+
+def _build_author_inputs(data: BookCreate | BookMetadataUpdate) -> list[StructuredAuthorName]:
+    primary_author = build_structured_author_name(
+        first_name=getattr(data, "primary_author_first_name", None),
+        last_name=getattr(data, "primary_author_last_name", None),
+        display_name=getattr(data, "primary_author_display_name", None),
+    )
+    if primary_author.display_name is not None:
+        return [primary_author]
+
+    return [
+        build_structured_author_name(display_name=name)
+        for name in (getattr(data, "authors", None) or [])
+    ]
+
+
+def _find_existing_book_by_identity(db: Session, data: BookCreate) -> Book | None:
+    author_inputs = _build_author_inputs(data)
+    if not author_inputs or author_inputs[0].display_name is None:
+        return None
+
+    normalized_author_name = normalize_author_lookup_key(author_inputs[0].display_name)
+    if normalized_author_name is None:
+        return None
+
+    candidates = db.execute(
+        select(Book)
+        .join(BookAuthor, BookAuthor.book_id == Book.id)
+        .join(Author, Author.id == BookAuthor.author_id)
+        .options(*BOOK_LOAD_OPTIONS)
+        .where(func.lower(Book.title) == data.title.lower())
+    ).unique().scalars().all()
+
+    for candidate in candidates:
+        primary_author = _get_primary_author(candidate)
+        if primary_author is None:
+            continue
+        if normalize_author_lookup_key(primary_author.display_name) == normalized_author_name:
+            return candidate
+
+    return None
 
 
 def _assert_copy_access(

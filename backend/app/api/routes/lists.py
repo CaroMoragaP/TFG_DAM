@@ -34,7 +34,7 @@ def _serialize_primary_author_country(book) -> str | None:
     if not book.book_authors:
         return None
 
-    primary_relation = min(book.book_authors, key=lambda item: item.author.name.casefold())
+    primary_relation = min(book.book_authors, key=lambda item: item.author.display_name.casefold())
     if primary_relation.author.country is None:
         return None
     return primary_relation.author.country.name
@@ -132,10 +132,10 @@ def read_list_books(
             book_id=entry.book_id,
             title=entry.book.title,
             authors=[
-                relation.author.name
+                relation.author.display_name
                 for relation in sorted(
                     entry.book.book_authors,
-                    key=lambda item: item.author.name.casefold(),
+                    key=lambda item: item.author.display_name.casefold(),
                 )
             ],
             genres=[

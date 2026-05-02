@@ -57,7 +57,9 @@ class Author(Base):
     __tablename__ = "authors"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     country_id: Mapped[int | None] = mapped_column(
         ForeignKey("countries.id", ondelete="SET NULL"),
         nullable=True,

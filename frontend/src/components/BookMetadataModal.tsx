@@ -4,7 +4,8 @@ import { ApiError, type AuthorSex, type BookMetadata } from "../lib/api";
 
 export type BookMetadataValues = {
   title: string;
-  author: string;
+  authorFirstName: string;
+  authorLastName: string;
   authorSex: AuthorSex | "";
   authorCountry: string;
   publicationYear: string;
@@ -29,7 +30,8 @@ type FormErrors = Partial<Record<keyof BookMetadataValues | "form", string>>;
 function emptyValues(): BookMetadataValues {
   return {
     title: "",
-    author: "",
+    authorFirstName: "",
+    authorLastName: "",
     authorSex: "",
     authorCountry: "",
     publicationYear: "",
@@ -45,7 +47,8 @@ function emptyValues(): BookMetadataValues {
 function toFormValues(book: BookMetadata): BookMetadataValues {
   return {
     title: book.title,
-    author: book.authors[0] ?? "",
+    authorFirstName: book.primary_author?.first_name ?? book.primary_author?.display_name ?? "",
+    authorLastName: book.primary_author?.last_name ?? "",
     authorSex: book.author_sex ?? "",
     authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
@@ -144,8 +147,19 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Autor principal
-              <input value={formValues.author} onChange={(event) => handleFieldChange("author", event.target.value)} />
+              Nombre del autor principal
+              <input
+                value={formValues.authorFirstName}
+                onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
+              />
+            </label>
+
+            <label className="field-group">
+              Apellido del autor principal
+              <input
+                value={formValues.authorLastName}
+                onChange={(event) => handleFieldChange("authorLastName", event.target.value)}
+              />
             </label>
 
             <label className="field-group">

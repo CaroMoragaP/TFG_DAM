@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import date
+from io import BytesIO
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.models.book import UserCopy
+from app.schemas.external_book import ExternalBookLookupOut
+from app.services import catalog_io as catalog_io_service
+from app.services.external_books import ExternalBookLookupNotFoundError
 
 
 def register_user(client: TestClient) -> dict[str, str]:
@@ -164,6 +168,11 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     assert dune["user_rating"] == 5
     assert dune["collection"] == "Cronicas de Arrakis"
     assert dune["author_country"] == "Estados Unidos"
+    assert dune["primary_author"] == {
+        "first_name": None,
+        "last_name": None,
+        "display_name": "Frank Herbert",
+    }
 
     reading_response = client.get("/books?reading_status=reading", headers=headers)
     assert reading_response.status_code == 200
@@ -489,3 +498,202 @@ def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient
     )
     assert owner_metadata_update_response.status_code == 200
     assert owner_metadata_update_response.json()["title"] == "Solaris revisado"
+
+
+def test_catalog_csv_preview_commit_and_export(client: TestClient, monkeypatch) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    def fake_lookup_by_metadata(
+        *,
+        title: str,
+        author: str | None = None,
+        publisher: str | None = None,
+    ) -> ExternalBookLookupOut:
+        suffix = "ficciones" if title == "Ficciones" else "el-aleph"
+        isbn = "9780307950928" if title == "Ficciones" else "9788420633121"
+        return ExternalBookLookupOut(
+            title=title,
+            authors=[author] if author is not None else [],
+            publication_year=None,
+            isbn=isbn,
+            genres=[],
+            cover_url=f"https://example.com/{suffix}.jpg",
+            publisher_name=publisher,
+        )
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+
+    csv_payload = (
+        "Ubicación,Libro,Apellido,Nombre,Género,Editorial,Colección,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,Emecé,Biblioteca Esencial,Argentina,M\r\n"
+        "Caja 2,El Aleph,Borges,Jorge Luis,Narrativo,Emecé,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()
+    assert preview_payload["ready"] == 2
+    assert preview_payload["duplicates"] == 0
+    assert preview_payload["rows"][0]["normalized_payload"]["primary_author_first_name"] == "Jorge Luis"
+    assert preview_payload["rows"][0]["normalized_payload"]["primary_author_last_name"] == "Borges"
+    assert preview_payload["rows"][0]["normalized_payload"]["primary_author_display_name"] == "Jorge Luis Borges"
+    assert preview_payload["rows"][0]["normalized_payload"]["authors"] == ["Jorge Luis Borges"]
+    assert preview_payload["rows"][0]["normalized_payload"]["isbn"] == "9780307950928"
+    assert preview_payload["rows"][0]["normalized_payload"]["cover_url"] == "https://example.com/ficciones.jpg"
+
+    commit_response = client.post(
+        "/books/imports",
+        headers=headers,
+        json={
+            "library_id": library_id,
+            "rows": preview_payload["rows"],
+        },
+    )
+    assert commit_response.status_code == 200
+    commit_payload = commit_response.json()
+    assert commit_payload["imported"] == 2
+    assert commit_payload["failed"] == 0
+
+    export_response = client.get(f"/books/export?library_id={library_id}", headers=headers)
+    assert export_response.status_code == 200
+    assert export_response.headers["content-type"].startswith("text/csv")
+    export_text = export_response.text
+    assert "autor_nombre,autor_apellido,autor_display_name" in export_text
+    assert "Jorge Luis,Borges,Jorge Luis Borges" in export_text
+    assert "9780307950928" in export_text
+    assert "https://example.com/ficciones.jpg" in export_text
+
+
+def test_catalog_csv_preview_preserves_existing_isbn_and_cover_url(client: TestClient, monkeypatch) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    def fail_lookup_by_metadata(**_: object) -> ExternalBookLookupOut:
+        raise AssertionError("No deberia consultar Open Library cuando el CSV ya trae ISBN y portada.")
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fail_lookup_by_metadata)
+
+    csv_payload = (
+        "biblioteca,titulo,autores,autor_nombre,autor_apellido,autor_display_name,isbn,anio_publicacion,descripcion,editorial,coleccion,pais_autor,sexo_autor,generos,formato,ubicacion_fisica,ubicacion_digital,estado_copia,estado_lectura,valoracion,url_portada\r\n"
+        "Personal,Ficciones,Jorge Luis Borges,Jorge Luis,Borges,Jorge Luis Borges,9780307950928,1944,,Emece,,,Narrativo,physical,Caja 1,,available,pending,,https://example.com/original.jpg\r\n"
+    ).encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+
+    assert preview_response.status_code == 200
+    payload = preview_response.json()
+    assert payload["rows"][0]["normalized_payload"]["isbn"] == "9780307950928"
+    assert payload["rows"][0]["normalized_payload"]["cover_url"] == "https://example.com/original.jpg"
+    assert payload["rows"][0]["messages"] == []
+
+
+def test_catalog_csv_preview_warns_when_open_library_has_no_confident_match(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    def fake_lookup_by_metadata(**_: object) -> ExternalBookLookupOut:
+        raise ExternalBookLookupNotFoundError("No se encontraron resultados fiables en Open Library.")
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+
+    csv_payload = (
+        "UbicaciÃ³n,Libro,Apellido,Nombre,GÃ©nero,Editorial,ColecciÃ³n,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+
+    assert preview_response.status_code == 200
+    payload = preview_response.json()
+    assert payload["ready"] == 1
+    assert payload["rows"][0]["status"] == "ready"
+    assert payload["rows"][0]["normalized_payload"]["isbn"] is None
+    assert payload["rows"][0]["normalized_payload"]["cover_url"] is None
+    assert any("coincidencia fiable" in message for message in payload["rows"][0]["messages"])
+
+
+def test_catalog_csv_preview_uses_enriched_isbn_for_duplicate_detection(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    def fake_lookup_by_metadata(
+        *,
+        title: str,
+        author: str | None = None,
+        publisher: str | None = None,
+    ) -> ExternalBookLookupOut:
+        del author
+        del publisher
+        cover_suffix = "shared" if title == "Ficciones" else "shared-variant"
+        return ExternalBookLookupOut(
+            title=title,
+            authors=["Jorge Luis Borges"],
+            publication_year=None,
+            isbn="9780307950928",
+            genres=[],
+            cover_url=f"https://example.com/{cover_suffix}.jpg",
+            publisher_name="Emece",
+        )
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+
+    initial_csv_payload = (
+        "UbicaciÃ³n,Libro,Apellido,Nombre,GÃ©nero,Editorial,ColecciÃ³n,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+    initial_preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(initial_csv_payload), "text/csv")},
+    )
+    assert initial_preview_response.status_code == 200
+
+    initial_commit_response = client.post(
+        "/books/imports",
+        headers=headers,
+        json={
+            "library_id": library_id,
+            "rows": initial_preview_response.json()["rows"],
+        },
+    )
+    assert initial_commit_response.status_code == 200
+
+    duplicate_csv_payload = (
+        "UbicaciÃ³n,Libro,Apellido,Nombre,GÃ©nero,Editorial,ColecciÃ³n,Nacionalidad,Sexo\r\n"
+        "Caja 2,Ficciones revisadas,Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+    duplicate_preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(duplicate_csv_payload), "text/csv")},
+    )
+
+    assert duplicate_preview_response.status_code == 200
+    duplicate_payload = duplicate_preview_response.json()
+    assert duplicate_payload["duplicates"] == 1
+    assert duplicate_payload["rows"][0]["status"] == "duplicate"
+    assert "La biblioteca ya contiene un libro con esa identidad." in duplicate_payload["rows"][0]["messages"]

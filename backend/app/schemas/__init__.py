@@ -4,6 +4,7 @@ from app.schemas.auth import AuthToken
 from app.schemas.auth import UserLogin
 from app.schemas.auth import UserRead
 from app.schemas.auth import UserRegister
+from app.schemas.author import PrimaryAuthorOut
 from app.schemas.book import BookCreate
 from app.schemas.book import BookMetadataOut
 from app.schemas.book import BookMetadataUpdate
@@ -45,6 +46,7 @@ __all__ = [
     "ListCreate",
     "ListOut",
     "ListUpdate",
+    "PrimaryAuthorOut",
     "UserCopyOut",
     "UserCopyUpdate",
     "UserLogin",

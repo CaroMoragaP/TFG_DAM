@@ -14,11 +14,13 @@ import {
 export type BookFormValues = {
   libraryId: string;
   title: string;
-  author: string;
+  authorFirstName: string;
+  authorLastName: string;
   authorSex: AuthorSex | "";
   authorCountry: string;
   publicationYear: string;
   isbn: string;
+  publisherName: string;
   genre: string;
   collection: string;
   readingStatus: ReadingStatus;
@@ -44,11 +46,13 @@ type FormErrors = Partial<Record<keyof BookFormValues | "form", string>>;
 const emptyFormValues = (defaultLibraryId: number | null): BookFormValues => ({
   libraryId: defaultLibraryId ? String(defaultLibraryId) : "",
   title: "",
-  author: "",
+  authorFirstName: "",
+  authorLastName: "",
   authorSex: "",
   authorCountry: "",
   publicationYear: "",
   isbn: "",
+  publisherName: "",
   genre: "",
   collection: "",
   readingStatus: "pending",
@@ -60,11 +64,13 @@ function bookToFormValues(book: Book): BookFormValues {
   return {
     libraryId: String(book.library_id),
     title: book.title,
-    author: book.authors[0] ?? "",
+    authorFirstName: book.primary_author?.first_name ?? book.primary_author?.display_name ?? "",
+    authorLastName: book.primary_author?.last_name ?? "",
     authorSex: book.author_sex ?? "",
     authorCountry: book.author_country ?? "",
     publicationYear: book.publication_year ? String(book.publication_year) : "",
     isbn: book.isbn ?? "",
+    publisherName: book.publisher ?? "",
     genre: book.genres[0] ?? "",
     collection: book.collection ?? "",
     readingStatus: book.reading_status,
@@ -90,8 +96,8 @@ function buildValidationErrors(
     errors.title = "El titulo es obligatorio.";
   }
 
-  if (!values.author.trim()) {
-    errors.author = "El autor es obligatorio.";
+  if (!values.authorFirstName.trim() && !values.authorLastName.trim()) {
+    errors.authorFirstName = "El autor es obligatorio.";
   }
 
   if (values.publicationYear.trim()) {
@@ -126,9 +132,15 @@ function applyImportedBook(
   return {
     ...values,
     title: importedBook.title,
-    author: importedBook.authors[0] ?? "",
+    authorFirstName:
+      importedBook.primary_author?.first_name ??
+      importedBook.primary_author?.display_name ??
+      importedBook.authors[0] ??
+      "",
+    authorLastName: importedBook.primary_author?.last_name ?? "",
     publicationYear: importedBook.publication_year ? String(importedBook.publication_year) : "",
     isbn: importedBook.isbn ?? "",
+    publisherName: importedBook.publisher_name ?? "",
     genre: importedBook.genres[0] ?? "",
     coverUrl: importedBook.cover_url ?? "",
   };
@@ -178,10 +190,12 @@ export function BookModal({
         const nextErrors = { ...currentErrors };
         delete nextErrors.form;
         delete nextErrors.title;
-        delete nextErrors.author;
+        delete nextErrors.authorFirstName;
+        delete nextErrors.authorLastName;
         delete nextErrors.authorCountry;
         delete nextErrors.publicationYear;
         delete nextErrors.isbn;
+        delete nextErrors.publisherName;
         delete nextErrors.genre;
         delete nextErrors.collection;
         delete nextErrors.coverUrl;
@@ -304,9 +318,21 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              Autor
-              <input value={formValues.author} onChange={(event) => handleFieldChange("author", event.target.value)} />
-              {errors.author ? <p className="field-error">{errors.author}</p> : null}
+              Nombre del autor
+              <input
+                value={formValues.authorFirstName}
+                onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
+              />
+              {errors.authorFirstName ? <p className="field-error">{errors.authorFirstName}</p> : null}
+            </label>
+
+            <label className="field-group">
+              Apellido del autor
+              <input
+                value={formValues.authorLastName}
+                onChange={(event) => handleFieldChange("authorLastName", event.target.value)}
+              />
+              {errors.authorLastName ? <p className="field-error">{errors.authorLastName}</p> : null}
             </label>
 
             <label className="field-group">
@@ -356,6 +382,15 @@ export function BookModal({
                 </button>
               </div>
               {errors.isbn ? <p className="field-error">{errors.isbn}</p> : null}
+            </label>
+
+            <label className="field-group">
+              Editorial
+              <input
+                value={formValues.publisherName}
+                onChange={(event) => handleFieldChange("publisherName", event.target.value)}
+              />
+              {errors.publisherName ? <p className="field-error">{errors.publisherName}</p> : null}
             </label>
 
             <label className="field-group">

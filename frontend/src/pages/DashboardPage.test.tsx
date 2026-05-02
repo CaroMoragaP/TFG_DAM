@@ -12,6 +12,9 @@ const apiMocks = vi.hoisted(() => ({
   createBookRequest: vi.fn(),
   updateCopyRequest: vi.fn(),
   addBookToListRequest: vi.fn(),
+  previewCatalogImportRequest: vi.fn(),
+  commitCatalogImportRequest: vi.fn(),
+  exportCatalogRequest: vi.fn(),
 }));
 
 vi.mock("../auth/AuthProvider", () => ({
@@ -60,6 +63,9 @@ vi.mock("../lib/api", () => ({
   createBookRequest: apiMocks.createBookRequest,
   updateCopyRequest: apiMocks.updateCopyRequest,
   addBookToListRequest: apiMocks.addBookToListRequest,
+  previewCatalogImportRequest: apiMocks.previewCatalogImportRequest,
+  commitCatalogImportRequest: apiMocks.commitCatalogImportRequest,
+  exportCatalogRequest: apiMocks.exportCatalogRequest,
   fetchOpenLibraryBook: vi.fn(),
 }));
 
@@ -73,6 +79,10 @@ vi.mock("../components/CopyEditModal", () => ({
 
 vi.mock("../components/AddToListModal", () => ({
   AddToListModal: () => null,
+}));
+
+vi.mock("../components/CatalogImportModal", () => ({
+  CatalogImportModal: () => null,
 }));
 
 function renderPage(initialEntry = "/catalogo?listId=2") {
@@ -123,6 +133,11 @@ describe("DashboardPage", () => {
           collection: "Cronicas de Arrakis",
           author_country: "Estados Unidos",
           author_sex: "male",
+          primary_author: {
+            first_name: "Frank",
+            last_name: "Herbert",
+            display_name: "Frank Herbert",
+          },
           authors: ["Frank Herbert"],
           genres: ["Sci-Fi"],
           format: "physical",

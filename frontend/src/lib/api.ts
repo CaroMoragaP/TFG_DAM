@@ -12,6 +12,11 @@ export type CopyFormat = "physical" | "digital";
 export type CopyStatus = "available" | "loaned" | "reserved";
 export type ReadingStatus = "pending" | "reading" | "finished";
 export type AuthorSex = "male" | "female" | "non_binary" | "unknown";
+export type PrimaryAuthor = {
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string;
+};
 
 export type User = {
   id: number;
@@ -74,6 +79,7 @@ export type Book = {
   collection: string | null;
   author_country: string | null;
   author_sex: AuthorSex | null;
+  primary_author: PrimaryAuthor | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -97,6 +103,7 @@ export type CopyDetail = {
   collection: string | null;
   author_country: string | null;
   author_sex: AuthorSex | null;
+  primary_author: PrimaryAuthor | null;
   authors: string[];
   genres: string[];
   format: CopyFormat;
@@ -116,6 +123,7 @@ export type BookMetadata = {
   collection: string | null;
   author_country: string | null;
   author_sex: AuthorSex | null;
+  primary_author: PrimaryAuthor | null;
   authors: string[];
   genres: string[];
 };
@@ -132,6 +140,7 @@ export type UserCopyData = {
 export type ExternalBookLookup = {
   title: string;
   authors: string[];
+  primary_author: PrimaryAuthor | null;
   publication_year: number | null;
   isbn: string | null;
   genres: string[];
@@ -150,6 +159,9 @@ export type BookCreatePayload = {
   collection_name?: string | null;
   author_country_name?: string | null;
   author_sex?: AuthorSex | null;
+  primary_author_first_name?: string | null;
+  primary_author_last_name?: string | null;
+  primary_author_display_name?: string | null;
   authors: string[];
   genres: string[];
   format?: CopyFormat;
@@ -172,6 +184,62 @@ export type BookMetadataUpdatePayload = {
   collection_name?: string | null;
   author_country_name?: string | null;
   author_sex?: AuthorSex | null;
+  primary_author_first_name?: string | null;
+  primary_author_last_name?: string | null;
+  primary_author_display_name?: string | null;
+};
+
+export type CatalogImportRowPayload = {
+  title: string;
+  isbn: string | null;
+  publication_year: number | null;
+  description: string | null;
+  cover_url: string | null;
+  publisher_name: string | null;
+  collection_name: string | null;
+  author_country_name: string | null;
+  author_sex: AuthorSex | null;
+  primary_author_first_name: string | null;
+  primary_author_last_name: string | null;
+  primary_author_display_name: string | null;
+  authors: string[];
+  genres: string[];
+  format: CopyFormat;
+  physical_location: string | null;
+  digital_location: string | null;
+  status: CopyStatus;
+  reading_status: ReadingStatus;
+  user_rating: number | null;
+};
+
+export type CatalogImportPreviewRow = {
+  row_number: number;
+  status: "ready" | "duplicate" | "invalid";
+  messages: string[];
+  normalized_payload: CatalogImportRowPayload | null;
+};
+
+export type CatalogImportPreview = {
+  total: number;
+  ready: number;
+  duplicates: number;
+  invalid: number;
+  rows: CatalogImportPreviewRow[];
+};
+
+export type CatalogImportCommitResult = {
+  row_number: number;
+  status: "imported" | "skipped_duplicate" | "failed";
+  messages: string[];
+  copy_id: number | null;
+  book_id: number | null;
+};
+
+export type CatalogImportCommitResponse = {
+  imported: number;
+  skipped_duplicates: number;
+  failed: number;
+  results: CatalogImportCommitResult[];
 };
 
 export type CopyUpdatePayload = {
@@ -403,9 +471,10 @@ export async function apiFetch<T>(
   init?: RequestInit,
   options?: ApiFetchOptions,
 ): Promise<T> {
+  const isFormDataBody = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !isFormDataBody ? { "Content-Type": "application/json" } : {}),
       ...(options?.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...(init?.headers ?? {}),
     },
@@ -429,6 +498,38 @@ export async function apiFetch<T>(
   }
 
   return responseBody as T;
+}
+
+export async function apiFetchBlob(
+  path: string,
+  init?: RequestInit,
+  options?: ApiFetchOptions,
+): Promise<Blob> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: {
+      ...(options?.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const responseBody = contentType.includes("application/json")
+      ? ((await response.json()) as unknown)
+      : await response.text();
+
+    throw new ApiError(
+      extractErrorMessage(
+        responseBody,
+        `Request failed with status ${response.status}`,
+      ),
+      response.status,
+      responseBody,
+    );
+  }
+
+  return response.blob();
 }
 
 export function fetchHealth(): Promise<HealthResponse> {
@@ -701,6 +802,67 @@ export function createBookRequest(
       token,
     },
   );
+}
+
+export function previewCatalogImportRequest(
+  token: string,
+  libraryId: number,
+  file: File,
+): Promise<CatalogImportPreview> {
+  const formData = new FormData();
+  formData.append("library_id", String(libraryId));
+  formData.append("file", file);
+
+  return apiFetch<CatalogImportPreview>(
+    "/books/imports/preview",
+    {
+      method: "POST",
+      body: formData,
+    },
+    {
+      token,
+    },
+  );
+}
+
+export function commitCatalogImportRequest(
+  token: string,
+  libraryId: number,
+  rows: CatalogImportPreviewRow[],
+): Promise<CatalogImportCommitResponse> {
+  return apiFetch<CatalogImportCommitResponse>(
+    "/books/imports",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        library_id: libraryId,
+        rows,
+      }),
+    },
+    {
+      token,
+    },
+  );
+}
+
+export function exportCatalogRequest(
+  token: string,
+  params: BooksQueryParams,
+): Promise<Blob> {
+  const queryString = buildQueryString({
+    library_id: params.libraryId,
+    list_id: params.listId,
+    q: params.q?.trim() || undefined,
+    genre: params.genre?.trim() || undefined,
+    collection: params.collection?.trim() || undefined,
+    author_country: params.authorCountry?.trim() || undefined,
+    reading_status: params.readingStatus,
+    min_rating: params.minRating,
+  });
+
+  return apiFetchBlob(`/books/export${queryString}`, undefined, {
+    token,
+  });
 }
 
 export function fetchCopyById(token: string, copyId: number): Promise<CopyDetail> {

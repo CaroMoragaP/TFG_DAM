@@ -44,6 +44,7 @@ function toBookMetadata(detail: CopyDetail): BookMetadata {
     collection: detail.collection,
     author_country: detail.author_country,
     author_sex: detail.author_sex,
+    primary_author: detail.primary_author,
     authors: detail.authors,
     genres: detail.genres,
   };
@@ -115,7 +116,14 @@ export function BookDetailPage() {
     mutationFn: (payload: BookMetadataValues) =>
       updateBookMetadataRequest(token ?? "", copyQuery.data!.book_id, {
         title: payload.title.trim(),
-        authors: payload.author.trim() ? [payload.author.trim()] : [],
+        primary_author_first_name: payload.authorFirstName.trim() || null,
+        primary_author_last_name: payload.authorLastName.trim() || null,
+        primary_author_display_name:
+          [payload.authorFirstName.trim(), payload.authorLastName.trim()].filter(Boolean).join(" ") || null,
+        authors:
+          [payload.authorFirstName.trim(), payload.authorLastName.trim()].filter(Boolean).length > 0
+            ? [[payload.authorFirstName.trim(), payload.authorLastName.trim()].filter(Boolean).join(" ")]
+            : [],
         author_sex: payload.authorSex || null,
         author_country_name: payload.authorCountry.trim() || null,
         publication_year: payload.publicationYear.trim() ? Number(payload.publicationYear) : null,
@@ -161,7 +169,7 @@ export function BookDetailPage() {
   const library = detail ? libraries.find((item) => item.id === detail.library_id) ?? null : null;
   const canEditCopy = Boolean(library && !library.is_archived && library.role !== "viewer");
   const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
-  const author = detail?.authors[0] ?? "Autor sin registrar";
+  const author = detail?.primary_author?.display_name ?? detail?.authors[0] ?? "Autor sin registrar";
   const genre = detail?.genres[0] ?? "-";
   const collection = detail?.collection ?? "-";
   const authorCountry = detail?.author_country ?? "-";

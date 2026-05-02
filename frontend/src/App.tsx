@@ -12,6 +12,7 @@ import { LibrarySectionPage } from "./pages/LibrarySectionPage";
 import { ListsPage } from "./pages/ListsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicHomePage } from "./pages/PublicHomePage";
+import { ReadingPage } from "./pages/ReadingPage";
 import { StatsPage } from "./pages/StatsPage";
 
 const router = createBrowserRouter([
@@ -54,34 +55,20 @@ const router = createBrowserRouter([
         element: <BookDetailPage />,
       },
       {
+        path: "lectura",
+        element: <ReadingPage />,
+      },
+      {
         path: "leyendo",
-        element: (
-          <LibrarySectionPage
-            eyebrow="Seguimiento"
-            title="Leyendo"
-            description="Espacio reservado para la lista activa de lecturas en curso y sus avances."
-          />
-        ),
+        element: <Navigate to="/lectura?tab=reading" replace />,
       },
       {
         path: "leidos",
-        element: (
-          <LibrarySectionPage
-            eyebrow="Historial"
-            title="Leidos"
-            description="Aqui vivira el archivo de libros terminados con filtros y notas personales."
-          />
-        ),
+        element: <Navigate to="/lectura?tab=finished" replace />,
       },
       {
         path: "pendiente",
-        element: (
-          <LibrarySectionPage
-            eyebrow="Planificacion"
-            title="Pendiente"
-            description="Pantalla placeholder para la pila de proximas lecturas y prioridades."
-          />
-        ),
+        element: <Navigate to="/lectura?tab=pending" replace />,
       },
       {
         path: "resenas",

@@ -141,6 +141,23 @@ export type UserCopyData = {
   personal_notes: string | null;
 };
 
+export type ReadingShelfItem = {
+  copy_id: number;
+  book_id: number;
+  library_id: number;
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  genre: string | null;
+  collection: string | null;
+  author_country: string | null;
+  reading_status: ReadingStatus;
+  rating: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  personal_notes: string | null;
+};
+
 export type ExternalBookLookup = {
   title: string;
   authors: string[];
@@ -991,6 +1008,19 @@ export function fetchReadingStats(
   });
 
   return apiFetch<ReadingStats>(`/stats/reading${queryString}`, undefined, {
+    token,
+  });
+}
+
+export function fetchReadingShelf(
+  token: string,
+  params?: { libraryId?: number },
+): Promise<ReadingShelfItem[]> {
+  const queryString = buildQueryString({
+    library_id: params?.libraryId,
+  });
+
+  return apiFetch<ReadingShelfItem[]>(`/reading${queryString}`, undefined, {
     token,
   });
 }

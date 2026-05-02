@@ -7,6 +7,7 @@ from app.api.routes.external_books import router as external_books_router
 from app.api.routes.health import router as health_router
 from app.api.routes.libraries import router as libraries_router
 from app.api.routes.lists import router as lists_router
+from app.api.routes.reading import router as reading_router
 from app.api.routes.stats import router as stats_router
 
 api_router = APIRouter()
@@ -17,4 +18,5 @@ api_router.include_router(external_books_router, tags=["external-books"])
 api_router.include_router(health_router, tags=["health"])
 api_router.include_router(libraries_router, tags=["libraries"])
 api_router.include_router(lists_router, tags=["lists"])
+api_router.include_router(reading_router, tags=["reading"])
 api_router.include_router(stats_router, tags=["stats"])

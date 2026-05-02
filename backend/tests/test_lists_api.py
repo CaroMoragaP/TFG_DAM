@@ -76,7 +76,7 @@ def test_register_creates_default_lists(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
 
-    assert [item["name"] for item in payload] == ["Favoritos", "Pendientes"]
+    assert [item["name"] for item in payload] == ["Favoritos", "Proximas lecturas"]
     assert [item["type"] for item in payload] == ["wishlist", "pending"]
 
 

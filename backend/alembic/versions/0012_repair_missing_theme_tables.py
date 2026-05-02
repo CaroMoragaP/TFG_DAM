@@ -66,11 +66,11 @@ def upgrade() -> None:
                 sa.text(
                     """
                     INSERT INTO themes (name)
-                    SELECT :label
+                    SELECT CAST(:label AS VARCHAR(120))
                     WHERE NOT EXISTS (
                         SELECT 1
                         FROM themes
-                        WHERE LOWER(name) = LOWER(:label)
+                        WHERE LOWER(name) = LOWER(CAST(:label AS VARCHAR(120)))
                     )
                     """
                 ),

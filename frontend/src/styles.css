@@ -1088,6 +1088,161 @@ dd {
   gap: 1rem;
 }
 
+.reading-hero,
+.reading-hero-aside,
+.reading-toolbar,
+.reading-count-card,
+.reading-entry-card,
+.reading-entry-content,
+.reading-entry-cover,
+.reading-entry-footer,
+.reading-editor-panel,
+.reading-editor-header,
+.reading-helper-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.reading-hero {
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  align-items: start;
+}
+
+.reading-hero h2,
+.reading-hero p,
+.reading-hero-aside p,
+.reading-entry-content h3,
+.reading-entry-content p,
+.reading-editor-header h4 {
+  margin: 0;
+}
+
+.reading-hero-aside {
+  justify-items: start;
+  padding: 1.1rem 1.2rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(33, 79, 74, 0.12);
+}
+
+.reading-hero-aside p,
+.reading-notes-preview {
+  color: var(--text-muted);
+}
+
+.reading-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+.reading-count-card {
+  min-height: 140px;
+  align-content: start;
+}
+
+.reading-count-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 0.92;
+  color: var(--brand-deep);
+}
+
+.reading-count-card span {
+  color: var(--text-muted);
+}
+
+.reading-toolbar {
+  grid-template-columns: minmax(220px, 300px) minmax(220px, 300px) minmax(0, 1fr);
+  align-items: end;
+}
+
+.reading-tab-strip {
+  display: inline-flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.reading-helper-panel p {
+  margin: 0;
+}
+
+.reading-helper-panel h3 {
+  margin: 0.25rem 0;
+}
+
+.reading-entry-card {
+  align-content: start;
+}
+
+.reading-entry-layout {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.reading-entry-cover {
+  width: 112px;
+}
+
+.reading-entry-cover .book-cover-image,
+.reading-entry-cover .book-cover-placeholder {
+  aspect-ratio: 4 / 5;
+}
+
+.reading-entry-head,
+.reading-entry-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reading-entry-head {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.reading-entry-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.reading-entry-meta dd {
+  font-size: 1rem;
+}
+
+.reading-entry-footer {
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr);
+  align-items: center;
+}
+
+.reading-entry-badges {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.reading-notes-preview {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(33, 79, 74, 0.12);
+}
+
+.reading-editor-panel {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.reading-editor-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
 .stats-hero,
 .stats-toolbar,
 .stats-hero-aside,
@@ -1338,6 +1493,11 @@ dd {
   .list-book-meta-grid,
   .lists-layout,
   .split-panel,
+  .reading-hero,
+  .reading-toolbar,
+  .reading-entry-layout,
+  .reading-entry-meta,
+  .reading-entry-footer,
   .stats-goal-layout,
   .stats-grid,
   .stats-toolbar,
@@ -1391,6 +1551,8 @@ dd {
   .stats-panel-header,
   .stats-ranking-item,
   .stats-recent-item,
+  .reading-entry-head,
+  .reading-entry-badges,
   .book-card-head,
   .book-card-footer,
   .list-card-main,
@@ -1405,6 +1567,10 @@ dd {
   .list-book-cover {
     width: 100%;
     flex-basis: auto;
+  }
+
+  .reading-entry-cover {
+    width: 100%;
   }
 
   .list-book-actions {

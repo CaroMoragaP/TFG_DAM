@@ -4,13 +4,11 @@ import { useAuth } from "../auth/AuthProvider";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 
 const navigationItems = [
-  { to: "/catalogo", label: "Catálogo" },
+  { to: "/catalogo", label: "Catalogo" },
   { to: "/bibliotecas", label: "Mis bibliotecas" },
   { to: "/listas", label: "Mis listas" },
-  { to: "/leyendo", label: "Leyendo" },
-  { to: "/leidos", label: "Leídos" },
-  { to: "/pendiente", label: "Pendiente" },
-  { to: "/resenas", label: "Reseñas" },
+  { to: "/lectura", label: "Lectura" },
+  { to: "/resenas", label: "Resenas" },
   { to: "/stats", label: "Estadisticas" },
 ];
 
@@ -63,9 +61,9 @@ export function PrivateLayout() {
                 ))}
               </select>
             </label>
-            <p>Se usará como destino inicial al crear nuevos libros.</p>
+            <p>Se usara como destino inicial al crear nuevos libros.</p>
             <button className="menu-button" type="button" onClick={handleLogout}>
-              Cerrar sesión
+              Cerrar sesion
             </button>
           </div>
         </details>
@@ -74,7 +72,7 @@ export function PrivateLayout() {
       <div className="private-body">
         <aside className="private-sidebar">
           <div className="sidebar-card">
-            <p className="eyebrow">Navegación</p>
+            <p className="eyebrow">Navegacion</p>
             <nav className="sidebar-nav" aria-label="Secciones privadas">
               {navigationItems.map((item) => (
                 <NavLink

@@ -21,7 +21,7 @@ from app.schemas.list import ListUpdate
 
 DEFAULT_LIST_SEEDS: tuple[tuple[str, ListType], ...] = (
     ("Favoritos", ListType.WISHLIST),
-    ("Pendientes", ListType.PENDING),
+    ("Proximas lecturas", ListType.PENDING),
 )
 
 LIST_BOOK_LOAD_OPTIONS = (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { BookMetadataModal, type BookMetadataValues } from "../components/BookMetadataModal";
@@ -329,7 +329,15 @@ export function BookDetailPage() {
 
           <aside className="content-stack">
             <div className="panel detail-side-card">
-              <p className="eyebrow">Seguimiento personal</p>
+              <div className="notes-header">
+                <div>
+                  <p className="eyebrow">Mi lectura</p>
+                  <p className="detail-inline-copy">
+                    Puedes gestionar este seguimiento tambien desde la seccion{" "}
+                    <Link to={`/lectura?tab=${userData.reading_status}`}>Lectura</Link>.
+                  </p>
+                </div>
+              </div>
 
               <label className="field-group">
                 Estado

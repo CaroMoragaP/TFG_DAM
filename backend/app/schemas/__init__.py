@@ -23,6 +23,7 @@ from app.schemas.list import ListBookSummary
 from app.schemas.list import ListCreate
 from app.schemas.list import ListOut
 from app.schemas.list import ListUpdate
+from app.schemas.reading import ReadingShelfItemOut
 from app.schemas.user_copy import UserCopyOut
 from app.schemas.user_copy import UserCopyUpdate
 
@@ -47,6 +48,7 @@ __all__ = [
     "ListOut",
     "ListUpdate",
     "PrimaryAuthorOut",
+    "ReadingShelfItemOut",
     "UserCopyOut",
     "UserCopyUpdate",
     "UserLogin",

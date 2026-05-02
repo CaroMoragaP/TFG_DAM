@@ -105,7 +105,7 @@ describe("ListsPage", () => {
       {
         id: 2,
         user_id: 1,
-        name: "Pendientes",
+        name: "Proximas lecturas",
         type: "pending",
         created_at: "2026-04-19T00:00:00Z",
         updated_at: "2026-04-19T00:00:00Z",
@@ -117,7 +117,7 @@ describe("ListsPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Pendientes")).toBeInTheDocument();
+      expect(screen.getByText("Proximas lecturas")).toBeInTheDocument();
     });
 
     navigateMock.mockClear();

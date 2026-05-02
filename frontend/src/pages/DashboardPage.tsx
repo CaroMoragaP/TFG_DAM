@@ -24,7 +24,6 @@ import {
   type BookCreatePayload,
   type CatalogImportPreview,
   type CatalogImportPreviewRow,
-  type ReadingStatus,
   type UserList,
 } from "../lib/api";
 
@@ -54,9 +53,6 @@ export function DashboardPage() {
   const theme = searchParams.get("theme") ?? "";
   const collection = searchParams.get("collection") ?? "";
   const authorCountry = searchParams.get("authorCountry") ?? "";
-  const readingStatus = (searchParams.get("readingStatus") ?? "") as ReadingStatus | "";
-  const minRatingParam = searchParams.get("minRating") ?? "";
-  const minRating = minRatingParam ? Number(minRatingParam) : undefined;
   const parsedLibraryId = Number(libraryParam);
   const parsedListId = Number(listIdParam);
   const selectedLibraryId =
@@ -113,8 +109,6 @@ export function DashboardPage() {
         theme,
         collection,
         authorCountry,
-        readingStatus,
-        minRating,
       },
     ],
     queryFn: () =>
@@ -126,8 +120,6 @@ export function DashboardPage() {
         theme: theme || undefined,
         collection: collection || undefined,
         authorCountry: authorCountry || undefined,
-        readingStatus: readingStatus || undefined,
-        minRating,
       }),
     enabled: Boolean(token),
   });
@@ -223,7 +215,7 @@ export function DashboardPage() {
     booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 
   function updateFilter(
-    key: "library" | "listId" | "genre" | "theme" | "collection" | "authorCountry" | "readingStatus" | "minRating",
+    key: "library" | "listId" | "genre" | "theme" | "collection" | "authorCountry",
     value: string,
   ) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -317,8 +309,6 @@ export function DashboardPage() {
         theme: theme || undefined,
         collection: collection || undefined,
         authorCountry: authorCountry || undefined,
-        readingStatus: readingStatus || undefined,
-        minRating,
       });
       const objectUrl = window.URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -447,27 +437,6 @@ export function DashboardPage() {
             <input value={authorCountry} onChange={(event) => updateFilter("authorCountry", event.target.value)} />
           </label>
 
-          <label className="field-group">
-            Estado de lectura
-            <select value={readingStatus} onChange={(event) => updateFilter("readingStatus", event.target.value)}>
-              <option value="">Todos</option>
-              <option value="pending">Pendiente</option>
-              <option value="reading">Leyendo</option>
-              <option value="finished">Leido</option>
-            </select>
-          </label>
-
-          <label className="field-group">
-            Valoracion minima
-            <select value={minRatingParam} onChange={(event) => updateFilter("minRating", event.target.value)}>
-              <option value="">Todos</option>
-              <option value="1">1+ estrellas</option>
-              <option value="2">2+ estrellas</option>
-              <option value="3">3+ estrellas</option>
-              <option value="4">4+ estrellas</option>
-              <option value="5">5 estrellas</option>
-            </select>
-          </label>
         </div>
       </div>
 

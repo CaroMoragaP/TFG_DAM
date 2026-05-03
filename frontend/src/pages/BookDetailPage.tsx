@@ -205,10 +205,16 @@ export function BookDetailPage() {
   }
 
   async function handleSaveDates() {
-    await updateUserDataMutation.mutateAsync({
+    const payload: UserCopyUpdatePayload = {
       start_date: startDateDraft || null,
       end_date: endDateDraft || null,
-    });
+    };
+
+    if (endDateDraft) {
+      payload.reading_status = "finished";
+    }
+
+    await updateUserDataMutation.mutateAsync(payload);
   }
 
   async function handleDelete() {

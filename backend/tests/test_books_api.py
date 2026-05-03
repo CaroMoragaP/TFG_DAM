@@ -329,6 +329,40 @@ def test_copy_detail_user_data_and_list_themes(
     assert default_user_data_response.json()["rating"] is None
 
 
+def test_user_copy_end_date_marks_book_as_finished(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="La mano izquierda de la oscuridad",
+        author="Ursula K. Le Guin",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={
+            "end_date": "2026-04-25",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "finished",
+        "rating": None,
+        "start_date": None,
+        "end_date": "2026-04-25",
+        "personal_notes": None,
+    }
+
+
 def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
     headers = register_user(client)
     personal_library_id = get_personal_library_id(client, headers)

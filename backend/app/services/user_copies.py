@@ -100,6 +100,10 @@ def update_user_copy_data(
     if "personal_notes" in data.model_fields_set:
         user_copy.personal_notes = data.personal_notes
 
+    # A recorded finish date always implies a completed reading state.
+    if user_copy.end_date is not None:
+        user_copy.reading_status = ReadingStatus.FINISHED
+
     if (
         user_copy.reading_status == ReadingStatus.READING
         and previous_status != ReadingStatus.READING

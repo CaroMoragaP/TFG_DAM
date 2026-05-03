@@ -646,7 +646,13 @@ export function ReadingPage() {
                           value={editorState.endDate}
                           onChange={(event) =>
                             setEditorState((currentState) =>
-                              currentState ? { ...currentState, endDate: event.target.value } : currentState,
+                              currentState
+                                ? {
+                                    ...currentState,
+                                    endDate: event.target.value,
+                                    readingStatus: event.target.value ? "finished" : currentState.readingStatus,
+                                  }
+                                : currentState,
                             )
                           }
                         />

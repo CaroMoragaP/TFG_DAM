@@ -3,12 +3,12 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PrivateLayout } from "./layouts/PrivateLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
+import { ActivityPage } from "./pages/ActivityPage";
 import { AuthPage } from "./pages/AuthPage";
 import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LibrariesPage } from "./pages/LibrariesPage";
 import { ListDetailPage } from "./pages/ListDetailPage";
-import { LibrarySectionPage } from "./pages/LibrarySectionPage";
 import { ListsPage } from "./pages/ListsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicHomePage } from "./pages/PublicHomePage";
@@ -72,13 +72,11 @@ const router = createBrowserRouter([
       },
       {
         path: "resenas",
-        element: (
-          <LibrarySectionPage
-            eyebrow="Comunidad"
-            title="Resenas"
-            description="Aqui se integraran las resenas, comentarios y valoraciones de la biblioteca."
-          />
-        ),
+        element: <Navigate to="/muro?tab=reviews" replace />,
+      },
+      {
+        path: "muro",
+        element: <ActivityPage />,
       },
       {
         path: "listas",

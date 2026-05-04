@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -9,17 +9,16 @@ import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   deleteCopyRequest,
   fetchCopyById,
+  fetchCopyCommunity,
   fetchThemes,
   fetchUserCopyData,
   updateBookMetadataRequest,
   updateCopyRequest,
-  updateUserCopyDataRequest,
   type BookMetadata,
+  type CopyCommunity,
   type CopyDetail,
   type ReadingStatus,
-  type UserCopyUpdatePayload,
 } from "../lib/api";
-import { deriveReadingStatusFromDates } from "../lib/readingProgress";
 
 const statusLabels: Record<ReadingStatus, string> = {
   pending: "Pendiente",
@@ -53,18 +52,24 @@ function toBookMetadata(detail: CopyDetail): BookMetadata {
   };
 }
 
+function formatDateLabel(value: string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleDateString("es-ES");
+}
+
+function formatCommunityRating(value: number | null) {
+  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+}
+
 export function BookDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
   const { libraries } = useActiveLibrary();
-  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [notesDraft, setNotesDraft] = useState("");
-  const [startDateDraft, setStartDateDraft] = useState("");
-  const [endDateDraft, setEndDateDraft] = useState("");
 
   const copyId = Number(id);
   const isValidCopyId = Number.isInteger(copyId) && copyId > 0;
@@ -80,28 +85,25 @@ export function BookDetailPage() {
     queryFn: () => fetchUserCopyData(token ?? "", copyId),
     enabled: Boolean(token && isValidCopyId),
   });
+
   const themesQuery = useQuery({
     queryKey: ["themes"],
     queryFn: () => fetchThemes(token ?? ""),
     enabled: Boolean(token),
   });
 
-  useEffect(() => {
-    setNotesDraft(userDataQuery.data?.personal_notes ?? "");
-    setStartDateDraft(userDataQuery.data?.start_date ?? "");
-    setEndDateDraft(userDataQuery.data?.end_date ?? "");
-  }, [userDataQuery.data]);
+  const sharedLibraryForCopy =
+    copyQuery.data ? libraries.find((item) => item.id === copyQuery.data.library_id) ?? null : null;
+  const isSharedLibraryView = sharedLibraryForCopy?.type === "shared";
 
-  const updateUserDataMutation = useMutation({
-    mutationFn: (payload: UserCopyUpdatePayload) =>
-      updateUserCopyDataRequest(token ?? "", copyId, payload),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["copy-user-data", copyId] }),
-        queryClient.invalidateQueries({ queryKey: ["books"] }),
-      ]);
-    },
+  const communityQuery = useQuery({
+    queryKey: ["copy-community", copyId],
+    queryFn: () => fetchCopyCommunity(token ?? "", copyId),
+    enabled: Boolean(token && isValidCopyId && copyQuery.data && isSharedLibraryView),
   });
+
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
 
   const updateCopyMutation = useMutation({
     mutationFn: (payload: CopyEditValues) =>
@@ -176,6 +178,7 @@ export function BookDetailPage() {
   const detail = copyQuery.data;
   const userData = userDataQuery.data;
   const library = detail ? libraries.find((item) => item.id === detail.library_id) ?? null : null;
+  const isSharedLibrary = library?.type === "shared";
   const canEditCopy = Boolean(library && !library.is_archived && library.role !== "viewer");
   const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
   const author = detail?.primary_author?.display_name ?? detail?.authors[0] ?? "Autor sin registrar";
@@ -185,43 +188,18 @@ export function BookDetailPage() {
   const authorCountry = detail?.author_country ?? "-";
   const authorSex = detail?.author_sex ? authorSexLabels[detail.author_sex] : "-";
   const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
-  const isUserDataPending = updateUserDataMutation.isPending;
-
-  async function handleStatusChange(nextStatus: ReadingStatus) {
-    await updateUserDataMutation.mutateAsync({ reading_status: nextStatus });
-  }
-
-  async function handleRatingChange(nextRating: number) {
-    const currentRating = userData?.rating ?? null;
-    await updateUserDataMutation.mutateAsync({
-      rating: currentRating === nextRating ? null : nextRating,
-    });
-  }
-
-  async function handleSaveNotes() {
-    await updateUserDataMutation.mutateAsync({
-      personal_notes: notesDraft,
-    });
-    setIsEditingNotes(false);
-  }
-
-  async function handleSaveDates() {
-    const payload: UserCopyUpdatePayload = {
-      start_date: startDateDraft || null,
-      end_date: endDateDraft || null,
-    };
-    const nextStatus = deriveReadingStatusFromDates(
-      userData?.reading_status ?? "pending",
-      startDateDraft,
-      endDateDraft,
-    );
-
-    if (nextStatus !== userData?.reading_status) {
-      payload.reading_status = nextStatus;
-    }
-
-    await updateUserDataMutation.mutateAsync(payload);
-  }
+  const community = (communityQuery.data ??
+    (detail
+      ? {
+          copy_id: detail.id,
+          active_loan: detail.active_loan,
+          shared_readers: detail.shared_readers_preview,
+          shared_readers_count: detail.shared_readers_count,
+          public_review_count: detail.public_review_count,
+          public_average_rating: detail.public_average_rating,
+          latest_reviews: [],
+        }
+      : null)) as CopyCommunity | null;
 
   async function handleDelete() {
     if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
@@ -304,6 +282,14 @@ export function BookDetailPage() {
                 </dl>
 
                 <div className="detail-actions">
+                  <Link className="ghost-link" to={`/lectura?library=${detail.library_id}&copy=${detail.id}`}>
+                    Abrir seguimiento
+                  </Link>
+                  {isSharedLibrary ? (
+                    <Link className="ghost-link" to={`/muro?tab=reviews&library=${detail.library_id}`}>
+                      Abrir muro
+                    </Link>
+                  ) : null}
                   {canEditBook ? (
                     <button
                       className="ghost-link"
@@ -340,135 +326,98 @@ export function BookDetailPage() {
           </article>
 
           <aside className="content-stack">
-            <div className="panel detail-side-card">
+            <div className="panel detail-side-card content-stack">
               <div className="notes-header">
                 <div>
                   <p className="eyebrow">Mi lectura</p>
                   <p className="detail-inline-copy">
-                    Puedes gestionar este seguimiento tambien desde la seccion{" "}
-                    <Link to={`/lectura?tab=${userData.reading_status}`}>Lectura</Link>.
+                    El trabajo diario vive ahora en <Link to={`/lectura?library=${detail.library_id}&copy=${detail.id}`}>Lectura</Link>.
                   </p>
                 </div>
               </div>
 
-              <label className="field-group">
-                Estado
-                <select
-                  value={userData.reading_status}
-                  onChange={(event) => handleStatusChange(event.target.value as ReadingStatus)}
-                  disabled={isUserDataPending}
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="reading">Leyendo</option>
-                  <option value="finished">Leido</option>
-                </select>
-              </label>
-
-              <div className="rating-block">
-                <span className="eyebrow">Valoracion</span>
-                <div className="star-row" role="group" aria-label="Valorar libro">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      className={star <= (userData.rating ?? 0) ? "star-button active" : "star-button"}
-                      type="button"
-                      onClick={() => handleRatingChange(star)}
-                      disabled={isUserDataPending}
-                      aria-label={`Valorar con ${star} estrellas`}
-                    >
-                      *
-                    </button>
-                  ))}
+              <dl className="reading-entry-meta">
+                <div>
+                  <dt>Estado</dt>
+                  <dd>{statusLabels[userData.reading_status]}</dd>
                 </div>
-                <p className="detail-inline-copy">
-                  {userData.rating ? `${userData.rating}/5` : "Sin valoracion"}
+                <div>
+                  <dt>Valoracion</dt>
+                  <dd>{userData.rating ? `${userData.rating}/5` : "-"}</dd>
+                </div>
+                <div>
+                  <dt>Inicio</dt>
+                  <dd>{formatDateLabel(userData.start_date)}</dd>
+                </div>
+                <div>
+                  <dt>Fin</dt>
+                  <dd>{formatDateLabel(userData.end_date)}</dd>
+                </div>
+              </dl>
+
+              <div className="content-stack">
+                <strong>Notas personales</strong>
+                <p className="reading-notes-preview">
+                  {userData.personal_notes ? userData.personal_notes : "Sin notas personales todavia."}
                 </p>
               </div>
+            </div>
 
-              <div className="notes-card">
-                <div className="notes-header">
-                  <div>
-                    <p className="eyebrow">Mis notas</p>
-                  </div>
-                  {!isEditingNotes ? (
-                    <button className="ghost-link compact-action" type="button" onClick={() => setIsEditingNotes(true)}>
-                      Editar
-                    </button>
-                  ) : null}
+            {isSharedLibrary ? (
+              <div className="panel detail-side-card content-stack">
+                <p className="eyebrow">Comunidad</p>
+                <div className="community-stat-row">
+                  <span className="status-chip active">{community?.public_review_count ?? 0} resenas</span>
+                  <span className="status-chip">{formatCommunityRating(community?.public_average_rating ?? null)}</span>
                 </div>
 
-                {isEditingNotes ? (
-                  <div className="content-stack">
-                    <textarea
-                      className="notes-textarea"
-                      rows={6}
-                      value={notesDraft}
-                      onChange={(event) => setNotesDraft(event.target.value)}
-                    />
-                    <div className="inline-actions">
-                      <button
-                        className="submit-button compact-button"
-                        type="button"
-                        onClick={handleSaveNotes}
-                        disabled={isUserDataPending}
-                      >
-                        Guardar
-                      </button>
-                      <button
-                        className="ghost-link compact-action"
-                        type="button"
-                        onClick={() => {
-                          setNotesDraft(userData.personal_notes ?? "");
-                          setIsEditingNotes(false);
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
+                {community?.active_loan ? (
+                  <div className="community-list-item">
+                    <strong>Prestamo activo</strong>
+                    <p>
+                      Prestado a {community.active_loan.borrower_name}
+                      {community.active_loan.due_date ? ` hasta ${formatDateLabel(community.active_loan.due_date)}` : ""}
+                    </p>
                   </div>
                 ) : (
-                  <p className="notes-preview">{userData.personal_notes ?? "Todavia no has anadido notas."}</p>
+                  <p>No hay ningun prestamo activo para este ejemplar.</p>
                 )}
-              </div>
-            </div>
 
-            <div className="panel detail-side-card">
-              <p className="eyebrow">Fechas de lectura</p>
-              <div className="detail-dates-grid">
-                <label className="field-group">
-                  Inicio
-                  <input
-                    type="date"
-                    value={startDateDraft}
-                    onChange={(event) => setStartDateDraft(event.target.value)}
-                  />
-                </label>
-                <label className="field-group">
-                  Fin
-                  <input
-                    type="date"
-                    value={endDateDraft}
-                    onChange={(event) => setEndDateDraft(event.target.value)}
-                  />
-                </label>
+                <div className="content-stack">
+                  <strong>Lectores actuales</strong>
+                  {community?.shared_readers_count ? (
+                    community.shared_readers.map((reader) => <p key={reader.user_id}>{reader.name}</p>)
+                  ) : (
+                    <p>Nadie lo esta leyendo ahora mismo.</p>
+                  )}
+                </div>
+
+                <div className="content-stack">
+                  <strong>Ultimas resenas</strong>
+                  {community?.latest_reviews.length ? (
+                    community.latest_reviews.slice(0, 3).map((review) => (
+                      <div key={review.id} className="community-list-item">
+                        <strong>
+                          {review.user_name} · {review.rating}/5
+                        </strong>
+                        <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p>Todavia no hay resenas publicas.</p>
+                  )}
+                </div>
+
+                <div className="inline-actions">
+                  <Link className="ghost-link compact-action" to={`/muro?tab=reviews&library=${detail.library_id}`}>
+                    Ver opiniones
+                  </Link>
+                  <Link className="ghost-link compact-action" to={`/muro?tab=activity&library=${detail.library_id}`}>
+                    Ver actividad
+                  </Link>
+                </div>
               </div>
-              <p className="detail-inline-copy">Estado actual: {statusLabels[userData.reading_status]}</p>
-              <button
-                className="submit-button"
-                type="button"
-                onClick={handleSaveDates}
-                disabled={isUserDataPending}
-              >
-                Guardar fechas
-              </button>
-              {updateUserDataMutation.isError ? (
-                <p className="form-error">
-                  {updateUserDataMutation.error instanceof Error
-                    ? updateUserDataMutation.error.message
-                    : "No se pudieron guardar los datos personales."}
-                </p>
-              ) : null}
-            </div>
+            ) : null}
 
             {library?.is_archived ? (
               <div className="panel subtle-panel">
@@ -480,27 +429,29 @@ export function BookDetailPage() {
         </div>
       ) : null}
 
-      <CopyEditModal
-        copy={detail ?? null}
-        library={library}
-        isOpen={isCopyModalOpen}
-        isSaving={updateCopyMutation.isPending}
-        onClose={() => setIsCopyModalOpen(false)}
-        onSubmit={async (values) => {
-          await updateCopyMutation.mutateAsync(values);
-        }}
-      />
-
-      <BookMetadataModal
-        book={detail ? toBookMetadata(detail) : null}
-        isOpen={isBookModalOpen}
-        isSaving={updateBookMutation.isPending}
-        themeOptions={themesQuery.data ?? []}
-        onClose={() => setIsBookModalOpen(false)}
-        onSubmit={async (values) => {
-          await updateBookMutation.mutateAsync(values);
-        }}
-      />
+      {detail ? (
+        <>
+          <CopyEditModal
+            isOpen={isCopyModalOpen}
+            copy={detail}
+            isSaving={updateCopyMutation.isPending}
+            onClose={() => setIsCopyModalOpen(false)}
+            onSubmit={async (payload) => {
+              await updateCopyMutation.mutateAsync(payload);
+            }}
+          />
+          <BookMetadataModal
+            isOpen={isBookModalOpen}
+            book={toBookMetadata(detail)}
+            themeOptions={themesQuery.data ?? []}
+            isSaving={updateBookMutation.isPending}
+            onClose={() => setIsBookModalOpen(false)}
+            onSubmit={async (payload) => {
+              await updateBookMutation.mutateAsync(payload);
+            }}
+          />
+        </>
+      ) : null}
     </section>
   );
 }

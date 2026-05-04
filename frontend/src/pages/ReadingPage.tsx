@@ -5,8 +5,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
+  createCopyReviewRequest,
+  deleteReviewRequest,
   fetchReadingShelf,
+  updateReviewRequest,
   updateUserCopyDataRequest,
+  type Library,
+  type PublicReview,
   type ReadingShelfItem,
   type ReadingStatus,
   type UserCopyUpdatePayload,
@@ -29,6 +34,7 @@ type EditorState = {
   startDate: string;
   endDate: string;
   personalNotes: string;
+  publicReviewBody: string;
 };
 
 const statusLabels: Record<ReadingStatus, string> = {
@@ -95,6 +101,19 @@ function normalizeLibraryValue(value: string | null) {
   }
 
   return String(parsed);
+}
+
+function normalizeCopyValue(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function getDefaultSort(tab: ReadingTab): ReadingSort {
@@ -198,6 +217,7 @@ function buildEditorState(item: ReadingShelfItem): EditorState {
     startDate: item.start_date ?? "",
     endDate: item.end_date ?? "",
     personalNotes: item.personal_notes ?? "",
+    publicReviewBody: item.my_public_review?.body ?? "",
   };
 }
 
@@ -209,10 +229,16 @@ function formatDateLabel(value: string | null) {
   return longDateFormatter.format(new Date(value));
 }
 
-function buildUpdatePayload(
-  originalItem: ReadingShelfItem,
-  editorState: EditorState,
-): UserCopyUpdatePayload {
+function formatCommunityRating(value: number | null) {
+  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+}
+
+function normalizeReviewBody(value: string) {
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function buildUpdatePayload(originalItem: ReadingShelfItem, editorState: EditorState): UserCopyUpdatePayload {
   const payload: UserCopyUpdatePayload = {};
   const nextReadingStatus = deriveReadingStatusFromDates(
     editorState.readingStatus,
@@ -257,6 +283,10 @@ function renderCover(item: ReadingShelfItem) {
   );
 }
 
+function getLibraryForItem(libraries: Library[], item: ReadingShelfItem) {
+  return libraries.find((candidate) => candidate.id === item.library_id) ?? null;
+}
+
 export function ReadingPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -268,6 +298,7 @@ export function ReadingPage() {
 
   const tab = normalizeTab(searchParams.get("tab"));
   const libraryValue = normalizeLibraryValue(searchParams.get("library"));
+  const selectedCopyId = normalizeCopyValue(searchParams.get("copy"));
   const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
   const availableLibraries = libraries.filter((library) => !library.is_archived);
 
@@ -291,8 +322,6 @@ export function ReadingPage() {
 
   useEffect(() => {
     setSort(getDefaultSort(tab));
-    setEditingCopyId(null);
-    setEditorState(null);
   }, [tab]);
 
   const readingQuery = useQuery({
@@ -313,11 +342,52 @@ export function ReadingPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reading-shelf"] }),
         queryClient.invalidateQueries({ queryKey: ["copy-user-data"] }),
+        queryClient.invalidateQueries({ queryKey: ["copy-community"] }),
         queryClient.invalidateQueries({ queryKey: ["books"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-activity"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["stats", "reading"] }),
       ]);
-      setEditingCopyId(null);
-      setEditorState(null);
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({
+      copyId,
+      existingReview,
+      body,
+    }: {
+      copyId: number;
+      existingReview: PublicReview | null;
+      body: string | null;
+    }) => {
+      if (existingReview) {
+        return updateReviewRequest(token ?? "", existingReview.id, { body });
+      }
+
+      return createCopyReviewRequest(token ?? "", copyId, { body });
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["reading-shelf"] }),
+        queryClient.invalidateQueries({ queryKey: ["copy-community"] }),
+        queryClient.invalidateQueries({ queryKey: ["books"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-activity"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-reviews"] }),
+      ]);
+    },
+  });
+
+  const deleteReviewMutation = useMutation({
+    mutationFn: (reviewId: number) => deleteReviewRequest(token ?? "", reviewId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["reading-shelf"] }),
+        queryClient.invalidateQueries({ queryKey: ["copy-community"] }),
+        queryClient.invalidateQueries({ queryKey: ["books"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-activity"] }),
+        queryClient.invalidateQueries({ queryKey: ["library-reviews"] }),
+      ]);
     },
   });
 
@@ -349,11 +419,41 @@ export function ReadingPage() {
       ? readingQuery.error.message
       : "No se pudieron cargar tus lecturas.";
 
-  function updateSearchParam(key: "tab" | "library", value: string) {
+  function updateSearchParam(key: "tab" | "library" | "copy", value: string | null) {
     const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set(key, value);
+    if (value === null) {
+      nextSearchParams.delete(key);
+    } else {
+      nextSearchParams.set(key, value);
+    }
     setSearchParams(nextSearchParams, { replace: true });
   }
+
+  useEffect(() => {
+    if (!selectedCopyId || !readingQuery.data) {
+      return;
+    }
+
+    const targetItem = readingQuery.data.find((item) => item.copy_id === selectedCopyId);
+    if (!targetItem) {
+      updateSearchParam("copy", null);
+      return;
+    }
+
+    if (tab !== targetItem.reading_status) {
+      updateSearchParam("tab", targetItem.reading_status);
+      return;
+    }
+
+    if (libraryValue !== "all" && selectedLibraryId !== targetItem.library_id) {
+      updateSearchParam("library", String(targetItem.library_id));
+      return;
+    }
+
+    setEditingCopyId(targetItem.copy_id);
+    setEditorState(buildEditorState(targetItem));
+    updateSearchParam("copy", null);
+  }, [libraryValue, readingQuery.data, searchParams, selectedCopyId, selectedLibraryId, setSearchParams, tab]);
 
   function handleOpenEditor(item: ReadingShelfItem) {
     if (editingCopyId === item.copy_id) {
@@ -366,22 +466,57 @@ export function ReadingPage() {
     setEditorState(buildEditorState(item));
   }
 
-  async function handleSaveEditor(item: ReadingShelfItem) {
+  async function persistReadingChanges(item: ReadingShelfItem) {
     if (!editorState) {
-      return;
+      return false;
     }
 
     const payload = buildUpdatePayload(item, editorState);
     if (!hasChanges(payload)) {
-      setEditingCopyId(null);
-      setEditorState(null);
-      return;
+      return false;
     }
 
     await updateReadingMutation.mutateAsync({
       copyId: item.copy_id,
       payload,
     });
+    return true;
+  }
+
+  async function handleSaveEditor(item: ReadingShelfItem) {
+    await persistReadingChanges(item);
+    setEditingCopyId(null);
+    setEditorState(null);
+  }
+
+  async function handlePublishReview(item: ReadingShelfItem) {
+    if (!editorState || editorState.rating === null) {
+      return;
+    }
+
+    const existingReview = item.my_public_review;
+    const nextBody = normalizeReviewBody(editorState.publicReviewBody);
+    const currentBody = normalizeReviewBody(existingReview?.body ?? "");
+
+    await persistReadingChanges(item);
+
+    if (existingReview && nextBody === currentBody) {
+      return;
+    }
+
+    await reviewMutation.mutateAsync({
+      copyId: item.copy_id,
+      existingReview,
+      body: nextBody,
+    });
+  }
+
+  async function handleDeleteReview(item: ReadingShelfItem) {
+    if (!item.my_public_review) {
+      return;
+    }
+
+    await deleteReviewMutation.mutateAsync(item.my_public_review.id);
   }
 
   return (
@@ -391,15 +526,15 @@ export function ReadingPage() {
           <p className="eyebrow">Seguimiento lector</p>
           <h2>Lectura</h2>
           <p>
-            Gestiona tu progreso lector, anota impresiones personales y mueve cada libro entre
-            pendientes, lecturas activas e historial terminado.
+            Gestiona tu progreso lector, anota impresiones personales y publica tu valoracion en las
+            bibliotecas compartidas sin duplicar notas.
           </p>
         </div>
         <div className="reading-hero-aside">
           <span className="status-chip active">{activeLibrary ? activeLibrary.name : "Todas tus bibliotecas"}</span>
           <p>
-            Esta vista es tu espacio de trabajo diario. Las metricas y graficos se mantienen en
-            Estadisticas.
+            Esta vista es tu espacio de trabajo diario. El muro se encarga del descubrimiento social y
+            la ficha del libro queda como resumen.
           </p>
         </div>
       </div>
@@ -509,8 +644,9 @@ export function ReadingPage() {
       {!readingQuery.isPending && !readingQuery.isError && filteredItems.length > 0 ? (
         <div className="content-stack">
           {filteredItems.map((item) => {
-            const library = libraries.find((candidate) => candidate.id === item.library_id) ?? null;
+            const library = getLibraryForItem(libraries, item);
             const isEditing = editingCopyId === item.copy_id && editorState !== null;
+            const isSharedItem = library?.type === "shared";
 
             return (
               <article key={item.copy_id} className="panel reading-entry-card">
@@ -567,6 +703,12 @@ export function ReadingPage() {
                           {statusLabels[item.reading_status]}
                         </span>
                         {showLibraryBadge && library ? <span className="library-badge">{library.name}</span> : null}
+                        {item.my_public_review ? <span className="status-chip active">Publicada</span> : null}
+                        {isSharedItem && item.public_review_count > 0 ? (
+                          <span className="status-chip">
+                            {item.public_review_count} resenas · {formatCommunityRating(item.public_average_rating)}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="reading-notes-preview">
                         {item.personal_notes ? item.personal_notes : "Sin notas personales todavia."}
@@ -612,6 +754,7 @@ export function ReadingPage() {
                               key={star}
                               className={star <= (editorState.rating ?? 0) ? "star-button active" : "star-button"}
                               type="button"
+                              aria-label={`Valorar ${item.title} con ${star} estrellas`}
                               onClick={() =>
                                 setEditorState((currentState) =>
                                   currentState
@@ -694,6 +837,87 @@ export function ReadingPage() {
                         />
                       </label>
                     </div>
+
+                    {isSharedItem ? (
+                      <div className="reading-community-panel">
+                        <div className="reading-community-header">
+                          <div>
+                            <p className="eyebrow">Mi valoracion y publicacion</p>
+                            <h4>Publica la misma nota que usas para tu seguimiento</h4>
+                          </div>
+                          <div className="community-stat-row">
+                            <span className="status-chip active">{item.public_review_count} resenas</span>
+                            <span className="status-chip">{formatCommunityRating(item.public_average_rating)}</span>
+                          </div>
+                        </div>
+
+                        <p className="detail-inline-copy">
+                          Tu valoracion personal es la nota canonica. Si la publicas, la comunidad vera esa misma
+                          puntuacion junto con tu comentario opcional.
+                        </p>
+
+                        <label className="field-group">
+                          Comentario publico
+                          <textarea
+                            className="notes-textarea"
+                            rows={4}
+                            value={editorState.publicReviewBody}
+                            onChange={(event) =>
+                              setEditorState((currentState) =>
+                                currentState
+                                  ? { ...currentState, publicReviewBody: event.target.value }
+                                  : currentState,
+                              )
+                            }
+                            placeholder="Comparte por que merece la pena leerlo..."
+                          />
+                        </label>
+
+                        <div className="inline-actions">
+                          <button
+                            className="submit-button compact-button"
+                            type="button"
+                            onClick={() => void handlePublishReview(item)}
+                            disabled={
+                              reviewMutation.isPending || updateReadingMutation.isPending || editorState.rating === null
+                            }
+                          >
+                            {item.my_public_review ? "Actualizar publicacion" : "Publicar mi valoracion"}
+                          </button>
+                          {item.my_public_review ? (
+                            <button
+                              className="ghost-link compact-action"
+                              type="button"
+                              onClick={() => void handleDeleteReview(item)}
+                              disabled={deleteReviewMutation.isPending}
+                            >
+                              Retirar publicacion
+                            </button>
+                          ) : null}
+                          <Link className="ghost-link compact-action" to={`/muro?tab=reviews&library=${item.library_id}`}>
+                            Ver en el muro
+                          </Link>
+                        </div>
+
+                        {editorState.rating === null ? (
+                          <p className="detail-inline-copy">Guarda una nota para poder publicar esta valoracion.</p>
+                        ) : null}
+                        {reviewMutation.isError ? (
+                          <p className="form-error">
+                            {reviewMutation.error instanceof Error
+                              ? reviewMutation.error.message
+                              : "No se pudo publicar la valoracion."}
+                          </p>
+                        ) : null}
+                        {deleteReviewMutation.isError ? (
+                          <p className="form-error">
+                            {deleteReviewMutation.error instanceof Error
+                              ? deleteReviewMutation.error.message
+                              : "No se pudo retirar la publicacion."}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <div className="inline-actions">
                       <button

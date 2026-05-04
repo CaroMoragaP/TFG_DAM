@@ -13,6 +13,8 @@ from app.models.enums import CopyFormat
 from app.models.enums import CopyStatus
 from app.models.enums import ReadingStatus
 from app.schemas.author import PrimaryAuthorOut
+from app.schemas.social import CopyLoanOut
+from app.schemas.social import ReaderPreviewOut
 
 
 def _normalize_optional_text(value: str | None) -> str | None:
@@ -346,6 +348,11 @@ class BookOut(BaseModel):
     status: CopyStatus
     reading_status: ReadingStatus
     user_rating: int | None
+    active_loan: CopyLoanOut | None = None
+    shared_readers_preview: list[ReaderPreviewOut] = Field(default_factory=list)
+    shared_readers_count: int = 0
+    public_review_count: int = 0
+    public_average_rating: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -371,6 +378,11 @@ class CopyDetailOut(BaseModel):
     physical_location: str | None
     digital_location: str | None
     status: CopyStatus
+    active_loan: CopyLoanOut | None = None
+    shared_readers_preview: list[ReaderPreviewOut] = Field(default_factory=list)
+    shared_readers_count: int = 0
+    public_review_count: int = 0
+    public_average_rating: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

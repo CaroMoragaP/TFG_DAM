@@ -14,9 +14,12 @@ from app.models.book import UserCopy
 from app.models.enums import ReadingStatus
 from app.models.library import Library
 from app.models.library import UserLibrary
+from app.models.social import Review
 from app.schemas.reading import ReadingShelfItemOut
 from app.services.libraries import READ_ACCESS_ROLES
 from app.services.libraries import get_accessible_library
+from app.services.social import attach_copy_social_summaries
+from app.services.social import serialize_review
 
 READING_LOAD_OPTIONS = (
     joinedload(Copy.book).joinedload(Book.collection),
@@ -63,10 +66,27 @@ def list_reading_shelf(
         stmt = stmt.where(Copy.library_id == library_id)
 
     rows = db.execute(stmt).unique().all()
-    return [_serialize_reading_row(copy, user_copy) for copy, user_copy in rows]
+    copies = [copy for copy, _user_copy in rows]
+    attach_copy_social_summaries(db, copies)
+    my_reviews = {
+        review.copy_id: review
+        for review in db.execute(
+            select(Review)
+            .options(joinedload(Review.user))
+            .where(
+                Review.user_id == user_id,
+                Review.copy_id.in_([copy.id for copy in copies]),
+            ),
+        ).scalars().all()
+    }
+    return [_serialize_reading_row(copy, user_copy, my_reviews.get(copy.id)) for copy, user_copy in rows]
 
 
-def _serialize_reading_row(copy: Copy, user_copy: UserCopy | None) -> ReadingShelfItemOut:
+def _serialize_reading_row(
+    copy: Copy,
+    user_copy: UserCopy | None,
+    my_review: Review | None,
+) -> ReadingShelfItemOut:
     book = copy.book
     primary_author_relation = _get_primary_author_relation(book)
     return ReadingShelfItemOut(
@@ -88,6 +108,9 @@ def _serialize_reading_row(copy: Copy, user_copy: UserCopy | None) -> ReadingShe
         start_date=user_copy.start_date if user_copy is not None else None,
         end_date=user_copy.end_date if user_copy is not None else None,
         personal_notes=user_copy.personal_notes if user_copy is not None else None,
+        public_review_count=getattr(copy, "_social_public_review_count", 0),
+        public_average_rating=getattr(copy, "_social_public_average_rating", None),
+        my_public_review=serialize_review(my_review) if my_review is not None else None,
     )
 
 

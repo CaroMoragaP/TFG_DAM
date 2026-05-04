@@ -19,6 +19,7 @@ from app.models.enums import UserLibraryRole
 
 if TYPE_CHECKING:
     from app.models.book import Copy
+    from app.models.social import LibraryEvent
     from app.models.user import User
 
 
@@ -46,6 +47,10 @@ class Library(Base):
         cascade="all, delete-orphan",
     )
     copies: Mapped[list["Copy"]] = relationship(
+        back_populates="library",
+        cascade="all, delete-orphan",
+    )
+    events: Mapped[list["LibraryEvent"]] = relationship(
         back_populates="library",
         cascade="all, delete-orphan",
     )

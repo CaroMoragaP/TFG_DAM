@@ -11,11 +11,49 @@ export type ListType = "wishlist" | "pending" | "custom";
 export type CopyFormat = "physical" | "digital";
 export type CopyStatus = "available" | "loaned" | "reserved";
 export type ReadingStatus = "pending" | "reading" | "finished";
+export type LibraryEventType =
+  | "reading_started"
+  | "reading_finished"
+  | "review_published"
+  | "review_updated"
+  | "loan_started"
+  | "loan_returned"
+  | "book_added"
+  | "books_imported";
 export type AuthorSex = "male" | "female" | "non_binary" | "unknown";
 export type PrimaryAuthor = {
   first_name: string | null;
   last_name: string | null;
   display_name: string;
+};
+export type ReaderPreview = {
+  user_id: number;
+  name: string;
+};
+
+export type CommunityLoan = {
+  id: number;
+  copy_id: number;
+  lender_user_id: number;
+  lender_name: string;
+  borrower_user_id: number | null;
+  borrower_name: string;
+  is_internal: boolean;
+  loaned_at: string;
+  due_date: string | null;
+  returned_at: string | null;
+  notes: string | null;
+};
+
+export type PublicReview = {
+  id: number;
+  copy_id: number;
+  user_id: number;
+  user_name: string;
+  rating: number;
+  body: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type User = {
@@ -90,6 +128,11 @@ export type Book = {
   status: CopyStatus;
   reading_status: ReadingStatus;
   user_rating: number | null;
+  active_loan: CommunityLoan | null;
+  shared_readers_preview: ReaderPreview[];
+  shared_readers_count: number;
+  public_review_count: number;
+  public_average_rating: number | null;
 };
 
 export type CopyDetail = {
@@ -113,6 +156,49 @@ export type CopyDetail = {
   physical_location: string | null;
   digital_location: string | null;
   status: CopyStatus;
+  active_loan: CommunityLoan | null;
+  shared_readers_preview: ReaderPreview[];
+  shared_readers_count: number;
+  public_review_count: number;
+  public_average_rating: number | null;
+};
+
+export type CopyCommunity = {
+  copy_id: number;
+  active_loan: CommunityLoan | null;
+  shared_readers: ReaderPreview[];
+  shared_readers_count: number;
+  public_review_count: number;
+  public_average_rating: number | null;
+  latest_reviews: PublicReview[];
+};
+
+export type ReviewCreatePayload = {
+  body?: string | null;
+};
+
+export type ReviewUpdatePayload = {
+  body?: string | null;
+};
+
+export type LibraryActivityEvent = {
+  id: number;
+  library_id: number;
+  actor_user_id: number;
+  actor_name: string;
+  copy_id: number | null;
+  review_id: number | null;
+  loan_id: number | null;
+  event_type: LibraryEventType;
+  created_at: string;
+  payload_json: Record<string, unknown>;
+};
+
+export type LibraryActivityPage = {
+  items: LibraryActivityEvent[];
+  total: number;
+  limit: number;
+  offset: number;
 };
 
 export type BookMetadata = {
@@ -156,6 +242,29 @@ export type ReadingShelfItem = {
   start_date: string | null;
   end_date: string | null;
   personal_notes: string | null;
+  public_review_count: number;
+  public_average_rating: number | null;
+  my_public_review: PublicReview | null;
+};
+
+export type LibraryReviewCard = {
+  copy_id: number;
+  book_id: number;
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  public_review_count: number;
+  public_average_rating: number | null;
+  last_reviewed_at: string;
+  my_review: PublicReview | null;
+  other_reviews: PublicReview[];
+};
+
+export type LibraryReviewsPage = {
+  items: LibraryReviewCard[];
+  total: number;
+  limit: number;
+  offset: number;
 };
 
 export type ExternalBookLookup = {
@@ -279,6 +388,13 @@ export type UserCopyUpdatePayload = {
   start_date?: string | null;
   end_date?: string | null;
   personal_notes?: string | null;
+};
+
+export type CommunityLoanCreatePayload = {
+  borrower_user_id?: number | null;
+  borrower_name?: string | null;
+  due_date?: string | null;
+  notes?: string | null;
 };
 
 export type ReadingGoalUpdatePayload = {
@@ -948,6 +1064,126 @@ export function deleteCopyRequest(token: string, copyId: number): Promise<void> 
 
 export function fetchUserCopyData(token: string, copyId: number): Promise<UserCopyData> {
   return apiFetch<UserCopyData>(`/copies/${copyId}/user-data`, undefined, {
+    token,
+  });
+}
+
+export function fetchCopyCommunity(token: string, copyId: number): Promise<CopyCommunity> {
+  return apiFetch<CopyCommunity>(`/copies/${copyId}/community`, undefined, {
+    token,
+  });
+}
+
+export function fetchCopyReviews(token: string, copyId: number): Promise<PublicReview[]> {
+  return apiFetch<PublicReview[]>(`/copies/${copyId}/reviews`, undefined, {
+    token,
+  });
+}
+
+export function createCopyReviewRequest(
+  token: string,
+  copyId: number,
+  payload: ReviewCreatePayload,
+): Promise<PublicReview> {
+  return apiFetch<PublicReview>(
+    `/copies/${copyId}/reviews`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function updateReviewRequest(
+  token: string,
+  reviewId: number,
+  payload: ReviewUpdatePayload,
+): Promise<PublicReview> {
+  return apiFetch<PublicReview>(
+    `/reviews/${reviewId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function deleteReviewRequest(token: string, reviewId: number): Promise<void> {
+  return apiFetch<void>(
+    `/reviews/${reviewId}`,
+    {
+      method: "DELETE",
+    },
+    { token },
+  );
+}
+
+export function fetchCopyLoans(token: string, copyId: number): Promise<CommunityLoan[]> {
+  return apiFetch<CommunityLoan[]>(`/copies/${copyId}/loans`, undefined, {
+    token,
+  });
+}
+
+export function createCopyLoanRequest(
+  token: string,
+  copyId: number,
+  payload: CommunityLoanCreatePayload,
+): Promise<CommunityLoan> {
+  return apiFetch<CommunityLoan>(
+    `/copies/${copyId}/loans`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    { token },
+  );
+}
+
+export function returnLoanRequest(token: string, loanId: number): Promise<CommunityLoan> {
+  return apiFetch<CommunityLoan>(
+    `/loans/${loanId}/return`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export function fetchLibraryActivity(
+  token: string,
+  libraryId: number,
+  params?: { limit?: number; offset?: number },
+): Promise<LibraryActivityPage> {
+  const queryString = buildQueryString({
+    limit: params?.limit,
+    offset: params?.offset,
+  });
+
+  return apiFetch<LibraryActivityPage>(`/libraries/${libraryId}/activity${queryString}`, undefined, {
+    token,
+  });
+}
+
+export function fetchLibraryReviews(
+  token: string,
+  libraryId: number,
+  params?: {
+    filter?: "all" | "missing_mine" | "mine";
+    sort?: "recent" | "rating" | "count";
+    limit?: number;
+    offset?: number;
+  },
+): Promise<LibraryReviewsPage> {
+  const queryString = buildQueryString({
+    filter: params?.filter,
+    sort: params?.sort,
+    limit: params?.limit,
+    offset: params?.offset,
+  });
+
+  return apiFetch<LibraryReviewsPage>(`/libraries/${libraryId}/reviews${queryString}`, undefined, {
     token,
   });
 }

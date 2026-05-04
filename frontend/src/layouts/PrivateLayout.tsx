@@ -8,7 +8,7 @@ const navigationItems = [
   { to: "/bibliotecas", label: "Mis bibliotecas" },
   { to: "/listas", label: "Mis listas" },
   { to: "/lectura", label: "Lectura" },
-  { to: "/resenas", label: "Resenas" },
+  { to: "/muro", label: "Muro" },
   { to: "/stats", label: "Estadisticas" },
 ];
 

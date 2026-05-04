@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from app.models.book import UserCopy
     from app.models.list import List
     from app.models.library import UserLibrary
+    from app.models.social import CopyLoan
+    from app.models.social import LibraryEvent
+    from app.models.social import Review
 
 
 class User(Base):
@@ -55,6 +58,19 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    given_loans: Mapped[list["CopyLoan"]] = relationship(
+        back_populates="lender_user",
+        foreign_keys="CopyLoan.lender_user_id",
+    )
+    borrowed_loans: Mapped[list["CopyLoan"]] = relationship(
+        back_populates="borrower_user",
+        foreign_keys="CopyLoan.borrower_user_id",
+    )
+    reviews: Mapped[list["Review"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    library_events: Mapped[list["LibraryEvent"]] = relationship(back_populates="actor_user")
 
 
 class ReadingGoal(Base):

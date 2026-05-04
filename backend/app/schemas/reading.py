@@ -5,6 +5,7 @@ from datetime import date
 from pydantic import BaseModel
 
 from app.models.enums import ReadingStatus
+from app.schemas.social import ReviewOut
 
 
 class ReadingShelfItemOut(BaseModel):
@@ -22,3 +23,6 @@ class ReadingShelfItemOut(BaseModel):
     start_date: date | None
     end_date: date | None
     personal_notes: str | None
+    public_review_count: int = 0
+    public_average_rating: float | None = None
+    my_public_review: ReviewOut | None = None

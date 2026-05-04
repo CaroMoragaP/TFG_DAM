@@ -98,3 +98,14 @@ class ReadingStatus(str, Enum):
     PENDING = "pending"
     READING = "reading"
     FINISHED = "finished"
+
+
+class LibraryEventType(str, Enum):
+    READING_STARTED = "reading_started"
+    READING_FINISHED = "reading_finished"
+    REVIEW_PUBLISHED = "review_published"
+    REVIEW_UPDATED = "review_updated"
+    LOAN_STARTED = "loan_started"
+    LOAN_RETURNED = "loan_returned"
+    BOOK_ADDED = "book_added"
+    BOOKS_IMPORTED = "books_imported"

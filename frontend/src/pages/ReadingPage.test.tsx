@@ -1,13 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReadingPage } from "./ReadingPage";
 
 const apiMocks = vi.hoisted(() => ({
   fetchReadingShelf: vi.fn(),
   updateUserCopyDataRequest: vi.fn(),
+  createCopyReviewRequest: vi.fn(),
+  updateReviewRequest: vi.fn(),
+  deleteReviewRequest: vi.fn(),
 }));
 
 vi.mock("../auth/AuthProvider", () => ({
@@ -52,6 +55,9 @@ vi.mock("../libraries/ActiveLibraryProvider", () => ({
 vi.mock("../lib/api", () => ({
   fetchReadingShelf: apiMocks.fetchReadingShelf,
   updateUserCopyDataRequest: apiMocks.updateUserCopyDataRequest,
+  createCopyReviewRequest: apiMocks.createCopyReviewRequest,
+  updateReviewRequest: apiMocks.updateReviewRequest,
+  deleteReviewRequest: apiMocks.deleteReviewRequest,
 }));
 
 function buildShelf() {
@@ -71,6 +77,9 @@ function buildShelf() {
       start_date: "2026-04-01",
       end_date: null,
       personal_notes: "Capitulos iniciales",
+      public_review_count: 0,
+      public_average_rating: null,
+      my_public_review: null,
     },
     {
       copy_id: 12,
@@ -87,6 +96,9 @@ function buildShelf() {
       start_date: null,
       end_date: null,
       personal_notes: null,
+      public_review_count: 2,
+      public_average_rating: 4.5,
+      my_public_review: null,
     },
     {
       copy_id: 13,
@@ -103,6 +115,9 @@ function buildShelf() {
       start_date: "2026-03-01",
       end_date: "2026-03-15",
       personal_notes: "Relectura potente",
+      public_review_count: 0,
+      public_average_rating: null,
+      my_public_review: null,
     },
   ];
 }
@@ -127,6 +142,10 @@ function renderPage(initialEntry = "/lectura?tab=reading&library=all") {
 }
 
 describe("ReadingPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("loads the reading shelf, separates tabs, and avoids catalog-only actions", async () => {
     apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
 
@@ -147,7 +166,7 @@ describe("ReadingPage", () => {
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
   });
 
-  it("filters by library and saves reading changes from the main reading workflow", async () => {
+  it("filters by library and saves reading changes from the main workflow", async () => {
     apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 11,
@@ -192,66 +211,49 @@ describe("ReadingPage", () => {
     });
   });
 
-  it("marks a pending book as finished when an end date is added from the reading editor", async () => {
+  it("opens the shared item editor from copy query param and publishes from the same reading workflow", async () => {
     apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 12,
-      reading_status: "finished",
-      rating: null,
+      reading_status: "pending",
+      rating: 5,
       start_date: null,
-      end_date: "2026-04-28",
-      personal_notes: null,
-    });
-
-    renderPage("/lectura?tab=pending&library=all");
-
-    await screen.findByText("Kindred");
-
-    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
-    fireEvent.change(screen.getByLabelText("Fecha de fin"), {
-      target: { value: "2026-04-28" },
-    });
-
-    expect(screen.getByLabelText("Estado de lectura")).toHaveValue("finished");
-
-    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
-
-    await waitFor(() => {
-      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 12, {
-        reading_status: "finished",
-        end_date: "2026-04-28",
-      });
-    });
-  });
-
-  it("marks a pending book as reading when a start date is added from the reading editor", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
-    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
-      copy_id: 12,
-      reading_status: "reading",
-      rating: null,
-      start_date: "2026-04-20",
       end_date: null,
       personal_notes: null,
     });
-
-    renderPage("/lectura?tab=pending&library=all");
-
-    await screen.findByText("Kindred");
-
-    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
-    fireEvent.change(screen.getByLabelText("Fecha de inicio"), {
-      target: { value: "2026-04-20" },
+    apiMocks.createCopyReviewRequest.mockResolvedValue({
+      id: 20,
+      copy_id: 12,
+      user_id: 1,
+      user_name: "Ada",
+      rating: 5,
+      body: "Quiero comentarlo con el club.",
+      created_at: "2026-05-01T10:00:00Z",
+      updated_at: "2026-05-01T10:00:00Z",
     });
 
-    expect(screen.getByLabelText("Estado de lectura")).toHaveValue("reading");
+    renderPage("/lectura?tab=pending&library=2&copy=12");
 
-    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
+    await screen.findByText("Kindred");
+    await waitFor(() => {
+      expect(screen.getByText("Mi valoracion y publicacion")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Valorar Kindred con 5 estrellas" }));
+    fireEvent.change(screen.getByLabelText("Comentario publico"), {
+      target: { value: "Quiero comentarlo con el club." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Publicar mi valoracion" }));
 
     await waitFor(() => {
       expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 12, {
-        reading_status: "reading",
-        start_date: "2026-04-20",
+        rating: 5,
+      });
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.createCopyReviewRequest).toHaveBeenCalledWith("token", 12, {
+        body: "Quiero comentarlo con el club.",
       });
     });
   });

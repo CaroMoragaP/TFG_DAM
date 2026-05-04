@@ -35,6 +35,7 @@ from app.services.external_books import lookup_open_library_book_by_metadata
 from app.services.libraries import CATALOG_MANAGEMENT_ROLES
 from app.services.libraries import READ_ACCESS_ROLES
 from app.services.libraries import get_accessible_library
+from app.services.social import record_books_imported_event
 from app.services.user_copies import get_or_create_user_copy
 
 REFERENCE_HEADER_SET = {
@@ -180,7 +181,7 @@ def commit_catalog_import(
     user_id: int,
     payload: CatalogImportCommitIn,
 ) -> CatalogImportCommitOut:
-    get_accessible_library(
+    library = get_accessible_library(
         db,
         user_id=user_id,
         library_id=payload.library_id,
@@ -191,6 +192,7 @@ def commit_catalog_import(
     imported = 0
     skipped_duplicates = 0
     failed = 0
+    imported_titles: list[str] = []
 
     for row in payload.rows:
         if row.status != "ready" or row.normalized_payload is None:
@@ -222,6 +224,7 @@ def commit_catalog_import(
                 ),
             )
             imported += 1
+            imported_titles.append(book_create.title)
         except DuplicateBookCopyError as exc:
             results.append(
                 CatalogImportResultRowOut(
@@ -241,6 +244,13 @@ def commit_catalog_import(
             )
             failed += 1
 
+    record_books_imported_event(
+        db,
+        library=library,
+        actor_user_id=user_id,
+        imported_count=imported,
+        sample_titles=imported_titles,
+    )
     db.commit()
     return CatalogImportCommitOut(
         imported=imported,

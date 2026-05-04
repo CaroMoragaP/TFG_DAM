@@ -689,6 +689,66 @@ def test_catalog_csv_preview_commit_and_export(client: TestClient, monkeypatch) 
     assert "https://example.com/ficciones.jpg" in export_text
 
 
+def test_catalog_import_creates_one_summary_event_for_shared_libraries(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    owner_headers = register_user(client)
+    shared_library_id = create_library(client, owner_headers, name="Importaciones")
+
+    def fake_lookup_by_metadata(
+        *,
+        title: str,
+        author: str | None = None,
+        publisher: str | None = None,
+    ) -> ExternalBookLookupOut:
+        suffix = "ficciones" if title == "Ficciones" else "el-aleph"
+        isbn = "9780307950928" if title == "Ficciones" else "9788420633121"
+        return ExternalBookLookupOut(
+            title=title,
+            authors=[author] if author is not None else [],
+            publication_year=None,
+            isbn=isbn,
+            themes=[],
+            cover_url=f"https://example.com/{suffix}.jpg",
+            publisher_name=publisher,
+        )
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+
+    csv_payload = (
+        "UbicaciÃ³n,Libro,Apellido,Nombre,GÃ©nero,Editorial,ColecciÃ³n,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M\r\n"
+        "Caja 2,El Aleph,Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=owner_headers,
+        data={"library_id": str(shared_library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+    assert preview_response.status_code == 200
+
+    commit_response = client.post(
+        "/books/imports",
+        headers=owner_headers,
+        json={
+            "library_id": shared_library_id,
+            "rows": preview_response.json()["rows"],
+        },
+    )
+    assert commit_response.status_code == 200
+    assert commit_response.json()["imported"] == 2
+
+    activity_response = client.get(f"/libraries/{shared_library_id}/activity", headers=owner_headers)
+    assert activity_response.status_code == 200
+    activity_payload = activity_response.json()
+    assert activity_payload["total"] == 1
+    assert activity_payload["items"][0]["event_type"] == "books_imported"
+    assert activity_payload["items"][0]["payload_json"]["imported_count"] == 2
+
+
 def test_catalog_csv_preview_preserves_existing_isbn_and_cover_url(client: TestClient, monkeypatch) -> None:
     headers = register_user(client)
     library_id = get_personal_library_id(client, headers)

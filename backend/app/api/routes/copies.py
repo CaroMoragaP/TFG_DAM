@@ -23,6 +23,8 @@ from app.services.books import update_copy as update_copy_service
 from app.services.libraries import LibraryArchivedError
 from app.services.libraries import LibraryOwnershipRequiredError
 from app.services.libraries import LibraryRoleRequiredError
+from app.services.social import LoanConflictError
+from app.services.social import ReviewConflictError
 from app.services.user_copies import CopyNotFoundError
 from app.services.user_copies import CopyPermissionDeniedError
 from app.services.user_copies import get_user_copy_data
@@ -78,6 +80,8 @@ def update_copy(
     except (LibraryOwnershipRequiredError, LibraryRoleRequiredError) as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LibraryArchivedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except LoanConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     return serialize_copy_detail(copy)
@@ -150,6 +154,8 @@ def update_copy_user_data(
     except CopyPermissionDeniedError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LibraryArchivedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ReviewConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc

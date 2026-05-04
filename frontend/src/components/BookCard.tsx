@@ -36,6 +36,33 @@ function formatRating(value: number | null) {
   return value === null ? "-" : `${value}/5`;
 }
 
+function formatPublicRating(value: number | null) {
+  return value === null ? "sin media" : `${value.toFixed(1)}/5`;
+}
+
+function formatLoanLine(book: Book) {
+  if (!book.active_loan) {
+    return null;
+  }
+
+  const dueDate = book.active_loan.due_date
+    ? ` hasta ${new Date(book.active_loan.due_date).toLocaleDateString("es-ES")}`
+    : "";
+  return `Prestado a ${book.active_loan.borrower_name}${dueDate}`;
+}
+
+function formatReadersLine(book: Book) {
+  if (book.shared_readers_count <= 0) {
+    return null;
+  }
+
+  if (book.shared_readers_count === 1 && book.shared_readers_preview[0]) {
+    return `Lo esta leyendo ${book.shared_readers_preview[0].name}`;
+  }
+
+  return `${book.shared_readers_count} miembros lo estan leyendo`;
+}
+
 export function BookCard({
   book,
   library,
@@ -47,6 +74,10 @@ export function BookCard({
   const statusInfo = readingStatusCopy[book.reading_status];
   const author = book.authors[0] ?? "Autor sin registrar";
   const coverLetter = (book.title.trim().slice(0, 1) || "?").toUpperCase();
+  const loanLine = formatLoanLine(book);
+  const readersLine = formatReadersLine(book);
+  const hasCommunitySummary =
+    book.active_loan !== null || book.shared_readers_count > 0 || book.public_review_count > 0;
 
   return (
     <article className="book-card panel">
@@ -98,6 +129,18 @@ export function BookCard({
             <dd>{book.author_country ?? "-"}</dd>
           </div>
         </dl>
+
+        {hasCommunitySummary ? (
+          <div className="book-community-stack">
+            {loanLine ? <p className="detail-inline-copy">{loanLine}</p> : null}
+            {readersLine ? <p className="detail-inline-copy">{readersLine}</p> : null}
+            {book.public_review_count > 0 ? (
+              <p className="detail-inline-copy">
+                {book.public_review_count} resenas publicas · {formatPublicRating(book.public_average_rating)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="book-card-footer">
           <span className={`reading-pill ${statusInfo.toneClass}`}>

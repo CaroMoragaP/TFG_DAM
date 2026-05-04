@@ -49,6 +49,9 @@ from app.services.libraries import LibraryRoleRequiredError
 from app.services.libraries import get_accessible_library
 from app.services.libraries import get_user_library_membership
 from app.services.lists import get_user_list
+from app.services.social import attach_copy_social_summaries
+from app.services.social import record_book_added_event
+from app.services.social import validate_copy_status_update
 from app.services.user_copies import get_or_create_user_copy
 
 
@@ -101,6 +104,7 @@ def create_book_in_transaction(
 
 
 COPY_LOAD_OPTIONS = (
+    joinedload(Copy.library),
     joinedload(Copy.book).joinedload(Book.collection),
     joinedload(Copy.book).joinedload(Book.publisher),
     joinedload(Copy.book)
@@ -124,7 +128,7 @@ def create_book(
     user_id: int,
     data: BookCreate,
 ) -> Copy:
-    get_accessible_library(
+    library = get_accessible_library(
         db,
         user_id=user_id,
         library_id=data.library_id,
@@ -138,6 +142,12 @@ def create_book(
         copy_id=copy.id,
         seed_reading_status=data.reading_status,
         seed_rating=data.user_rating,
+    )
+    record_book_added_event(
+        db,
+        library=library,
+        actor_user_id=user_id,
+        copy=copy,
     )
     db.commit()
     return get_book_copy(db, user_id=user_id, copy_id=copy.id)
@@ -249,7 +259,9 @@ def list_books(
         stmt = stmt.where(user_copy_alias.rating.is_not(None), user_copy_alias.rating >= min_rating)
 
     rows = db.execute(stmt).unique().all()
-    return _hydrate_copy_personal_fields(rows)
+    copies = _hydrate_copy_personal_fields(rows)
+    attach_copy_social_summaries(db, copies)
+    return copies
 
 
 def list_themes(db: Session) -> list[str]:
@@ -274,6 +286,7 @@ def get_book_copy(
     copies = _hydrate_copy_personal_fields(rows)
     copy = copies[0] if copies else None
     if copy is not None:
+        attach_copy_social_summaries(db, [copy])
         get_user_library_membership(
             db,
             user_id=user_id,
@@ -318,6 +331,7 @@ def update_copy(
     if "digital_location" in data.model_fields_set:
         copy.digital_location = data.digital_location
     if "status" in data.model_fields_set:
+        validate_copy_status_update(db, copy_id=copy.id, status=data.status)
         copy.status = data.status
 
     db.commit()
@@ -420,6 +434,11 @@ def serialize_book_copy(copy: Copy) -> BookOut:
         status=copy.status,
         reading_status=reading_status,
         user_rating=user_rating,
+        active_loan=getattr(copy, "_social_active_loan", None),
+        shared_readers_preview=getattr(copy, "_social_shared_readers_preview", []),
+        shared_readers_count=getattr(copy, "_social_shared_readers_count", 0),
+        public_review_count=getattr(copy, "_social_public_review_count", 0),
+        public_average_rating=getattr(copy, "_social_public_average_rating", None),
     )
 
 
@@ -447,6 +466,11 @@ def serialize_copy_detail(copy: Copy) -> CopyDetailOut:
         physical_location=copy.physical_location,
         digital_location=copy.digital_location,
         status=copy.status,
+        active_loan=getattr(copy, "_social_active_loan", None),
+        shared_readers_preview=getattr(copy, "_social_shared_readers_preview", []),
+        shared_readers_count=getattr(copy, "_social_shared_readers_count", 0),
+        public_review_count=getattr(copy, "_social_public_review_count", 0),
+        public_average_rating=getattr(copy, "_social_public_average_rating", None),
     )
 
 

@@ -23,6 +23,9 @@ from app.models.enums import ReadingStatus
 if TYPE_CHECKING:
     from app.models.library import Library
     from app.models.list import ListBook
+    from app.models.social import CopyLoan
+    from app.models.social import LibraryEvent
+    from app.models.social import Review
     from app.models.user import User
 
 
@@ -197,6 +200,15 @@ class Copy(Base):
         back_populates="copy",
         cascade="all, delete-orphan",
     )
+    loans: Mapped[list["CopyLoan"]] = relationship(
+        back_populates="copy",
+        cascade="all, delete-orphan",
+    )
+    reviews: Mapped[list["Review"]] = relationship(
+        back_populates="copy",
+        cascade="all, delete-orphan",
+    )
+    library_events: Mapped[list["LibraryEvent"]] = relationship(back_populates="copy")
 
 
 class UserCopy(Base):

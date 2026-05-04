@@ -18,6 +18,8 @@ from app.models.library import UserLibrary
 from app.schemas.user_copy import UserCopyOut
 from app.schemas.user_copy import UserCopyUpdate
 from app.services.libraries import get_user_library_membership
+from app.services.social import record_user_copy_reading_event
+from app.services.social import sync_public_review_rating
 
 
 class CopyNotFoundError(ValueError):
@@ -125,6 +127,19 @@ def update_user_copy_data(
     ):
         raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
 
+    if "rating" in data.model_fields_set:
+        sync_public_review_rating(
+            db,
+            user_id=user_id,
+            copy_id=copy_id,
+            rating=user_copy.rating,
+        )
+
+    record_user_copy_reading_event(
+        db,
+        user_copy_id=user_copy.id,
+        previous_status=previous_status,
+    )
     db.commit()
     db.refresh(user_copy)
     return serialize_user_copy(user_copy)

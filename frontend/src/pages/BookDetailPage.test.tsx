@@ -227,4 +227,87 @@ describe("BookDetailPage", () => {
       });
     });
   });
+
+  it("marks the book as reading when saving a start date from the detail page", async () => {
+    apiMocks.fetchCopyById.mockResolvedValue({
+      id: 7,
+      book_id: 3,
+      library_id: 1,
+      title: "Dune",
+      isbn: "123",
+      publication_year: 1965,
+      description: "Arrakis.",
+      cover_url: null,
+      publisher: null,
+      collection: "Cronicas de Arrakis",
+      author_country: "Estados Unidos",
+      author_sex: "male",
+      primary_author: {
+        first_name: "Frank",
+        last_name: "Herbert",
+        display_name: "Frank Herbert",
+      },
+      authors: ["Frank Herbert"],
+      genre: "narrativo",
+      themes: ["Ciencia ficcion"],
+      format: "physical",
+      physical_location: null,
+      digital_location: null,
+      status: "available",
+    });
+    apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion", "Fantasia"]);
+    apiMocks.fetchUserCopyData.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "pending",
+      rating: null,
+      start_date: null,
+      end_date: null,
+      personal_notes: null,
+    });
+    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "reading",
+      rating: null,
+      start_date: "2026-04-20",
+      end_date: null,
+      personal_notes: null,
+    });
+    apiMocks.updateCopyRequest.mockResolvedValue({});
+    apiMocks.updateBookMetadataRequest.mockResolvedValue({});
+    apiMocks.deleteCopyRequest.mockResolvedValue(undefined);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/libros/7"]}>
+          <Routes>
+            <Route path="/libros/:id" element={<BookDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Dune")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Inicio"), {
+      target: { value: "2026-04-20" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar fechas" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 7, {
+        start_date: "2026-04-20",
+        end_date: null,
+        reading_status: "reading",
+      });
+    });
+  });
 });

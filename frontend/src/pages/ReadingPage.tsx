@@ -11,6 +11,7 @@ import {
   type ReadingStatus,
   type UserCopyUpdatePayload,
 } from "../lib/api";
+import { deriveReadingStatusFromDates } from "../lib/readingProgress";
 
 type ReadingTab = ReadingStatus;
 type ReadingSort =
@@ -213,9 +214,14 @@ function buildUpdatePayload(
   editorState: EditorState,
 ): UserCopyUpdatePayload {
   const payload: UserCopyUpdatePayload = {};
+  const nextReadingStatus = deriveReadingStatusFromDates(
+    editorState.readingStatus,
+    editorState.startDate,
+    editorState.endDate,
+  );
 
-  if (editorState.readingStatus !== originalItem.reading_status) {
-    payload.reading_status = editorState.readingStatus;
+  if (nextReadingStatus !== originalItem.reading_status) {
+    payload.reading_status = nextReadingStatus;
   }
   if (editorState.rating !== originalItem.rating) {
     payload.rating = editorState.rating;
@@ -633,7 +639,17 @@ export function ReadingPage() {
                           value={editorState.startDate}
                           onChange={(event) =>
                             setEditorState((currentState) =>
-                              currentState ? { ...currentState, startDate: event.target.value } : currentState,
+                              currentState
+                                ? {
+                                    ...currentState,
+                                    startDate: event.target.value,
+                                    readingStatus: deriveReadingStatusFromDates(
+                                      currentState.readingStatus,
+                                      event.target.value,
+                                      currentState.endDate,
+                                    ),
+                                  }
+                                : currentState,
                             )
                           }
                         />
@@ -650,7 +666,11 @@ export function ReadingPage() {
                                 ? {
                                     ...currentState,
                                     endDate: event.target.value,
-                                    readingStatus: event.target.value ? "finished" : currentState.readingStatus,
+                                    readingStatus: deriveReadingStatusFromDates(
+                                      currentState.readingStatus,
+                                      currentState.startDate,
+                                      event.target.value,
+                                    ),
                                   }
                                 : currentState,
                             )

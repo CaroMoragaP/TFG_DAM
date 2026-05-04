@@ -223,4 +223,36 @@ describe("ReadingPage", () => {
       });
     });
   });
+
+  it("marks a pending book as reading when a start date is added from the reading editor", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
+      copy_id: 12,
+      reading_status: "reading",
+      rating: null,
+      start_date: "2026-04-20",
+      end_date: null,
+      personal_notes: null,
+    });
+
+    renderPage("/lectura?tab=pending&library=all");
+
+    await screen.findByText("Kindred");
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
+    fireEvent.change(screen.getByLabelText("Fecha de inicio"), {
+      target: { value: "2026-04-20" },
+    });
+
+    expect(screen.getByLabelText("Estado de lectura")).toHaveValue("reading");
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 12, {
+        reading_status: "reading",
+        start_date: "2026-04-20",
+      });
+    });
+  });
 });

@@ -363,6 +363,40 @@ def test_user_copy_end_date_marks_book_as_finished(client: TestClient) -> None:
     }
 
 
+def test_user_copy_start_date_marks_book_as_reading(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="La ciudad y la ciudad",
+        author="China Mieville",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={
+            "start_date": "2026-04-20",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "reading",
+        "rating": None,
+        "start_date": "2026-04-20",
+        "end_date": None,
+        "personal_notes": None,
+    }
+
+
 def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
     headers = register_user(client)
     personal_library_id = get_personal_library_id(client, headers)

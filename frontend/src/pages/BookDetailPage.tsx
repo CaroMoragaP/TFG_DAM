@@ -19,6 +19,7 @@ import {
   type ReadingStatus,
   type UserCopyUpdatePayload,
 } from "../lib/api";
+import { deriveReadingStatusFromDates } from "../lib/readingProgress";
 
 const statusLabels: Record<ReadingStatus, string> = {
   pending: "Pendiente",
@@ -209,9 +210,14 @@ export function BookDetailPage() {
       start_date: startDateDraft || null,
       end_date: endDateDraft || null,
     };
+    const nextStatus = deriveReadingStatusFromDates(
+      userData?.reading_status ?? "pending",
+      startDateDraft,
+      endDateDraft,
+    );
 
-    if (endDateDraft) {
-      payload.reading_status = "finished";
+    if (nextStatus !== userData?.reading_status) {
+      payload.reading_status = nextStatus;
     }
 
     await updateUserDataMutation.mutateAsync(payload);

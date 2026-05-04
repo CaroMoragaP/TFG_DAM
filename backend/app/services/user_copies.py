@@ -100,10 +100,6 @@ def update_user_copy_data(
     if "personal_notes" in data.model_fields_set:
         user_copy.personal_notes = data.personal_notes
 
-    # A recorded finish date always implies a completed reading state.
-    if user_copy.end_date is not None:
-        user_copy.reading_status = ReadingStatus.FINISHED
-
     if (
         user_copy.reading_status == ReadingStatus.READING
         and previous_status != ReadingStatus.READING
@@ -119,6 +115,8 @@ def update_user_copy_data(
         and user_copy.end_date is None
     ):
         user_copy.end_date = date.today()
+
+    _synchronize_reading_status_with_dates(user_copy)
 
     if (
         user_copy.start_date is not None
@@ -141,6 +139,15 @@ def serialize_user_copy(user_copy: UserCopy) -> UserCopyOut:
         end_date=user_copy.end_date,
         personal_notes=user_copy.personal_notes,
     )
+
+
+def _synchronize_reading_status_with_dates(user_copy: UserCopy) -> None:
+    if user_copy.end_date is not None:
+        user_copy.reading_status = ReadingStatus.FINISHED
+        return
+
+    if user_copy.start_date is not None:
+        user_copy.reading_status = ReadingStatus.READING
 
 
 def _find_user_copy(

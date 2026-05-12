@@ -8,8 +8,7 @@ from app.core.security import verify_password
 from app.models.user import User
 from app.schemas.auth import UserLogin
 from app.schemas.auth import UserRegister
-from app.services.libraries import create_personal_library_for_user
-from app.services.lists import create_default_lists_for_user
+from app.services.user_bootstrap import ensure_user_default_resources
 
 
 class DuplicateEmailError(ValueError):
@@ -34,8 +33,7 @@ def register_user(db: Session, data: UserRegister) -> User:
     )
     db.add(user)
     db.flush()
-    create_personal_library_for_user(db, user)
-    create_default_lists_for_user(db, user_id=user.id)
+    ensure_user_default_resources(db, user)
     db.commit()
     db.refresh(user)
     return user
@@ -45,7 +43,11 @@ def authenticate_user(db: Session, data: UserLogin) -> User:
     normalized_email = data.email.strip().lower()
     user = db.scalar(select(User).where(User.email == normalized_email))
 
-    if user is None or not verify_password(data.password, user.password_hash):
+    if (
+        user is None
+        or not user.is_active
+        or not verify_password(data.password, user.password_hash)
+    ):
         raise InvalidCredentialsError("Email o contrasena incorrectos.")
 
     return user

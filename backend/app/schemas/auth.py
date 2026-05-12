@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import AliasChoices
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import EmailStr
@@ -56,6 +57,9 @@ class UserRead(BaseModel):
     id: int
     name: str
     email: EmailStr
+    is_admin: bool = Field(
+        validation_alias=AliasChoices("is_admin", "is_superuser"),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

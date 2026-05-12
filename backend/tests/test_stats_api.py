@@ -558,12 +558,35 @@ def test_reading_goal_endpoint_and_extended_reading_stats(
         "completed": 3,
         "percentage": 16.67,
     }
-    assert reading_payload["monthly_progress"][:4] == [
-        {"month": "Ene", "started": 1, "finished": 1},
-        {"month": "Feb", "started": 1, "finished": 1},
-        {"month": "Mar", "started": 1, "finished": 0},
-        {"month": "Abr", "started": 2, "finished": 1},
-    ]
+    monthly_progress = {
+        index + 1: item
+        for index, item in enumerate(reading_payload["monthly_progress"])
+    }
+    expected_started = {
+        1: 1,
+        2: 1,
+        4: 1,
+    }
+    expected_started[(today - timedelta(days=7)).month] = (
+        expected_started.get((today - timedelta(days=7)).month, 0) + 1
+    )
+    expected_started[(today - timedelta(days=45)).month] = (
+        expected_started.get((today - timedelta(days=45)).month, 0) + 1
+    )
+    expected_finished = {
+        1: 1,
+        2: 1,
+        4: 1,
+    }
+    for month_number in range(1, 13):
+        assert monthly_progress[month_number]["started"] == expected_started.get(
+            month_number,
+            0,
+        )
+        assert monthly_progress[month_number]["finished"] == expected_finished.get(
+            month_number,
+            0,
+        )
     assert reading_payload["streak"] == {
         "current_months": 0,
         "best_months": 2,

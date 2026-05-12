@@ -72,6 +72,17 @@ def create_personal_library_for_user(
     *,
     name: str = DEFAULT_PERSONAL_LIBRARY_NAME,
 ) -> Library:
+    existing_library = db.scalar(
+        select(Library)
+        .join(UserLibrary, UserLibrary.library_id == Library.id)
+        .where(
+            UserLibrary.user_id == user.id,
+            Library.type == LibraryType.PERSONAL,
+        ),
+    )
+    if existing_library is not None:
+        return existing_library
+
     library = Library(name=name, type=LibraryType.PERSONAL)
     membership = UserLibrary(user=user, library=library, role=UserLibraryRole.OWNER)
     db.add(library)
@@ -353,6 +364,84 @@ def remove_library_member(
     db.commit()
 
 
+def transfer_library_ownership(
+    db: Session,
+    *,
+    user_id: int,
+    library_id: int,
+    member_user_id: int,
+) -> tuple[Library, UserLibraryRole]:
+    library, _owner_role = _get_shared_library_for_owner(
+        db,
+        user_id=user_id,
+        library_id=library_id,
+    )
+
+    if member_user_id == user_id:
+        raise LibraryMembershipOperationError(
+            "Debes transferir la propiedad a otro miembro de la biblioteca.",
+        )
+
+    current_membership = db.scalar(
+        select(UserLibrary).where(
+            UserLibrary.user_id == user_id,
+            UserLibrary.library_id == library_id,
+        ),
+    )
+    target_membership = db.scalar(
+        select(UserLibrary).where(
+            UserLibrary.user_id == member_user_id,
+            UserLibrary.library_id == library_id,
+        ),
+    )
+
+    assert current_membership is not None
+    if target_membership is None:
+        raise LibraryMemberNotFoundError("El miembro indicado no pertenece a la biblioteca.")
+    if target_membership.role == UserLibraryRole.OWNER:
+        raise LibraryMembershipOperationError(
+            "El miembro indicado ya es propietario de la biblioteca.",
+        )
+
+    target_membership.role = UserLibraryRole.OWNER
+    current_membership.role = UserLibraryRole.EDITOR
+    db.commit()
+    db.refresh(library)
+    return library, current_membership.role
+
+
+def leave_library(
+    db: Session,
+    *,
+    user_id: int,
+    library_id: int,
+) -> None:
+    library, role = get_user_library_membership(
+        db,
+        user_id=user_id,
+        library_id=library_id,
+        allow_archived=True,
+    )
+    if library.type != LibraryType.SHARED:
+        raise LibraryMembershipOperationError(
+            "Esta operacion solo esta disponible para bibliotecas compartidas.",
+        )
+    if role == UserLibraryRole.OWNER:
+        raise LibraryMembershipOperationError(
+            "El propietario debe transferir la biblioteca antes de abandonarla.",
+        )
+
+    membership = db.scalar(
+        select(UserLibrary).where(
+            UserLibrary.user_id == user_id,
+            UserLibrary.library_id == library_id,
+        ),
+    )
+    assert membership is not None
+    db.delete(membership)
+    db.commit()
+
+
 def archive_library(
     db: Session,
     *,
@@ -403,15 +492,11 @@ def delete_library(
         library_id=library_id,
         allow_archived=True,
     )
-    member_count, copy_count = _get_library_counts(db, library_id=library_id)
+    member_count, _copy_count = _get_library_counts(db, library_id=library_id)
     additional_member_count = max(member_count - 1, 0)
     if additional_member_count > 0:
         raise LibraryDeletionNotAllowedError(
             "No puedes borrar definitivamente una biblioteca con miembros adicionales.",
-        )
-    if copy_count > 0:
-        raise LibraryDeletionNotAllowedError(
-            "No puedes borrar definitivamente una biblioteca que todavia contiene libros.",
         )
 
     db.delete(library)

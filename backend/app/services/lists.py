@@ -55,7 +55,13 @@ def create_default_lists_for_user(
     *,
     user_id: int,
 ) -> None:
+    existing_types = set(
+        db.scalars(select(List.type).where(List.user_id == user_id)).all(),
+    )
+
     for name, list_type in DEFAULT_LIST_SEEDS:
+        if list_type in existing_types:
+            continue
         db.add(
             List(
                 user_id=user_id,

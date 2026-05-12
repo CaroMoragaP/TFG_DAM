@@ -83,3 +83,7 @@ class LibraryMemberUpdate(BaseModel):
         if value == UserLibraryRole.OWNER:
             raise ValueError("No se puede asignar el rol owner desde esta operacion.")
         return value
+
+
+class LibraryOwnershipTransfer(BaseModel):
+    member_user_id: int = Field(gt=0)

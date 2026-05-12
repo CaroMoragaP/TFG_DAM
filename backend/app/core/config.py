@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-in-development"
     access_token_expire_minutes: int = 30
     algorithm: str = "HS256"
+    admin_name: str | None = None
+    admin_email: str | None = None
+    admin_password: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env",
@@ -30,4 +33,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

@@ -15,6 +15,7 @@ from app.schemas.library import LibraryCreate
 from app.schemas.library import LibraryMemberCreate
 from app.schemas.library import LibraryMemberOut
 from app.schemas.library import LibraryMemberUpdate
+from app.schemas.library import LibraryOwnershipTransfer
 from app.schemas.library import LibraryOut
 from app.schemas.library import LibraryUpdate
 from app.services.libraries import LibraryArchivedError
@@ -31,9 +32,11 @@ from app.services.libraries import create_library as create_library_service
 from app.services.libraries import delete_library as delete_library_service
 from app.services.libraries import list_library_members
 from app.services.libraries import list_user_libraries
+from app.services.libraries import leave_library
 from app.services.libraries import remove_library_member
 from app.services.libraries import rename_library
 from app.services.libraries import restore_library
+from app.services.libraries import transfer_library_ownership
 from app.services.libraries import update_library_member_role
 
 router = APIRouter()
@@ -246,6 +249,73 @@ def delete_library_member(
             member_user_id=member_user_id,
         )
     except (LibraryNotFoundError, LibraryMemberNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (
+        LibraryPermissionDeniedError,
+        LibraryOwnershipRequiredError,
+        LibraryMembershipOperationError,
+    ) as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LibraryArchivedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/libraries/{library_id}/transfer-ownership",
+    response_model=LibraryOut,
+    summary="Transfer ownership of a shared library to another member",
+)
+def transfer_library_ownership_entry(
+    library_id: int,
+    payload: LibraryOwnershipTransfer,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> LibraryOut:
+    try:
+        library, role = transfer_library_ownership(
+            db,
+            user_id=current_user.id,
+            library_id=library_id,
+            member_user_id=payload.member_user_id,
+        )
+    except (LibraryNotFoundError, LibraryMemberNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (
+        LibraryPermissionDeniedError,
+        LibraryOwnershipRequiredError,
+        LibraryMembershipOperationError,
+    ) as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LibraryArchivedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return build_library_response(
+        library,
+        role,
+        member_count=len(library.user_libraries),
+        copy_count=len(library.copies),
+    )
+
+
+@router.delete(
+    "/libraries/{library_id}/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Leave a shared library",
+)
+def leave_library_entry(
+    library_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    try:
+        leave_library(
+            db,
+            user_id=current_user.id,
+            library_id=library_id,
+        )
+    except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except (
         LibraryPermissionDeniedError,

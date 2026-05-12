@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 import sys
 
@@ -54,10 +55,20 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         finally:
             pass
 
+    @contextmanager
+    def override_seed_db_factory() -> Generator[Session, None, None]:
+        try:
+            yield db_session
+        finally:
+            pass
+
     app.dependency_overrides[get_db] = override_get_db
+    app.state.seed_db_factory = override_seed_db_factory
 
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.clear()
+        if hasattr(app.state, "seed_db_factory"):
+            delattr(app.state, "seed_db_factory")

@@ -1,7 +1,7 @@
-"""Create personal lists tables.
+"""Create personal lists and reading goals tables.
 
 Revision ID: 0005_create_lists
-Revises: 0004_add_catalog_reading_fields
+Revises: 0003_create_libraries_and_books
 Create Date: 2026-04-19 01:00:00
 """
 from __future__ import annotations
@@ -14,29 +14,18 @@ import sqlalchemy as sa
 
 
 revision: str = "0005_create_lists"
-down_revision: Union[str, None] = "0004_add_catalog_reading_fields"
+down_revision: Union[str, None] = "0003_create_libraries_and_books"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-list_type = sa.Enum(
-    "wishlist",
-    "pending",
-    "custom",
-    name="list_type",
-    native_enum=False,
-)
-
-
 def upgrade() -> None:
-    list_type.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "lists",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("type", list_type, nullable=False),
+        sa.Column("type", sa.String(length=8), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -55,6 +44,35 @@ def upgrade() -> None:
     op.create_index(op.f("ix_lists_user_id"), "lists", ["user_id"], unique=False)
 
     op.create_table(
+        "reading_goals",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("year", sa.Integer(), nullable=False),
+        sa.Column("target_books", sa.Integer(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "year", name="uq_reading_goals_user_id_year"),
+    )
+    op.create_index(
+        op.f("ix_reading_goals_user_id"),
+        "reading_goals",
+        ["user_id"],
+        unique=False,
+    )
+
+    op.create_table(
         "list_books",
         sa.Column("list_id", sa.Integer(), nullable=False),
         sa.Column("book_id", sa.Integer(), nullable=False),
@@ -70,29 +88,10 @@ def upgrade() -> None:
         sa.UniqueConstraint("list_id", "book_id", name="uq_list_books_list_id_book_id"),
     )
 
-    connection = op.get_bind()
-    connection.execute(
-        sa.text(
-            """
-            INSERT INTO lists (user_id, name, type)
-            SELECT id, 'Favoritos', 'wishlist'
-            FROM users
-            """
-        ),
-    )
-    connection.execute(
-        sa.text(
-            """
-            INSERT INTO lists (user_id, name, type)
-            SELECT id, 'Pendientes', 'pending'
-            FROM users
-            """
-        ),
-    )
-
 
 def downgrade() -> None:
     op.drop_table("list_books")
+    op.drop_index(op.f("ix_reading_goals_user_id"), table_name="reading_goals")
+    op.drop_table("reading_goals")
     op.drop_index(op.f("ix_lists_user_id"), table_name="lists")
     op.drop_table("lists")
-    list_type.drop(op.get_bind(), checkfirst=True)

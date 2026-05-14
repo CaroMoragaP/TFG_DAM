@@ -1,4 +1,4 @@
-"""Create libraries and catalog tables.
+"""Create the consolidated libraries and catalog schema.
 
 Revision ID: 0003_create_libraries_and_books
 Revises: 0002_create_users
@@ -19,30 +19,35 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-library_type = sa.Enum(
-    "personal",
-    "shared",
-    name="library_type",
-    native_enum=False,
+THEME_LABELS: tuple[str, ...] = (
+    "Fantas\u00eda",
+    "Ficci\u00f3n hist\u00f3rica",
+    "Terror",
+    "Humor",
+    "Literatura",
+    "Magia",
+    "Misterio e historias de detectives",
+    "Obras de teatro",
+    "Poes\u00eda",
+    "Rom\u00e1ntica",
+    "Ciencia ficci\u00f3n",
+    "Historias cortas",
+    "Suspense",
+    "Juvenil",
+    "Infantil",
+    "Historia",
+    "Biograf\u00eda",
+    "Ciencias sociales",
+    "Salud y bienestar",
+    "Artes",
+    "Ciencia y matem\u00e1ticas",
+    "Negocios y finanzas",
+    "Idiomas",
 )
-user_library_role = sa.Enum(
-    "owner",
-    "member",
-    name="user_library_role",
-    native_enum=False,
-)
-copy_format = sa.Enum(
-    "physical",
-    "digital",
-    name="copy_format",
-    native_enum=False,
-)
-copy_status = sa.Enum(
-    "available",
-    "loaned",
-    "reserved",
-    name="copy_status",
-    native_enum=False,
+
+BOOK_GENRE_CHECK = (
+    "genre IS NULL OR genre IN ('narrativo', 'l\u00c3\u00adrico', "
+    "'dram\u00c3\u00a1tico', 'did\u00c3\u00a1ctico')"
 )
 
 
@@ -51,14 +56,31 @@ def upgrade() -> None:
         "libraries",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("type", library_type, nullable=False),
+        sa.Column("type", sa.String(length=8), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
+        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "countries",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(length=120), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name", name="uq_countries_name"),
+    )
+
+    op.create_table(
+        "collections",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name", name="uq_collections_name"),
     )
 
     op.create_table(
@@ -72,11 +94,14 @@ def upgrade() -> None:
     op.create_table(
         "authors",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("country_of_birth", sa.String(length=120), nullable=True),
+        sa.Column("first_name", sa.String(length=255), nullable=True),
+        sa.Column("last_name", sa.String(length=255), nullable=True),
+        sa.Column("display_name", sa.String(length=255), nullable=False),
+        sa.Column("country_id", sa.Integer(), nullable=True),
         sa.Column("sex", sa.String(length=50), nullable=True),
+        sa.ForeignKeyConstraint(["country_id"], ["countries.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name", name="uq_authors_name"),
+        sa.UniqueConstraint("display_name", name="uq_authors_display_name"),
     )
 
     op.create_table(
@@ -87,34 +112,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("name", name="uq_themes_name"),
     )
     theme_table = sa.table("themes", sa.column("name", sa.String(length=120)))
-    op.bulk_insert(
-        theme_table,
-        [
-            {"name": "Fantas\u00eda"},
-            {"name": "Ficci\u00f3n hist\u00f3rica"},
-            {"name": "Terror"},
-            {"name": "Humor"},
-            {"name": "Literatura"},
-            {"name": "Magia"},
-            {"name": "Misterio e historias de detectives"},
-            {"name": "Obras de teatro"},
-            {"name": "Poes\u00eda"},
-            {"name": "Rom\u00e1ntica"},
-            {"name": "Ciencia ficci\u00f3n"},
-            {"name": "Historias cortas"},
-            {"name": "Suspense"},
-            {"name": "Juvenil"},
-            {"name": "Infantil"},
-            {"name": "Historia"},
-            {"name": "Biograf\u00eda"},
-            {"name": "Ciencias sociales"},
-            {"name": "Salud y bienestar"},
-            {"name": "Artes"},
-            {"name": "Ciencia y matem\u00e1ticas"},
-            {"name": "Negocios y finanzas"},
-            {"name": "Idiomas"},
-        ],
-    )
+    op.bulk_insert(theme_table, [{"name": label} for label in THEME_LABELS])
 
     op.create_table(
         "books",
@@ -125,11 +123,10 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("cover_url", sa.String(length=500), nullable=True),
         sa.Column("publisher_id", sa.Integer(), nullable=True),
+        sa.Column("collection_id", sa.Integer(), nullable=True),
         sa.Column("genre", sa.String(length=32), nullable=True),
-        sa.CheckConstraint(
-            "genre IS NULL OR genre IN ('narrativo', 'lírico', 'dramático', 'didáctico')",
-            name="ck_books_genre_allowed_values",
-        ),
+        sa.CheckConstraint(BOOK_GENRE_CHECK, name="ck_books_genre_allowed_values"),
+        sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["publisher_id"], ["publishers.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("isbn", name="uq_books_isbn"),
@@ -140,7 +137,7 @@ def upgrade() -> None:
         "user_libraries",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("library_id", sa.Integer(), nullable=False),
-        sa.Column("role", user_library_role, nullable=False),
+        sa.Column("role", sa.String(length=6), nullable=False),
         sa.ForeignKeyConstraint(["library_id"], ["libraries.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("user_id", "library_id"),
@@ -202,10 +199,10 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("book_id", sa.Integer(), nullable=False),
         sa.Column("library_id", sa.Integer(), nullable=False),
-        sa.Column("format", copy_format, nullable=False),
+        sa.Column("format", sa.String(length=8), nullable=False),
         sa.Column("physical_location", sa.String(length=255), nullable=True),
         sa.Column("digital_location", sa.String(length=500), nullable=True),
-        sa.Column("status", copy_status, nullable=False),
+        sa.Column("status", sa.String(length=9), nullable=False),
         sa.ForeignKeyConstraint(["book_id"], ["books.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["library_id"], ["libraries.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -235,4 +232,6 @@ def downgrade() -> None:
     op.drop_table("themes")
     op.drop_table("authors")
     op.drop_table("publishers")
+    op.drop_table("collections")
+    op.drop_table("countries")
     op.drop_table("libraries")

@@ -1,7 +1,7 @@
 """Add shared library community MVP tables.
 
 Revision ID: 0014_shared_library_community
-Revises: 0013_repair_book_genre
+Revises: 0007_create_user_copies
 Create Date: 2026-05-04 12:00:00
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0014_shared_library_community"
-down_revision: Union[str, None] = "0013_repair_book_genre"
+down_revision: Union[str, None] = "0007_create_user_copies"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

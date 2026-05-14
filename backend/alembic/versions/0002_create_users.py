@@ -1,7 +1,7 @@
-"""Create users table.
+"""Create users table with the current auth columns.
 
 Revision ID: 0002_create_users
-Revises: 0001_initial_baseline
+Revises:
 Create Date: 2026-04-18 00:45:00
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0002_create_users"
-down_revision: Union[str, None] = "0001_initial_baseline"
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

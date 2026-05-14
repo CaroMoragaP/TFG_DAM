@@ -449,20 +449,6 @@ export function BookModal({
               {errors.collection ? <p className="field-error">{errors.collection}</p> : null}
             </label>
 
-            {mode === "create" ? (
-              <label className="field-group">
-                Estado inicial
-                <select
-                  value={formValues.readingStatus}
-                  onChange={(event) => handleFieldChange("readingStatus", event.target.value as ReadingStatus)}
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="reading">Leyendo</option>
-                  <option value="finished">Leido</option>
-                </select>
-              </label>
-            ) : null}
-
             <label className="field-group">
               URL de portada
               <input

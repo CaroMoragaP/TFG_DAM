@@ -101,7 +101,7 @@ describe("BookModal", () => {
 
     expect(librarySelect).toBeInTheDocument();
     expect(librarySelect.value).toBe("1");
-    expect(screen.getByText("Estado inicial")).toBeInTheDocument();
+    expect(screen.queryByText("Estado inicial")).not.toBeInTheDocument();
     expect(screen.getByText("Rating")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));

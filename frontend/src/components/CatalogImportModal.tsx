@@ -45,6 +45,12 @@ export function CatalogImportModal({
     () => preview?.rows.filter((row) => row.status === "ready") ?? [],
     [preview],
   );
+  const statusLabelByCode: Record<CatalogImportPreviewRow["status"], string> = {
+    ready: "lista",
+    duplicate_existing: "duplicada (ya existe en biblioteca)",
+    duplicate_in_file: "duplicada (repetida en CSV)",
+    invalid: "invalida",
+  };
 
   if (!isOpen) {
     return null;
@@ -143,7 +149,7 @@ export function CatalogImportModal({
                 {preview.rows.map((row) => (
                   <div key={row.row_number} className="panel subtle-panel">
                     <p>
-                      Fila {row.row_number}: {row.status}
+                      Fila {row.row_number}: {statusLabelByCode[row.status]}
                     </p>
                     {row.normalized_payload ? <p>{row.normalized_payload.title}</p> : null}
                     {row.normalized_payload?.primary_author_display_name ? (

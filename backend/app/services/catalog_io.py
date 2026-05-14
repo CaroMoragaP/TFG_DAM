@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
 import csv
 from io import StringIO
 from typing import Any
@@ -100,6 +102,67 @@ EXPORT_FIELDNAMES = [
 _COPY_STATUS_VALUES = {"available", "loaned", "reserved"}
 _READING_STATUS_VALUES = {"pending", "reading", "finished"}
 _COPY_FORMAT_VALUES = {"physical", "digital"}
+_MAX_PREVIEW_ROWS = 1000
+_OPEN_LIBRARY_PREVIEW_MAX_WORKERS = 8
+
+
+def _require_catalog_import_permission(db: Session, *, user_id: int, library_id: int) -> Library:
+    # Preview and commit are separate requests; we re-check permissions in both paths
+    # to avoid TOCTOU issues if membership/role changes between calls.
+    return get_accessible_library(
+        db,
+        user_id=user_id,
+        library_id=library_id,
+        allowed_roles=CATALOG_MANAGEMENT_ROLES,
+    )
+
+
+def _enrich_preview_rows_from_open_library(
+    rows: list[tuple[int, CatalogImportRowPayload, list[str]]],
+) -> dict[int, CatalogImportRowPayload]:
+    if not rows:
+        return {}
+
+    enriched: dict[int, CatalogImportRowPayload] = {}
+    with_lookup = [
+        (row_number, payload, messages)
+        for row_number, payload, messages in rows
+        if _should_lookup_open_library(payload)
+    ]
+
+    for row_number, payload, _ in rows:
+        if not _should_lookup_open_library(payload):
+            enriched[row_number] = payload
+
+    if not with_lookup:
+        return enriched
+
+    worker_count = min(_OPEN_LIBRARY_PREVIEW_MAX_WORKERS, len(with_lookup))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        future_to_context = {
+            executor.submit(_enrich_payload_from_open_library, payload, messages): (row_number, payload, messages)
+            for row_number, payload, messages in with_lookup
+        }
+        for future in as_completed(future_to_context):
+            row_number, payload, messages = future_to_context[future]
+            try:
+                enriched[row_number] = future.result()
+            except Exception:
+                messages.append("No se pudo consultar Open Library para completar ISBN/portada.")
+                enriched[row_number] = payload
+
+    return enriched
+
+
+def _should_lookup_open_library(payload: CatalogImportRowPayload) -> bool:
+    if payload.isbn is not None and payload.cover_url is not None:
+        return False
+
+    author_name = payload.primary_author_display_name
+    if author_name is None and payload.authors:
+        author_name = payload.authors[0]
+
+    return author_name is not None
 
 
 def preview_catalog_import(
@@ -109,12 +172,7 @@ def preview_catalog_import(
     library_id: int,
     file_bytes: bytes,
 ) -> CatalogImportPreviewOut:
-    get_accessible_library(
-        db,
-        user_id=user_id,
-        library_id=library_id,
-        allowed_roles=CATALOG_MANAGEMENT_ROLES,
-    )
+    _require_catalog_import_permission(db, user_id=user_id, library_id=library_id)
 
     rows = _read_csv_rows(file_bytes)
     existing_keys = _existing_library_duplicate_keys(db, library_id=library_id)
@@ -123,38 +181,12 @@ def preview_catalog_import(
     ready_count = 0
     duplicate_count = 0
     invalid_count = 0
+    candidate_rows: list[tuple[int, CatalogImportRowPayload, list[str]]] = []
 
     for row_number, row in rows:
         try:
             payload = _build_payload_for_row(row)
-            messages: list[str] = []
-            payload = _enrich_payload_from_open_library(payload, messages)
-            _validate_payload(payload)
-            duplicate_key = _build_duplicate_key(payload)
-            status = "ready"
-
-            if duplicate_key is not None and duplicate_key in existing_keys:
-                status = "duplicate"
-                messages.append("La biblioteca ya contiene un libro con esa identidad.")
-            elif duplicate_key is not None and duplicate_key in file_keys:
-                status = "duplicate"
-                messages.append("La fila duplica otro libro del mismo archivo.")
-
-            if status == "ready" and duplicate_key is not None:
-                file_keys.add(duplicate_key)
-
-            preview_rows.append(
-                CatalogImportPreviewRowOut(
-                    row_number=row_number,
-                    status=status,
-                    messages=messages,
-                    normalized_payload=payload,
-                ),
-            )
-            if status == "ready":
-                ready_count += 1
-            else:
-                duplicate_count += 1
+            candidate_rows.append((row_number, payload, []))
         except ValueError as exc:
             preview_rows.append(
                 CatalogImportPreviewRowOut(
@@ -166,12 +198,58 @@ def preview_catalog_import(
             )
             invalid_count += 1
 
+    enriched_payloads = _enrich_preview_rows_from_open_library(candidate_rows)
+    ready_or_duplicate_rows: list[CatalogImportPreviewRowOut] = []
+
+    for row_number, payload, messages in candidate_rows:
+        try:
+            resolved_payload = enriched_payloads.get(row_number, payload)
+            _validate_payload(resolved_payload)
+            duplicate_key = _build_duplicate_key(resolved_payload)
+            status = "ready"
+
+            if duplicate_key is not None and duplicate_key in existing_keys:
+                status = "duplicate_existing"
+                messages.append("La biblioteca ya contiene un libro con esa identidad.")
+            elif duplicate_key is not None and duplicate_key in file_keys:
+                status = "duplicate_in_file"
+                messages.append("La fila duplica otro libro del mismo archivo.")
+
+            if status == "ready" and duplicate_key is not None:
+                file_keys.add(duplicate_key)
+
+            row_result = CatalogImportPreviewRowOut(
+                row_number=row_number,
+                status=status,
+                messages=messages,
+                normalized_payload=resolved_payload,
+            )
+            if status == "ready":
+                ready_count += 1
+            else:
+                duplicate_count += 1
+        except ValueError as exc:
+            row_result = CatalogImportPreviewRowOut(
+                row_number=row_number,
+                status="invalid",
+                messages=[str(exc)],
+                normalized_payload=None,
+            )
+            invalid_count += 1
+
+        ready_or_duplicate_rows.append(row_result)
+
+    rows_by_number = {row.row_number: row for row in ready_or_duplicate_rows}
+    for row in preview_rows:
+        rows_by_number[row.row_number] = row
+    ordered_preview_rows = [rows_by_number[row_number] for row_number, _ in rows]
+
     return CatalogImportPreviewOut(
-        total=len(preview_rows),
+        total=len(rows),
         ready=ready_count,
         duplicates=duplicate_count,
         invalid=invalid_count,
-        rows=preview_rows,
+        rows=ordered_preview_rows,
     )
 
 
@@ -181,24 +259,22 @@ def commit_catalog_import(
     user_id: int,
     payload: CatalogImportCommitIn,
 ) -> CatalogImportCommitOut:
-    library = get_accessible_library(
-        db,
-        user_id=user_id,
-        library_id=payload.library_id,
-        allowed_roles=CATALOG_MANAGEMENT_ROLES,
-    )
+    library = _require_catalog_import_permission(db, user_id=user_id, library_id=payload.library_id)
 
     results: list[CatalogImportResultRowOut] = []
     imported = 0
     skipped_duplicates = 0
     failed = 0
     imported_titles: list[str] = []
+    warnings: list[str] = []
 
     for row in payload.rows:
         if row.status != "ready" or row.normalized_payload is None:
             continue
 
         try:
+            # Re-validate preview payloads on commit because they round-trip via HTTP
+            # and can be edited/tampered with between preview and persistence.
             book_create = BookCreate.model_validate(
                 {
                     "library_id": payload.library_id,
@@ -244,18 +320,25 @@ def commit_catalog_import(
             )
             failed += 1
 
-    record_books_imported_event(
-        db,
-        library=library,
-        actor_user_id=user_id,
-        imported_count=imported,
-        sample_titles=imported_titles,
-    )
+    try:
+        record_books_imported_event(
+            db,
+            library=library,
+            actor_user_id=user_id,
+            imported_count=imported,
+            sample_titles=imported_titles,
+        )
+    except Exception:
+        warnings.append(
+            "La importacion se guardo correctamente, pero no se pudo registrar el evento de actividad.",
+        )
+
     db.commit()
     return CatalogImportCommitOut(
         imported=imported,
         skipped_duplicates=skipped_duplicates,
         failed=failed,
+        warnings=warnings,
         results=results,
     )
 
@@ -354,10 +437,14 @@ def _read_csv_rows(file_bytes: bytes) -> list[tuple[int, dict[str, str]]]:
     if reader.fieldnames is None:
         raise ValueError("El archivo CSV no incluye cabeceras.")
 
-    return [
-        (index, {key: (value or "") for key, value in row.items()})
-        for index, row in enumerate(reader, start=2)
-    ]
+    rows: list[tuple[int, dict[str, str]]] = []
+    for index, row in enumerate(reader, start=2):
+        rows.append((index, {key: (value or "") for key, value in row.items()}))
+        if len(rows) > _MAX_PREVIEW_ROWS:
+            raise ValueError(
+                f"El CSV supera el maximo de {_MAX_PREVIEW_ROWS} filas permitido para previsualizar/importar.",
+            )
+    return rows
 
 
 def _build_payload_for_row(row: dict[str, str]) -> CatalogImportRowPayload:

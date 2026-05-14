@@ -261,7 +261,7 @@ export function DashboardPage() {
       themes: buildBookPayloadThemes(values),
       collection_name: values.collection.trim() || null,
       cover_url: values.coverUrl.trim() || null,
-      reading_status: values.readingStatus,
+      reading_status: "pending",
       user_rating: values.userRating ? Number(values.userRating) : null,
     };
 

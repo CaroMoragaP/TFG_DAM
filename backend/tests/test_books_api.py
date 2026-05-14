@@ -397,6 +397,168 @@ def test_user_copy_start_date_marks_book_as_reading(client: TestClient) -> None:
     }
 
 
+def test_user_copy_pending_status_clears_reading_dates(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="La quinta estacion",
+        author="N. K. Jemisin",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    start_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"start_date": "2026-04-20"},
+    )
+    assert start_response.status_code == 200
+
+    cancel_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"reading_status": "pending"},
+    )
+
+    assert cancel_response.status_code == 200
+    assert cancel_response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "pending",
+        "rating": None,
+        "start_date": None,
+        "end_date": None,
+        "personal_notes": None,
+    }
+
+
+def test_user_copy_finished_status_sets_end_date_automatically(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="El nombre del mundo es bosque",
+        author="Ursula K. Le Guin",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    start_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"start_date": "2026-04-20"},
+    )
+    assert start_response.status_code == 200
+
+    finish_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"reading_status": "finished"},
+    )
+
+    assert finish_response.status_code == 200
+    assert finish_response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "finished",
+        "rating": None,
+        "start_date": "2026-04-20",
+        "end_date": str(date.today()),
+        "personal_notes": None,
+    }
+
+
+def test_user_copy_start_date_on_finished_book_reopens_as_reread(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="Exhalacion",
+        author="Ted Chiang",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    finish_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={
+            "start_date": "2026-04-01",
+            "end_date": "2026-04-10",
+        },
+    )
+    assert finish_response.status_code == 200
+
+    reread_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"start_date": "2026-05-01"},
+    )
+
+    assert reread_response.status_code == 200
+    assert reread_response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "reading",
+        "rating": None,
+        "start_date": "2026-05-01",
+        "end_date": None,
+        "personal_notes": None,
+    }
+
+
+def test_user_copy_clearing_finished_end_date_reopens_reading(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    created = create_book(
+        client,
+        headers,
+        library_id,
+        title="La parabola de los talentos",
+        author="Octavia E. Butler",
+        theme="Sci-Fi",
+        reading_status="pending",
+        user_rating=None,
+    )
+
+    finish_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={
+            "start_date": "2026-04-01",
+            "end_date": "2026-04-10",
+        },
+    )
+    assert finish_response.status_code == 200
+
+    reopen_response = client.put(
+        f"/copies/{created['id']}/user-data",
+        headers=headers,
+        json={"end_date": None},
+    )
+
+    assert reopen_response.status_code == 200
+    assert reopen_response.json() == {
+        "copy_id": created["id"],
+        "reading_status": "reading",
+        "rating": None,
+        "start_date": "2026-04-01",
+        "end_date": None,
+        "personal_notes": None,
+    }
+
+
 def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
     headers = register_user(client)
     personal_library_id = get_personal_library_id(client, headers)
@@ -874,5 +1036,136 @@ def test_catalog_csv_preview_uses_enriched_isbn_for_duplicate_detection(
     assert duplicate_preview_response.status_code == 200
     duplicate_payload = duplicate_preview_response.json()
     assert duplicate_payload["duplicates"] == 1
-    assert duplicate_payload["rows"][0]["status"] == "duplicate"
+    assert duplicate_payload["rows"][0]["status"] == "duplicate_existing"
     assert "La biblioteca ya contiene un libro con esa identidad." in duplicate_payload["rows"][0]["messages"]
+
+
+def test_catalog_csv_preview_marks_duplicates_inside_file(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    def fake_lookup_by_metadata(
+        *,
+        title: str,
+        author: str | None = None,
+        publisher: str | None = None,
+    ) -> ExternalBookLookupOut:
+        del author
+        del publisher
+        return ExternalBookLookupOut(
+            title=title,
+            authors=["Jorge Luis Borges"],
+            publication_year=None,
+            isbn=None,
+            themes=[],
+            cover_url=None,
+            publisher_name=None,
+        )
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+
+    csv_payload = (
+        "UbicaciÃƒÂ³n,Libro,Apellido,Nombre,GÃƒÂ©nero,Editorial,ColecciÃƒÂ³n,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃƒÂ©,Biblioteca Esencial,Argentina,M\r\n"
+        "Caja 2,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃƒÂ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+
+    assert preview_response.status_code == 200
+    payload = preview_response.json()
+    assert payload["duplicates"] == 1
+    assert payload["rows"][0]["status"] == "ready"
+    assert payload["rows"][1]["status"] == "duplicate_in_file"
+    assert "La fila duplica otro libro del mismo archivo." in payload["rows"][1]["messages"]
+
+
+def test_catalog_csv_preview_rejects_files_over_row_limit(client: TestClient) -> None:
+    headers = register_user(client)
+    library_id = get_personal_library_id(client, headers)
+
+    rows = [
+        "UbicaciÃ³n,Libro,Apellido,Nombre,GÃ©nero,Editorial,ColecciÃ³n,Nacionalidad,Sexo",
+        *[
+            f"Caja {index},Libro {index},Borges,Jorge Luis,Narrativo,EmecÃ©,Biblioteca Esencial,Argentina,M"
+            for index in range(1, 1002)
+        ],
+    ]
+    csv_payload = ("\r\n".join(rows) + "\r\n").encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=headers,
+        data={"library_id": str(library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+
+    assert preview_response.status_code == 422
+    assert "maximo de 1000 filas" in preview_response.json()["detail"]
+
+
+def test_catalog_import_commits_even_if_activity_event_fails(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    owner_headers = register_user(client)
+    shared_library_id = create_library(client, owner_headers, name="Importaciones sin evento")
+
+    def fake_lookup_by_metadata(
+        *,
+        title: str,
+        author: str | None = None,
+        publisher: str | None = None,
+    ) -> ExternalBookLookupOut:
+        del author
+        del publisher
+        return ExternalBookLookupOut(
+            title=title,
+            authors=["Jorge Luis Borges"],
+            publication_year=None,
+            isbn="9780307950928",
+            themes=[],
+            cover_url="https://example.com/ficciones.jpg",
+            publisher_name="Emece",
+        )
+
+    def fail_activity_event(*_: object, **__: object) -> None:
+        raise RuntimeError("fallo de actividad")
+
+    monkeypatch.setattr(catalog_io_service, "lookup_open_library_book_by_metadata", fake_lookup_by_metadata)
+    monkeypatch.setattr(catalog_io_service, "record_books_imported_event", fail_activity_event)
+
+    csv_payload = (
+        "UbicaciÃƒÂ³n,Libro,Apellido,Nombre,GÃƒÂ©nero,Editorial,ColecciÃƒÂ³n,Nacionalidad,Sexo\r\n"
+        "Caja 1,Ficciones,Borges,Jorge Luis,Narrativo,EmecÃƒÂ©,Biblioteca Esencial,Argentina,M\r\n"
+    ).encode("utf-8")
+
+    preview_response = client.post(
+        "/books/imports/preview",
+        headers=owner_headers,
+        data={"library_id": str(shared_library_id)},
+        files={"file": ("catalogo.csv", BytesIO(csv_payload), "text/csv")},
+    )
+    assert preview_response.status_code == 200
+
+    commit_response = client.post(
+        "/books/imports",
+        headers=owner_headers,
+        json={
+            "library_id": shared_library_id,
+            "rows": preview_response.json()["rows"],
+        },
+    )
+    assert commit_response.status_code == 200
+    commit_payload = commit_response.json()
+    assert commit_payload["imported"] == 1
+    assert commit_payload["failed"] == 0
+    assert len(commit_payload["warnings"]) == 1
+    assert "no se pudo registrar el evento de actividad" in commit_payload["warnings"][0].lower()

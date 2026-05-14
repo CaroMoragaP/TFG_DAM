@@ -257,4 +257,67 @@ describe("ReadingPage", () => {
       });
     });
   });
+
+  it("cancels an active reading by moving it back to pending and clearing both dates", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
+      copy_id: 11,
+      reading_status: "pending",
+      rating: 4,
+      start_date: null,
+      end_date: null,
+      personal_notes: "Capitulos iniciales",
+    });
+
+    renderPage();
+
+    await screen.findByText("Dune");
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
+    fireEvent.change(screen.getByLabelText("Estado de lectura"), {
+      target: { value: "pending" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 11, {
+        reading_status: "pending",
+        start_date: null,
+      });
+    });
+  });
+
+  it("asks for confirmation before reopening a finished book as a reread", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+    apiMocks.updateUserCopyDataRequest.mockResolvedValue({
+      copy_id: 13,
+      reading_status: "reading",
+      rating: 5,
+      start_date: "2026-05-01",
+      end_date: null,
+      personal_notes: "Relectura potente",
+    });
+
+    renderPage("/lectura?tab=finished&library=all");
+
+    await screen.findByText("Ficciones");
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
+    fireEvent.change(screen.getByLabelText("Fecha de inicio"), {
+      target: { value: "2026-05-01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 13, {
+        reading_status: "reading",
+        start_date: "2026-05-01",
+        end_date: null,
+      });
+    });
+
+    confirmSpy.mockRestore();
+  });
 });

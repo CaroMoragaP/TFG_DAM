@@ -83,6 +83,14 @@ const longDateFormatter = new Intl.DateTimeFormat("es-ES", {
   year: "numeric",
 });
 
+function getTodayInputValue() {
+  const today = new Date();
+  const year = String(today.getFullYear());
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function normalizeTab(value: string | null): ReadingTab {
   if (value === "pending" || value === "finished") {
     return value;
@@ -240,14 +248,9 @@ function normalizeReviewBody(value: string) {
 
 function buildUpdatePayload(originalItem: ReadingShelfItem, editorState: EditorState): UserCopyUpdatePayload {
   const payload: UserCopyUpdatePayload = {};
-  const nextReadingStatus = deriveReadingStatusFromDates(
-    editorState.readingStatus,
-    editorState.startDate,
-    editorState.endDate,
-  );
 
-  if (nextReadingStatus !== originalItem.reading_status) {
-    payload.reading_status = nextReadingStatus;
+  if (editorState.readingStatus !== originalItem.reading_status) {
+    payload.reading_status = editorState.readingStatus;
   }
   if (editorState.rating !== originalItem.rating) {
     payload.rating = editorState.rating;
@@ -519,6 +522,83 @@ export function ReadingPage() {
     await deleteReviewMutation.mutateAsync(item.my_public_review.id);
   }
 
+  function handleReadingStatusChange(nextStatus: ReadingStatus) {
+    setEditorState((currentState) => {
+      if (!currentState) {
+        return currentState;
+      }
+
+      if (nextStatus === "pending") {
+        return {
+          ...currentState,
+          readingStatus: "pending",
+          startDate: "",
+          endDate: "",
+        };
+      }
+
+      if (nextStatus === "reading") {
+        if (
+          currentState.endDate &&
+          !window.confirm("Este libro ya figura como leído. ¿Quieres marcarlo como relectura?")
+        ) {
+          return currentState;
+        }
+
+        return {
+          ...currentState,
+          readingStatus: "reading",
+          startDate: currentState.startDate || getTodayInputValue(),
+          endDate: "",
+        };
+      }
+
+      return {
+        ...currentState,
+        readingStatus: "finished",
+        endDate: currentState.endDate || getTodayInputValue(),
+      };
+    });
+  }
+
+  function handleStartDateChange(nextStartDate: string) {
+    setEditorState((currentState) => {
+      if (!currentState) {
+        return currentState;
+      }
+
+      if (
+        nextStartDate &&
+        currentState.endDate &&
+        !window.confirm("Este libro ya figura como leído. ¿Quieres iniciar una relectura?")
+      ) {
+        return currentState;
+      }
+
+      const nextEndDate = nextStartDate && currentState.endDate ? "" : currentState.endDate;
+      return {
+        ...currentState,
+        startDate: nextStartDate,
+        endDate: nextEndDate,
+        readingStatus: deriveReadingStatusFromDates(currentState.readingStatus, nextStartDate, nextEndDate),
+      };
+    });
+  }
+
+  function handleEndDateChange(nextEndDate: string) {
+    setEditorState((currentState) => {
+      if (!currentState) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        endDate: nextEndDate,
+        readingStatus: deriveReadingStatusFromDates(currentState.readingStatus, currentState.startDate, nextEndDate),
+      };
+    });
+  }
+
   return (
     <section className="content-stack">
       <div className="panel hero-panel reading-hero">
@@ -732,13 +812,7 @@ export function ReadingPage() {
                         Estado de lectura
                         <select
                           value={editorState.readingStatus}
-                          onChange={(event) =>
-                            setEditorState((currentState) =>
-                              currentState
-                                ? { ...currentState, readingStatus: event.target.value as ReadingStatus }
-                                : currentState,
-                            )
-                          }
+                          onChange={(event) => handleReadingStatusChange(event.target.value as ReadingStatus)}
                         >
                           <option value="pending">Pendiente</option>
                           <option value="reading">Leyendo</option>
@@ -780,21 +854,7 @@ export function ReadingPage() {
                         <input
                           type="date"
                           value={editorState.startDate}
-                          onChange={(event) =>
-                            setEditorState((currentState) =>
-                              currentState
-                                ? {
-                                    ...currentState,
-                                    startDate: event.target.value,
-                                    readingStatus: deriveReadingStatusFromDates(
-                                      currentState.readingStatus,
-                                      event.target.value,
-                                      currentState.endDate,
-                                    ),
-                                  }
-                                : currentState,
-                            )
-                          }
+                          onChange={(event) => handleStartDateChange(event.target.value)}
                         />
                       </label>
 
@@ -803,21 +863,7 @@ export function ReadingPage() {
                         <input
                           type="date"
                           value={editorState.endDate}
-                          onChange={(event) =>
-                            setEditorState((currentState) =>
-                              currentState
-                                ? {
-                                    ...currentState,
-                                    endDate: event.target.value,
-                                    readingStatus: deriveReadingStatusFromDates(
-                                      currentState.readingStatus,
-                                      currentState.startDate,
-                                      event.target.value,
-                                    ),
-                                  }
-                                : currentState,
-                            )
-                          }
+                          onChange={(event) => handleEndDateChange(event.target.value)}
                         />
                       </label>
 

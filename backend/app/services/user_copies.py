@@ -90,42 +90,30 @@ def update_user_copy_data(
     user_copy = get_or_create_user_copy(db, user_id=user_id, copy_id=copy_id)
 
     previous_status = user_copy.reading_status
+    has_reading_status = "reading_status" in data.model_fields_set
+    has_start_date = "start_date" in data.model_fields_set
+    has_end_date = "end_date" in data.model_fields_set
 
-    if "reading_status" in data.model_fields_set:
-        user_copy.reading_status = data.reading_status or ReadingStatus.PENDING
     if "rating" in data.model_fields_set:
         user_copy.rating = data.rating
-    if "start_date" in data.model_fields_set:
-        user_copy.start_date = data.start_date
-    if "end_date" in data.model_fields_set:
-        user_copy.end_date = data.end_date
     if "personal_notes" in data.model_fields_set:
         user_copy.personal_notes = data.personal_notes
 
-    if (
-        user_copy.reading_status == ReadingStatus.READING
-        and previous_status != ReadingStatus.READING
-        and "start_date" not in data.model_fields_set
-        and user_copy.start_date is None
-    ):
-        user_copy.start_date = date.today()
-
-    if (
-        user_copy.reading_status == ReadingStatus.FINISHED
-        and previous_status != ReadingStatus.FINISHED
-        and "end_date" not in data.model_fields_set
-        and user_copy.end_date is None
-    ):
-        user_copy.end_date = date.today()
-
-    _synchronize_reading_status_with_dates(user_copy)
-
-    if (
-        user_copy.start_date is not None
-        and user_copy.end_date is not None
-        and user_copy.end_date < user_copy.start_date
-    ):
-        raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
+    (
+        user_copy.reading_status,
+        user_copy.start_date,
+        user_copy.end_date,
+    ) = _normalize_reading_progress(
+        previous_status=previous_status,
+        previous_start_date=user_copy.start_date,
+        previous_end_date=user_copy.end_date,
+        has_reading_status=has_reading_status,
+        requested_reading_status=data.reading_status,
+        has_start_date=has_start_date,
+        requested_start_date=data.start_date,
+        has_end_date=has_end_date,
+        requested_end_date=data.end_date,
+    )
 
     if "rating" in data.model_fields_set:
         sync_public_review_rating(
@@ -156,13 +144,58 @@ def serialize_user_copy(user_copy: UserCopy) -> UserCopyOut:
     )
 
 
-def _synchronize_reading_status_with_dates(user_copy: UserCopy) -> None:
-    if user_copy.end_date is not None:
-        user_copy.reading_status = ReadingStatus.FINISHED
-        return
+def _normalize_reading_progress(
+    *,
+    previous_status: ReadingStatus,
+    previous_start_date: date | None,
+    previous_end_date: date | None,
+    has_reading_status: bool,
+    requested_reading_status: ReadingStatus | None,
+    has_start_date: bool,
+    requested_start_date: date | None,
+    has_end_date: bool,
+    requested_end_date: date | None,
+) -> tuple[ReadingStatus, date | None, date | None]:
+    next_status = (
+        requested_reading_status or ReadingStatus.PENDING
+        if has_reading_status
+        else previous_status
+    )
+    next_start_date = requested_start_date if has_start_date else previous_start_date
+    next_end_date = requested_end_date if has_end_date else previous_end_date
 
-    if user_copy.start_date is not None:
-        user_copy.reading_status = ReadingStatus.READING
+    is_reread_request = (
+        has_start_date
+        and requested_start_date is not None
+        and previous_end_date is not None
+        and not has_end_date
+        and (
+            not has_reading_status
+            or next_status == ReadingStatus.READING
+        )
+    )
+    if is_reread_request:
+        next_end_date = None
+
+    if has_reading_status:
+        if next_status == ReadingStatus.PENDING:
+            next_start_date = None
+            next_end_date = None
+        elif next_status == ReadingStatus.READING:
+            if next_start_date is None:
+                next_start_date = date.today()
+            next_end_date = None
+        elif next_status == ReadingStatus.FINISHED and next_end_date is None:
+            next_end_date = date.today()
+
+    if next_end_date is not None and next_start_date is not None and next_end_date < next_start_date:
+        raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
+
+    if next_end_date is not None:
+        return ReadingStatus.FINISHED, next_start_date, next_end_date
+    if next_start_date is not None:
+        return ReadingStatus.READING, next_start_date, next_end_date
+    return ReadingStatus.PENDING, next_start_date, next_end_date
 
 
 def _find_user_copy(

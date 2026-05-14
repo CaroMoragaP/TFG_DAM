@@ -1,7 +1,7 @@
 import type { ReadingStatus } from "./api";
 
 export function deriveReadingStatusFromDates(
-  currentStatus: ReadingStatus,
+  _currentStatus: ReadingStatus,
   startDate: string | null | undefined,
   endDate: string | null | undefined,
 ): ReadingStatus {
@@ -13,5 +13,5 @@ export function deriveReadingStatusFromDates(
     return "reading";
   }
 
-  return currentStatus;
+  return "pending";
 }

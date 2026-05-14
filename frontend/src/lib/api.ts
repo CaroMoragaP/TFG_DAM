@@ -348,7 +348,7 @@ export type CatalogImportRowPayload = {
 
 export type CatalogImportPreviewRow = {
   row_number: number;
-  status: "ready" | "duplicate" | "invalid";
+  status: "ready" | "duplicate_existing" | "duplicate_in_file" | "invalid";
   messages: string[];
   normalized_payload: CatalogImportRowPayload | null;
 };
@@ -373,6 +373,7 @@ export type CatalogImportCommitResponse = {
   imported: number;
   skipped_duplicates: number;
   failed: number;
+  warnings: string[];
   results: CatalogImportCommitResult[];
 };
 

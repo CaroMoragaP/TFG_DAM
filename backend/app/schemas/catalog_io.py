@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -34,7 +36,7 @@ class CatalogImportRowPayload(BaseModel):
 
 class CatalogImportPreviewRowOut(BaseModel):
     row_number: int
-    status: str
+    status: Literal["ready", "duplicate_existing", "duplicate_in_file", "invalid"]
     messages: list[str]
     normalized_payload: CatalogImportRowPayload | None = None
 
@@ -54,7 +56,7 @@ class CatalogImportCommitIn(BaseModel):
 
 class CatalogImportResultRowOut(BaseModel):
     row_number: int
-    status: str
+    status: Literal["imported", "skipped_duplicate", "failed"]
     messages: list[str]
     copy_id: int | None = None
     book_id: int | None = None
@@ -64,4 +66,5 @@ class CatalogImportCommitOut(BaseModel):
     imported: int
     skipped_duplicates: int
     failed: int
+    warnings: list[str] = Field(default_factory=list)
     results: list[CatalogImportResultRowOut]

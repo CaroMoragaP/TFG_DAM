@@ -519,6 +519,10 @@ export function ReadingPage() {
       return;
     }
 
+    if (!window.confirm("Se retirara tu publicacion publica de este libro. Quieres continuar?")) {
+      return;
+    }
+
     await deleteReviewMutation.mutateAsync(item.my_public_review.id);
   }
 

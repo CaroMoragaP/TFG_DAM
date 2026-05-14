@@ -5,6 +5,7 @@ import {
   LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
   normalizeThemeSelection,
+  validateSharedBookFields,
 } from "../lib/bookMetadata";
 import { ThemeSelector } from "./ThemeSelector";
 
@@ -117,6 +118,19 @@ export function BookMetadataModal({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextErrors = validateSharedBookFields({
+      title: formValues.title,
+      authorFirstName: formValues.authorFirstName,
+      authorLastName: formValues.authorLastName,
+      publicationYear: formValues.publicationYear,
+      coverUrl: formValues.coverUrl,
+      themes: formValues.themes,
+    });
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
     setErrors({});
 
     try {
@@ -155,15 +169,17 @@ export function BookMetadataModal({
             <label className="field-group">
               Titulo
               <input value={formValues.title} onChange={(event) => handleFieldChange("title", event.target.value)} />
+              {errors.title ? <p className="field-error">{errors.title}</p> : null}
             </label>
 
             <label className="field-group">
               Nombre del autor principal
               <input
-                value={formValues.authorFirstName}
-                onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
-              />
-            </label>
+                  value={formValues.authorFirstName}
+                  onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
+                />
+                {errors.authorFirstName ? <p className="field-error">{errors.authorFirstName}</p> : null}
+              </label>
 
             <label className="field-group">
               Apellido del autor principal
@@ -202,6 +218,7 @@ export function BookMetadataModal({
                 value={formValues.publicationYear}
                 onChange={(event) => handleFieldChange("publicationYear", event.target.value)}
               />
+              {errors.publicationYear ? <p className="field-error">{errors.publicationYear}</p> : null}
             </label>
 
             <label className="field-group">
@@ -251,6 +268,7 @@ export function BookMetadataModal({
                 value={formValues.coverUrl}
                 onChange={(event) => handleFieldChange("coverUrl", event.target.value)}
               />
+              {errors.coverUrl ? <p className="field-error">{errors.coverUrl}</p> : null}
             </label>
 
             <label className="field-group">

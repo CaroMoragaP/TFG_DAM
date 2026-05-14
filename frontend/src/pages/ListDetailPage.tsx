@@ -103,6 +103,7 @@ export function ListDetailPage() {
   const queryClient = useQueryClient();
   const { token } = useAuth();
   const [sort, setSort] = useState<SortOption>("recent");
+  const [removeBookErrorMessage, setRemoveBookErrorMessage] = useState<string | null>(null);
 
   const listId = Number(id);
   const isValidListId = Number.isInteger(listId) && listId > 0;
@@ -127,6 +128,10 @@ export function ListDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["lists"] }),
         queryClient.invalidateQueries({ queryKey: ["books"] }),
       ]);
+      setRemoveBookErrorMessage(null);
+    },
+    onError: (error) => {
+      setRemoveBookErrorMessage(error instanceof Error ? error.message : "No se pudo quitar el libro de la lista.");
     },
   });
 
@@ -156,6 +161,7 @@ export function ListDetailPage() {
       return;
     }
 
+    setRemoveBookErrorMessage(null);
     await removeBookMutation.mutateAsync(bookId);
   }
 
@@ -227,6 +233,12 @@ export function ListDetailPage() {
               </select>
             </label>
           </div>
+
+          {removeBookErrorMessage ? (
+            <div className="panel">
+              <p className="form-error">{removeBookErrorMessage}</p>
+            </div>
+          ) : null}
 
           {sortedBooks.length === 0 ? (
             <div className="panel empty-state">

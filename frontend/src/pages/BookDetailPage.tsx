@@ -104,6 +104,7 @@ export function BookDetailPage() {
 
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+  const [deleteCopyErrorMessage, setDeleteCopyErrorMessage] = useState<string | null>(null);
 
   const updateCopyMutation = useMutation({
     mutationFn: (payload: CopyEditValues) =>
@@ -159,7 +160,11 @@ export function BookDetailPage() {
     mutationFn: () => deleteCopyRequest(token ?? "", copyId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["books"] });
+      setDeleteCopyErrorMessage(null);
       navigate("/catalogo", { replace: true });
+    },
+    onError: (error) => {
+      setDeleteCopyErrorMessage(error instanceof Error ? error.message : "No se pudo eliminar el ejemplar.");
     },
   });
 
@@ -175,6 +180,12 @@ export function BookDetailPage() {
 
   const isLoading = copyQuery.isPending || userDataQuery.isPending;
   const isError = copyQuery.isError || userDataQuery.isError;
+  const loadErrorMessage =
+    copyQuery.error instanceof Error
+      ? copyQuery.error.message
+      : userDataQuery.error instanceof Error
+        ? userDataQuery.error.message
+        : "No se pudo cargar el detalle del libro.";
   const detail = copyQuery.data;
   const userData = userDataQuery.data;
   const library = detail ? libraries.find((item) => item.id === detail.library_id) ?? null : null;
@@ -205,6 +216,7 @@ export function BookDetailPage() {
     if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
       return;
     }
+    setDeleteCopyErrorMessage(null);
     await deleteCopyMutation.mutateAsync();
   }
 
@@ -222,7 +234,7 @@ export function BookDetailPage() {
 
       {isError ? (
         <div className="panel">
-          <p>No se pudo cargar el detalle del libro.</p>
+          <p>{loadErrorMessage}</p>
         </div>
       ) : null}
 
@@ -321,6 +333,8 @@ export function BookDetailPage() {
                     </button>
                   ) : null}
                 </div>
+
+                {deleteCopyErrorMessage ? <p className="form-error">{deleteCopyErrorMessage}</p> : null}
               </div>
             </div>
           </article>

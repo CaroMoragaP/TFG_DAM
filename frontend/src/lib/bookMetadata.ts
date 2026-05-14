@@ -7,6 +7,19 @@ export const LITERARY_GENRE_OPTIONS = [
 
 export const MAX_BOOK_THEMES = 3;
 
+export type SharedBookFormValues = {
+  title: string;
+  authorFirstName: string;
+  authorLastName: string;
+  publicationYear: string;
+  coverUrl: string;
+  themes: string[];
+};
+
+export type SharedBookFormErrors = Partial<
+  Record<"title" | "authorFirstName" | "publicationYear" | "coverUrl" | "themes", string>
+>;
+
 export function normalizeThemeSelection(themes: string[]) {
   const seen = new Set<string>();
   const normalizedThemes: string[] = [];
@@ -27,6 +40,39 @@ export function normalizeThemeSelection(themes: string[]) {
   });
 
   return normalizedThemes.slice(0, MAX_BOOK_THEMES);
+}
+
+export function validateSharedBookFields(values: SharedBookFormValues): SharedBookFormErrors {
+  const errors: SharedBookFormErrors = {};
+
+  if (!values.title.trim()) {
+    errors.title = "El titulo es obligatorio.";
+  }
+
+  if (!values.authorFirstName.trim() && !values.authorLastName.trim()) {
+    errors.authorFirstName = "El autor es obligatorio.";
+  }
+
+  if (values.publicationYear.trim()) {
+    const parsedYear = Number(values.publicationYear);
+    if (!Number.isInteger(parsedYear) || parsedYear < 0 || parsedYear > 9999) {
+      errors.publicationYear = "Introduce un ano valido.";
+    }
+  }
+
+  if (values.coverUrl.trim()) {
+    try {
+      new URL(values.coverUrl);
+    } catch {
+      errors.coverUrl = "Introduce una URL valida.";
+    }
+  }
+
+  if (values.themes.length > MAX_BOOK_THEMES) {
+    errors.themes = `Selecciona como maximo ${MAX_BOOK_THEMES} temas.`;
+  }
+
+  return errors;
 }
 
 export function toggleThemeSelection(selectedThemes: string[], theme: string) {

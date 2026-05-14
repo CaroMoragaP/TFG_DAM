@@ -101,6 +101,7 @@ describe("ListsPage", () => {
   });
 
   it("keeps edit and delete actions from navigating by mistake", async () => {
+    const confirmMock = vi.spyOn(window, "confirm").mockReturnValue(true);
     apiMocks.fetchLists.mockResolvedValue([
       {
         id: 2,
@@ -128,8 +129,11 @@ describe("ListsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
 
     await waitFor(() => {
+      expect(confirmMock).toHaveBeenCalled();
       expect(apiMocks.deleteListRequest).toHaveBeenCalledWith("token", 2);
     });
     expect(navigateMock).not.toHaveBeenCalled();
+
+    confirmMock.mockRestore();
   });
 });

@@ -19,6 +19,7 @@ export function ListsPage() {
   const queryClient = useQueryClient();
   const [editingList, setEditingList] = useState<UserList | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
 
   const listsQuery = useQuery({
     queryKey: ["lists"],
@@ -51,6 +52,10 @@ export function ListsPage() {
     mutationFn: (listId: number) => deleteListRequest(token ?? "", listId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["lists"] });
+      setDeleteErrorMessage(null);
+    },
+    onError: (error) => {
+      setDeleteErrorMessage(error instanceof Error ? error.message : "No se pudo eliminar la lista.");
     },
   });
 
@@ -86,6 +91,15 @@ export function ListsPage() {
     await createListMutation.mutateAsync(payload);
   }
 
+  function handleDeleteList(list: UserList) {
+    if (!window.confirm(`Se eliminara la lista "${list.name}" y su contenido guardado. Quieres continuar?`)) {
+      return;
+    }
+
+    setDeleteErrorMessage(null);
+    deleteListMutation.mutate(list.id);
+  }
+
   return (
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
@@ -105,14 +119,28 @@ export function ListsPage() {
         </div>
       ) : null}
 
-      {visibleLists.length === 0 ? (
+      {deleteErrorMessage ? (
+        <div className="panel">
+          <p className="form-error">{deleteErrorMessage}</p>
+        </div>
+      ) : null}
+
+      {listsQuery.isPending ? (
+        <div className="catalog-grid">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="book-skeleton panel list-page-skeleton" aria-hidden="true" />
+          ))}
+        </div>
+      ) : null}
+
+      {listsQuery.isSuccess && visibleLists.length === 0 ? (
         <div className="panel empty-state">
           <h3>Aun no tienes listas.</h3>
           <p>Crea tu primera lista para empezar a organizar lecturas y recomendaciones.</p>
         </div>
       ) : null}
 
-      {visibleLists.length > 0 ? (
+      {listsQuery.isSuccess && visibleLists.length > 0 ? (
         <div className="catalog-grid">
           {visibleLists.map((list) => (
             <article
@@ -158,7 +186,7 @@ export function ListsPage() {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    deleteListMutation.mutate(list.id);
+                    handleDeleteList(list);
                   }}
                   disabled={deleteListMutation.isPending}
                 >

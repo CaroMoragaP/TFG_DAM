@@ -44,6 +44,7 @@ export function DashboardPage() {
   const [importPreview, setImportPreview] = useState<CatalogImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const q = searchParams.get("q") ?? "";
@@ -300,6 +301,7 @@ export function DashboardPage() {
 
   async function handleExportCatalog() {
     setIsExporting(true);
+    setExportErrorMessage(null);
     try {
       const blob = await exportCatalogRequest(token ?? "", {
         libraryId: selectedLibraryId,
@@ -318,6 +320,8 @@ export function DashboardPage() {
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setExportErrorMessage(error instanceof Error ? error.message : "No se pudo exportar el catalogo.");
     } finally {
       setIsExporting(false);
     }
@@ -460,6 +464,12 @@ export function DashboardPage() {
       {isLibrariesError ? (
         <div className="panel">
           <p>No se pudieron cargar las bibliotecas accesibles.</p>
+        </div>
+      ) : null}
+
+      {exportErrorMessage ? (
+        <div className="panel">
+          <p className="form-error">{exportErrorMessage}</p>
         </div>
       ) : null}
 

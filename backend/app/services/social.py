@@ -509,7 +509,9 @@ def validate_copy_status_update(db: Session, *, copy_id: int, status: CopyStatus
     if status is None:
         return
     if status == CopyStatus.LOANED:
-        return
+        raise LoanConflictError(
+            "El estado prestado queda reservado para la futura gestion de prestamos y no puede asignarse manualmente.",
+        )
 
     active_loan = db.scalar(
         select(CopyLoan.id).where(

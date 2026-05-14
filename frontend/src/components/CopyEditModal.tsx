@@ -143,9 +143,12 @@ export function CopyEditModal({
                 onChange={(event) => handleFieldChange("status", event.target.value as CopyStatus)}
               >
                 <option value="available">Disponible</option>
-                <option value="loaned">Prestado</option>
+                {formValues.status === "loaned" ? <option value="loaned">Prestado (reservado)</option> : null}
                 <option value="reserved">Reservado</option>
               </select>
+              <p className="detail-inline-copy">
+                El estado prestado queda reservado para la futura gestion de prestamos.
+              </p>
             </label>
 
             <label className="field-group">

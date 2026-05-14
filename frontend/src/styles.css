@@ -694,6 +694,18 @@ dd {
     rgba(255, 255, 255, 0.54);
 }
 
+.list-page-skeleton {
+  min-height: 220px;
+}
+
+.library-list-skeleton {
+  min-height: 88px;
+}
+
+.library-member-skeleton {
+  min-height: 150px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

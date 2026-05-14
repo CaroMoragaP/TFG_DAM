@@ -320,4 +320,41 @@ describe("ReadingPage", () => {
 
     confirmSpy.mockRestore();
   });
+
+  it("asks for confirmation before removing a public review", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const shelf = buildShelf();
+    shelf[1] = {
+      ...shelf[1],
+      rating: 4,
+      my_public_review: {
+        id: 44,
+        copy_id: 12,
+        user_id: 1,
+        user_name: "Ada",
+        rating: 4,
+        body: "Muy recomendable.",
+        created_at: "2026-05-01T10:00:00Z",
+        updated_at: "2026-05-01T10:00:00Z",
+      },
+    };
+    apiMocks.fetchReadingShelf.mockResolvedValue(shelf);
+    apiMocks.deleteReviewRequest.mockResolvedValue(undefined);
+
+    renderPage("/lectura?tab=pending&library=2&copy=12");
+
+    await screen.findByText("Kindred");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Retirar publicacion" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retirar publicacion" }));
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(apiMocks.deleteReviewRequest).toHaveBeenCalledWith("token", 44);
+    });
+
+    confirmSpy.mockRestore();
+  });
 });

@@ -36,6 +36,8 @@ export function LibrariesPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Exclude<UserLibraryRole, "owner">>("editor");
   const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<number, Exclude<UserLibraryRole, "owner">>>({});
+  const [libraryActionErrorMessage, setLibraryActionErrorMessage] = useState<string | null>(null);
+  const [memberActionErrorMessage, setMemberActionErrorMessage] = useState<string | null>(null);
 
   const librariesQuery = useQuery({
     queryKey: ["libraries", "all"],
@@ -73,6 +75,8 @@ export function LibrariesPage() {
   useEffect(() => {
     if (selectedLibrary) {
       setRenameDraft(selectedLibrary.name);
+      setLibraryActionErrorMessage(null);
+      setMemberActionErrorMessage(null);
     }
   }, [selectedLibrary]);
 
@@ -122,6 +126,10 @@ export function LibrariesPage() {
     mutationFn: (libraryId: number) => archiveLibraryRequest(token ?? "", libraryId),
     onSuccess: async () => {
       await invalidateLibraries();
+      setLibraryActionErrorMessage(null);
+    },
+    onError: (error) => {
+      setLibraryActionErrorMessage(error instanceof Error ? error.message : "No se pudo archivar la biblioteca.");
     },
   });
 
@@ -129,6 +137,10 @@ export function LibrariesPage() {
     mutationFn: (libraryId: number) => restoreLibraryRequest(token ?? "", libraryId),
     onSuccess: async () => {
       await invalidateLibraries();
+      setLibraryActionErrorMessage(null);
+    },
+    onError: (error) => {
+      setLibraryActionErrorMessage(error instanceof Error ? error.message : "No se pudo restaurar la biblioteca.");
     },
   });
 
@@ -136,9 +148,13 @@ export function LibrariesPage() {
     mutationFn: (libraryId: number) => deleteLibraryRequest(token ?? "", libraryId),
     onSuccess: async (_data, libraryId) => {
       await invalidateLibraries();
+      setLibraryActionErrorMessage(null);
       if (selectedLibraryId === libraryId) {
         setSelectedLibraryId(null);
       }
+    },
+    onError: (error) => {
+      setLibraryActionErrorMessage(error instanceof Error ? error.message : "No se pudo borrar la biblioteca.");
     },
   });
 
@@ -165,6 +181,10 @@ export function LibrariesPage() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["library-members", selectedLibrary?.id] });
+      setMemberActionErrorMessage(null);
+    },
+    onError: (error) => {
+      setMemberActionErrorMessage(error instanceof Error ? error.message : "No se pudo actualizar el rol.");
     },
   });
 
@@ -176,6 +196,10 @@ export function LibrariesPage() {
         invalidateLibraries(),
         queryClient.invalidateQueries({ queryKey: ["library-members", selectedLibrary?.id] }),
       ]);
+      setMemberActionErrorMessage(null);
+    },
+    onError: (error) => {
+      setMemberActionErrorMessage(error instanceof Error ? error.message : "No se pudo expulsar al miembro.");
     },
   });
 
@@ -183,8 +207,7 @@ export function LibrariesPage() {
     selectedLibrary &&
       selectedLibrary.type === "shared" &&
       selectedLibrary.role === "owner" &&
-      selectedLibrary.member_count === 1 &&
-      selectedLibrary.copy_count === 0,
+      selectedLibrary.member_count === 1,
   );
 
   function renderLibraryButton(library: Library) {
@@ -256,7 +279,13 @@ export function LibrariesPage() {
         <div className="content-stack">
           <div className="panel">
             <p className="eyebrow">Activas</p>
-            {activeLibraries.length === 0 ? (
+            {librariesQuery.isPending ? (
+              <div className="content-stack">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
+                ))}
+              </div>
+            ) : activeLibraries.length === 0 ? (
               <p>No tienes bibliotecas activas.</p>
             ) : (
               <div className="content-stack">{activeLibraries.map(renderLibraryButton)}</div>
@@ -265,7 +294,13 @@ export function LibrariesPage() {
 
           <div className="panel">
             <p className="eyebrow">Archivadas</p>
-            {archivedLibraries.length === 0 ? (
+            {librariesQuery.isPending ? (
+              <div className="content-stack">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
+                ))}
+              </div>
+            ) : archivedLibraries.length === 0 ? (
               <p>No hay bibliotecas archivadas.</p>
             ) : (
               <div className="content-stack">{archivedLibraries.map(renderLibraryButton)}</div>
@@ -339,6 +374,7 @@ export function LibrariesPage() {
                     type="button"
                     onClick={() => {
                       if (window.confirm("La biblioteca se archivará y saldrá del catálogo operativo.")) {
+                        setLibraryActionErrorMessage(null);
                         archiveLibraryMutation.mutate(selectedLibrary.id);
                       }
                     }}
@@ -352,7 +388,10 @@ export function LibrariesPage() {
                   <button
                     className="ghost-link compact-action"
                     type="button"
-                    onClick={() => restoreLibraryMutation.mutate(selectedLibrary.id)}
+                    onClick={() => {
+                      setLibraryActionErrorMessage(null);
+                      restoreLibraryMutation.mutate(selectedLibrary.id);
+                    }}
                     disabled={restoreLibraryMutation.isPending}
                   >
                     Restaurar biblioteca
@@ -365,6 +404,7 @@ export function LibrariesPage() {
                     type="button"
                     onClick={() => {
                       if (window.confirm("La biblioteca se eliminará definitivamente. ¿Quieres continuar?")) {
+                        setLibraryActionErrorMessage(null);
                         deleteLibraryMutation.mutate(selectedLibrary.id);
                       }
                     }}
@@ -376,9 +416,10 @@ export function LibrariesPage() {
 
                 {selectedLibrary.type === "shared" && !canDeleteSelectedLibrary ? (
                   <p className="detail-inline-copy">
-                    El borrado definitivo solo está disponible si no hay miembros adicionales y la biblioteca está vacía.
+                    El borrado definitivo solo está disponible si no hay miembros adicionales en la biblioteca.
                   </p>
                 ) : null}
+                {libraryActionErrorMessage ? <p className="form-error">{libraryActionErrorMessage}</p> : null}
               </div>
             </div>
           ) : null}
@@ -422,7 +463,13 @@ export function LibrariesPage() {
               <div className="content-stack">
                 <div className="panel">
                   <p className="eyebrow">Miembros</p>
-                  {membersQuery.isPending ? <p>Cargando miembros...</p> : null}
+                  {membersQuery.isPending ? (
+                    <div className="content-stack">
+                      {Array.from({ length: 2 }).map((_, index) => (
+                        <div key={index} className="panel book-skeleton library-member-skeleton" aria-hidden="true" />
+                      ))}
+                    </div>
+                  ) : null}
                   {membersQuery.isError ? <p>No se pudieron cargar los miembros.</p> : null}
                   {membersQuery.data ? (
                     <div className="content-stack">
@@ -456,7 +503,10 @@ export function LibrariesPage() {
                               <button
                                 className="ghost-link compact-action"
                                 type="button"
-                                onClick={() => updateMemberMutation.mutate(member.user_id)}
+                                onClick={() => {
+                                  setMemberActionErrorMessage(null);
+                                  updateMemberMutation.mutate(member.user_id);
+                                }}
                                 disabled={updateMemberMutation.isPending || selectedLibrary.is_archived}
                               >
                                 Guardar rol
@@ -464,7 +514,13 @@ export function LibrariesPage() {
                               <button
                                 className="ghost-link compact-action danger-action"
                                 type="button"
-                                onClick={() => removeMemberMutation.mutate(member.user_id)}
+                                onClick={() => {
+                                  if (!window.confirm(`Se expulsara a ${member.name} de la biblioteca. Quieres continuar?`)) {
+                                    return;
+                                  }
+                                  setMemberActionErrorMessage(null);
+                                  removeMemberMutation.mutate(member.user_id);
+                                }}
                                 disabled={removeMemberMutation.isPending || selectedLibrary.is_archived}
                               >
                                 Expulsar
@@ -475,6 +531,7 @@ export function LibrariesPage() {
                       ))}
                     </div>
                   ) : null}
+                  {memberActionErrorMessage ? <p className="form-error">{memberActionErrorMessage}</p> : null}
                 </div>
               </div>
             </div>

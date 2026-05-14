@@ -14,6 +14,7 @@ import {
   LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
   normalizeThemeSelection,
+  validateSharedBookFields,
 } from "../lib/bookMetadata";
 import { ThemeSelector } from "./ThemeSelector";
 
@@ -92,7 +93,16 @@ function buildValidationErrors(
   values: BookFormValues,
   mode: "create" | "edit",
 ): FormErrors {
-  const errors: FormErrors = {};
+  const errors: FormErrors = {
+    ...validateSharedBookFields({
+      title: values.title,
+      authorFirstName: values.authorFirstName,
+      authorLastName: values.authorLastName,
+      publicationYear: values.publicationYear,
+      coverUrl: values.coverUrl,
+      themes: values.themes,
+    }),
+  };
 
   if (mode === "create") {
     const parsedLibraryId = Number(values.libraryId);
@@ -101,38 +111,11 @@ function buildValidationErrors(
     }
   }
 
-  if (!values.title.trim()) {
-    errors.title = "El titulo es obligatorio.";
-  }
-
-  if (!values.authorFirstName.trim() && !values.authorLastName.trim()) {
-    errors.authorFirstName = "El autor es obligatorio.";
-  }
-
-  if (values.publicationYear.trim()) {
-    const parsedYear = Number(values.publicationYear);
-    if (!Number.isInteger(parsedYear) || parsedYear < 0 || parsedYear > 9999) {
-      errors.publicationYear = "Introduce un ano valido.";
-    }
-  }
-
-  if (values.coverUrl.trim()) {
-    try {
-      new URL(values.coverUrl);
-    } catch {
-      errors.coverUrl = "Introduce una URL valida.";
-    }
-  }
-
   if (values.userRating.trim()) {
     const parsedRating = Number(values.userRating);
     if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
       errors.userRating = "El rating debe estar entre 1 y 5.";
     }
-  }
-
-  if (values.themes.length > MAX_BOOK_THEMES) {
-    errors.themes = `Selecciona como maximo ${MAX_BOOK_THEMES} temas.`;
   }
 
   return errors;

@@ -267,9 +267,20 @@ def test_copy_detail_user_data_and_list_themes(
             "physical_location": "Estanteria principal",
         },
     )
-    assert update_response.status_code == 200
-    assert update_response.json()["status"] == "loaned"
-    assert update_response.json()["physical_location"] == "Estanteria principal"
+    assert update_response.status_code == 409
+    assert "futura gestion de prestamos" in update_response.json()["detail"].lower()
+
+    available_update_response = client.put(
+        f"/copies/{created['id']}",
+        headers=headers,
+        json={
+            "status": "available",
+            "physical_location": "Estanteria principal",
+        },
+    )
+    assert available_update_response.status_code == 200
+    assert available_update_response.json()["status"] == "available"
+    assert available_update_response.json()["physical_location"] == "Estanteria principal"
 
     metadata_update_response = client.put(
         f"/books/{created['book_id']}/metadata",

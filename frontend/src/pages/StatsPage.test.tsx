@@ -37,10 +37,8 @@ vi.mock("../auth/AuthProvider", () => ({
   }),
 }));
 
-vi.mock("../libraries/ActiveLibraryProvider", () => ({
-  useActiveLibrary: () => ({
-    activeLibrary: null,
-    activeLibraryId: 1,
+vi.mock("../libraries/useLibraries", () => ({
+  useLibraries: () => ({
     isLibrariesError: false,
     isLibrariesLoading: false,
     libraries: [
@@ -68,7 +66,6 @@ vi.mock("../libraries/ActiveLibraryProvider", () => ({
       },
     ],
     refreshLibraries: vi.fn(),
-    setActiveLibraryId: vi.fn(),
   }),
 }));
 

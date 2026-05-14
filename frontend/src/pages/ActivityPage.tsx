@@ -1,9 +1,8 @@
-import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { useLibraries } from "../libraries/useLibraries";
 import {
   fetchLibraryActivity,
   fetchLibraryReviews,
@@ -31,6 +30,19 @@ function normalizeReviewSort(value: string | null): ReviewSort {
     return value;
   }
   return "recent";
+}
+
+function normalizeLibraryValue(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function formatEventLabel(event: LibraryActivityEvent) {
@@ -82,7 +94,7 @@ function renderReviewSummary(card: LibraryReviewCard) {
   return card.other_reviews.map((review) => (
     <div key={review.id} className="community-list-item">
       <strong>
-        {review.user_name} · {review.rating}/5
+        {review.user_name} - {review.rating}/5
       </strong>
       <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
     </div>
@@ -91,54 +103,68 @@ function renderReviewSummary(card: LibraryReviewCard) {
 
 export function ActivityPage() {
   const { token } = useAuth();
-  const { activeLibrary, activeLibraryId } = useActiveLibrary();
+  const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tab = normalizeWallTab(searchParams.get("tab"));
   const reviewFilter = normalizeReviewFilter(searchParams.get("filter"));
   const reviewSort = normalizeReviewSort(searchParams.get("sort"));
+  const selectedLibraryId = normalizeLibraryValue(searchParams.get("library"));
+  const sharedLibraries = libraries.filter(
+    (library) => !library.is_archived && library.type === "shared",
+  );
+  const activeLibrary =
+    sharedLibraries.find((library) => library.id === selectedLibraryId) ?? null;
 
   const activityQuery = useQuery({
-    queryKey: ["library-activity", activeLibraryId],
-    queryFn: () => fetchLibraryActivity(token ?? "", activeLibraryId ?? 0, { limit: 50, offset: 0 }),
-    enabled: Boolean(token && activeLibraryId && activeLibrary?.type === "shared" && tab === "activity"),
+    queryKey: ["library-activity", activeLibrary?.id ?? null],
+    queryFn: () =>
+      fetchLibraryActivity(token ?? "", activeLibrary!.id, { limit: 50, offset: 0 }),
+    enabled: Boolean(token && activeLibrary && tab === "activity"),
   });
 
   const reviewsQuery = useQuery({
-    queryKey: ["library-reviews", activeLibraryId, reviewFilter, reviewSort],
+    queryKey: ["library-reviews", activeLibrary?.id ?? null, reviewFilter, reviewSort],
     queryFn: () =>
-      fetchLibraryReviews(token ?? "", activeLibraryId ?? 0, {
+      fetchLibraryReviews(token ?? "", activeLibrary!.id, {
         filter: reviewFilter,
         sort: reviewSort,
         limit: 50,
         offset: 0,
       }),
-    enabled: Boolean(token && activeLibraryId && activeLibrary?.type === "shared" && tab === "reviews"),
+    enabled: Boolean(token && activeLibrary && tab === "reviews"),
   });
 
-  function updateSearchParam(key: "tab" | "filter" | "sort", value: string) {
+  function updateSearchParam(
+    key: "tab" | "filter" | "sort" | "library",
+    value: string,
+  ) {
     const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set(key, value);
+    if (key === "library" && !value) {
+      nextSearchParams.delete(key);
+    } else {
+      nextSearchParams.set(key, value);
+    }
     setSearchParams(nextSearchParams, { replace: true });
   }
 
-  if (!activeLibrary) {
+  if (isLibrariesError) {
     return (
       <section className="content-stack">
         <div className="panel">
-          <p>Selecciona una biblioteca para ver su muro de actividad.</p>
+          <p>No se pudieron cargar las bibliotecas disponibles para el muro.</p>
         </div>
       </section>
     );
   }
 
-  if (activeLibrary.type !== "shared") {
+  if (!isLibrariesLoading && sharedLibraries.length === 0) {
     return (
       <section className="content-stack">
         <div className="panel">
           <p className="eyebrow">Comunidad</p>
           <h2>Muro</h2>
-          <p>El muro de actividad solo se muestra en bibliotecas compartidas.</p>
+          <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
         </div>
       </section>
     );
@@ -150,12 +176,34 @@ export function ActivityPage() {
         <p className="eyebrow">Comunidad</p>
         <h2>Muro</h2>
         <p>
-          Sigue el pulso de <strong>{activeLibrary.name}</strong> y descubre tanto la actividad del club
-          como las valoraciones publicadas por sus miembros.
+          {activeLibrary
+            ? (
+                <>
+                  Sigue el pulso de <strong>{activeLibrary.name}</strong> y descubre tanto la
+                  actividad del club como las valoraciones publicadas por sus miembros.
+                </>
+              )
+            : "Elige una biblioteca compartida para consultar su actividad y sus opiniones."}
         </p>
       </div>
 
       <div className="panel reading-toolbar">
+        <label className="field-group">
+          Biblioteca compartida
+          <select
+            value={activeLibrary ? String(activeLibrary.id) : ""}
+            onChange={(event) => updateSearchParam("library", event.target.value)}
+            disabled={isLibrariesLoading}
+          >
+            <option value="">Selecciona una biblioteca</option>
+            {sharedLibraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="reading-tab-strip" role="tablist" aria-label="Vistas del muro">
           <button
             className={tab === "activity" ? "stats-tab active" : "stats-tab"}
@@ -196,7 +244,13 @@ export function ActivityPage() {
         ) : null}
       </div>
 
-      {tab === "activity" ? (
+      {!activeLibrary ? (
+        <div className="panel">
+          <p>Selecciona una biblioteca compartida para ver su actividad y sus opiniones.</p>
+        </div>
+      ) : null}
+
+      {activeLibrary && tab === "activity" ? (
         <>
           {activityQuery.isPending ? (
             <div className="panel">
@@ -229,7 +283,7 @@ export function ActivityPage() {
                   </Link>
                   <Link
                     className="ghost-link compact-action"
-                    to={`/lectura?library=${activeLibraryId}&copy=${event.copy_id}`}
+                    to={`/lectura?library=${activeLibrary.id}&copy=${event.copy_id}`}
                   >
                     Abrir seguimiento
                   </Link>
@@ -240,7 +294,7 @@ export function ActivityPage() {
         </>
       ) : null}
 
-      {tab === "reviews" ? (
+      {activeLibrary && tab === "reviews" ? (
         <>
           {reviewsQuery.isPending ? (
             <div className="panel">
@@ -256,7 +310,7 @@ export function ActivityPage() {
 
           {reviewsQuery.data && reviewsQuery.data.items.length === 0 ? (
             <div className="panel empty-state">
-              <h3>Todavia no hay reseñas para este filtro.</h3>
+              <h3>Todavia no hay reseÃ±as para este filtro.</h3>
               <p>Publica tu valoracion desde Lectura para arrancar la conversacion compartida.</p>
             </div>
           ) : null}
@@ -281,7 +335,7 @@ export function ActivityPage() {
                   {card.my_review ? (
                     <div className="community-list-item own-review-card">
                       <strong>
-                        {card.my_review.user_name} · {card.my_review.rating}/5
+                        {card.my_review.user_name} - {card.my_review.rating}/5
                       </strong>
                       <p>{card.my_review.body ?? "Solo has dejado una valoracion con estrellas."}</p>
                     </div>
@@ -302,7 +356,7 @@ export function ActivityPage() {
                 </Link>
                 <Link
                   className="ghost-link compact-action"
-                  to={`/lectura?library=${activeLibraryId}&copy=${card.copy_id}`}
+                  to={`/lectura?library=${activeLibrary.id}&copy=${card.copy_id}`}
                 >
                   Publicar o editar
                 </Link>

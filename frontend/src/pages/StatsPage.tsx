@@ -16,7 +16,7 @@ import {
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { useLibraries } from "../libraries/useLibraries";
 import {
   fetchCatalogStats,
   fetchReadingStats,
@@ -458,7 +458,7 @@ function StuckRemindersCard({ items }: { items: ReadingStats["stuck_reminders"] 
 export function StatsPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
-  const { isLibrariesError, isLibrariesLoading, libraries } = useActiveLibrary();
+  const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [goalDraft, setGoalDraft] = useState("");
 

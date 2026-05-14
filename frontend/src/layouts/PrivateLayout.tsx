@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 
 const navigationItems = [
   { to: "/catalogo", label: "Catalogo" },
@@ -15,7 +14,6 @@ const navigationItems = [
 export function PrivateLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { activeLibraryId, libraries, setActiveLibraryId } = useActiveLibrary();
 
   function handleLogout() {
     logout();
@@ -48,20 +46,6 @@ export function PrivateLayout() {
             <p className="eyebrow">Cuenta activa</p>
             <h3>{user?.name}</h3>
             <p>{user?.email}</p>
-            <label className="field-group compact-field">
-              Biblioteca por defecto
-              <select
-                value={activeLibraryId ?? ""}
-                onChange={(event) => setActiveLibraryId(Number(event.target.value))}
-              >
-                {libraries.map((library) => (
-                  <option key={library.id} value={library.id}>
-                    {library.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p>Se usara como destino inicial al crear nuevos libros.</p>
             <button className="menu-button" type="button" onClick={handleLogout}>
               Cerrar sesion
             </button>

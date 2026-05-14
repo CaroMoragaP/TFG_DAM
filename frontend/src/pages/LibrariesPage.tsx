@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
 import {
   addLibraryMemberRequest,
   archiveLibraryRequest,
@@ -28,7 +27,6 @@ const roleLabels: Record<UserLibraryRole, string> = {
 export function LibrariesPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
-  const { activeLibraryId, setActiveLibraryId } = useActiveLibrary();
   const [selectedLibraryId, setSelectedLibraryId] = useState<number | null>(null);
   const [createName, setCreateName] = useState("");
   const [createType, setCreateType] = useState<LibraryType>("shared");
@@ -106,9 +104,6 @@ export function LibrariesPage() {
       setCreateName("");
       setCreateType("shared");
       setSelectedLibraryId(library.id);
-      if (!library.is_archived) {
-        setActiveLibraryId(library.id);
-      }
     },
   });
 
@@ -325,16 +320,6 @@ export function LibrariesPage() {
                 {selectedLibrary.type} · {roleLabels[selectedLibrary.role]} · {selectedLibrary.copy_count} libros
               </p>
             </div>
-            {!selectedLibrary.is_archived ? (
-              <button
-                className="ghost-link compact-action"
-                type="button"
-                onClick={() => setActiveLibraryId(selectedLibrary.id)}
-                disabled={activeLibraryId === selectedLibrary.id}
-              >
-                {activeLibraryId === selectedLibrary.id ? "Biblioteca por defecto" : "Usar por defecto"}
-              </button>
-            ) : null}
           </div>
 
           {selectedLibrary.role === "owner" ? (

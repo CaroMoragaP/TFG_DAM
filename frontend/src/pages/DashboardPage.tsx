@@ -8,7 +8,7 @@ import { AddToListModal } from "../components/AddToListModal";
 import { BookCard } from "../components/BookCard";
 import { CatalogImportModal } from "../components/CatalogImportModal";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { useLibraries } from "../libraries/useLibraries";
 import { LITERARY_GENRE_OPTIONS } from "../lib/bookMetadata";
 import {
   addBookToListRequest,
@@ -33,7 +33,7 @@ function buildAuthorDisplayName(firstName: string, lastName: string) {
 
 export function DashboardPage() {
   const { token } = useAuth();
-  const { activeLibraryId, isLibrariesError, isLibrariesLoading, libraries } = useActiveLibrary();
+  const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -208,10 +208,7 @@ export function DashboardPage() {
   const visibleLists = listsQuery.data ?? [];
   const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
   const showLibraryBadge = libraries.length > 1;
-  const defaultCreateLibraryId =
-    editableLibraries.find((library) => library.id === activeLibraryId)?.id ??
-    editableLibraries[0]?.id ??
-    null;
+  const defaultCreateLibraryId = null;
   const booksErrorMessage =
     booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 

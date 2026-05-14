@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,27 +10,45 @@ const apiMocks = vi.hoisted(() => ({
   fetchLibraryReviews: vi.fn(),
 }));
 
+const librariesState = vi.hoisted(() => ({
+  current: {
+    isLibrariesError: false,
+    isLibrariesLoading: false,
+    libraries: [
+      {
+        id: 1,
+        name: "Biblioteca personal",
+        type: "personal",
+        created_at: "2026-04-19T00:00:00Z",
+        role: "owner",
+        is_archived: false,
+        archived_at: null,
+        member_count: 1,
+        copy_count: 2,
+      },
+      {
+        id: 2,
+        name: "Club de lectura",
+        type: "shared",
+        created_at: "2026-04-20T00:00:00Z",
+        role: "editor",
+        is_archived: false,
+        archived_at: null,
+        member_count: 3,
+        copy_count: 4,
+      },
+    ],
+  },
+}));
+
 vi.mock("../auth/AuthProvider", () => ({
   useAuth: () => ({
     token: "token",
   }),
 }));
 
-vi.mock("../libraries/ActiveLibraryProvider", () => ({
-  useActiveLibrary: () => ({
-    activeLibrary: {
-      id: 2,
-      name: "Club de lectura",
-      type: "shared",
-      created_at: "2026-04-20T00:00:00Z",
-      role: "editor",
-      is_archived: false,
-      archived_at: null,
-      member_count: 3,
-      copy_count: 4,
-    },
-    activeLibraryId: 2,
-  }),
+vi.mock("../libraries/useLibraries", () => ({
+  useLibraries: () => librariesState.current,
 }));
 
 vi.mock("../lib/api", () => ({
@@ -60,6 +78,64 @@ function renderPage(initialEntry = "/muro?tab=reviews") {
 describe("ActivityPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    librariesState.current = {
+      isLibrariesError: false,
+      isLibrariesLoading: false,
+      libraries: [
+        {
+          id: 1,
+          name: "Biblioteca personal",
+          type: "personal",
+          created_at: "2026-04-19T00:00:00Z",
+          role: "owner",
+          is_archived: false,
+          archived_at: null,
+          member_count: 1,
+          copy_count: 2,
+        },
+        {
+          id: 2,
+          name: "Club de lectura",
+          type: "shared",
+          created_at: "2026-04-20T00:00:00Z",
+          role: "editor",
+          is_archived: false,
+          archived_at: null,
+          member_count: 3,
+          copy_count: 4,
+        },
+      ],
+    };
+  });
+
+  it("does not fetch until a shared library is selected", async () => {
+    apiMocks.fetchLibraryReviews.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
+
+    renderPage("/muro?tab=reviews");
+
+    expect(
+      await screen.findByText("Selecciona una biblioteca compartida para ver su actividad y sus opiniones."),
+    ).toBeInTheDocument();
+    expect(apiMocks.fetchLibraryActivity).not.toHaveBeenCalled();
+    expect(apiMocks.fetchLibraryReviews).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Biblioteca compartida"), {
+      target: { value: "2" },
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.fetchLibraryReviews).toHaveBeenCalledWith("token", 2, {
+        filter: "all",
+        sort: "recent",
+        limit: 50,
+        offset: 0,
+      });
+    });
   });
 
   it("shows review cards separating the user's publication from the community", async () => {
@@ -103,7 +179,7 @@ describe("ActivityPage", () => {
       offset: 0,
     });
 
-    renderPage();
+    renderPage("/muro?tab=reviews&library=2");
 
     await waitFor(() => {
       expect(apiMocks.fetchLibraryReviews).toHaveBeenCalledWith("token", 2, {
@@ -122,6 +198,31 @@ describe("ActivityPage", () => {
       "href",
       "/lectura?library=2&copy=12",
     );
+  });
+
+  it("shows a dedicated empty state when no shared libraries are available", async () => {
+    librariesState.current = {
+      isLibrariesError: false,
+      isLibrariesLoading: false,
+      libraries: [
+        {
+          id: 1,
+          name: "Biblioteca personal",
+          type: "personal",
+          created_at: "2026-04-19T00:00:00Z",
+          role: "owner",
+          is_archived: false,
+          archived_at: null,
+          member_count: 1,
+          copy_count: 2,
+        },
+      ],
+    };
+
+    renderPage("/muro?tab=activity");
+
+    expect(await screen.findByText("Todavia no tienes acceso a ninguna biblioteca compartida.")).toBeInTheDocument();
+    expect(apiMocks.fetchLibraryActivity).not.toHaveBeenCalled();
   });
 
   it("renders new activity event labels for book additions and imports", async () => {
@@ -157,7 +258,7 @@ describe("ActivityPage", () => {
       offset: 0,
     });
 
-    renderPage("/muro?tab=activity");
+    renderPage("/muro?tab=activity&library=2");
 
     expect(await screen.findByText("anadio Kindred")).toBeInTheDocument();
     expect(screen.getByText("anadio 18 libros")).toBeInTheDocument();

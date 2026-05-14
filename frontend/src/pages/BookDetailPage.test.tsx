@@ -21,8 +21,8 @@ vi.mock("../auth/AuthProvider", () => ({
   }),
 }));
 
-vi.mock("../libraries/ActiveLibraryProvider", () => ({
-  useActiveLibrary: () => ({
+vi.mock("../libraries/useLibraries", () => ({
+  useLibraries: () => ({
     libraries: [
       {
         id: 1,

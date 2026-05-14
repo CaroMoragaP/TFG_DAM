@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { useLibraries } from "../libraries/useLibraries";
 import {
   createCopyReviewRequest,
   deleteReviewRequest,
@@ -293,7 +293,7 @@ function getLibraryForItem(libraries: Library[], item: ReadingShelfItem) {
 export function ReadingPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
-  const { isLibrariesError, isLibrariesLoading, libraries } = useActiveLibrary();
+  const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sort, setSort] = useState<ReadingSort>("recent-start");
   const [editingCopyId, setEditingCopyId] = useState<number | null>(null);

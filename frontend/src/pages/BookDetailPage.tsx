@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { BookMetadataModal, type BookMetadataValues } from "../components/BookMetadataModal";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
-import { useActiveLibrary } from "../libraries/ActiveLibraryProvider";
+import { useLibraries } from "../libraries/useLibraries";
 import {
   deleteCopyRequest,
   fetchCopyById,
@@ -69,7 +69,7 @@ export function BookDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
-  const { libraries } = useActiveLibrary();
+  const { libraries } = useLibraries();
 
   const copyId = Number(id);
   const isValidCopyId = Number.isInteger(copyId) && copyId > 0;

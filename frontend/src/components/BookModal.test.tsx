@@ -74,7 +74,7 @@ function renderModal(mode: "create" | "edit", themeOptions = ["Ciencia ficcion",
     <QueryClientProvider client={queryClient}>
       <BookModal
         book={mode === "edit" ? book : null}
-        defaultLibraryId={1}
+        defaultLibraryId={mode === "create" ? null : 1}
         themeOptions={themeOptions}
         isOpen={true}
         isSaving={false}
@@ -100,7 +100,7 @@ describe("BookModal", () => {
     const librarySelect = screen.getByLabelText("Biblioteca destino") as HTMLSelectElement;
 
     expect(librarySelect).toBeInTheDocument();
-    expect(librarySelect.value).toBe("1");
+    expect(librarySelect.value).toBe("");
     expect(screen.queryByText("Estado inicial")).not.toBeInTheDocument();
     expect(screen.getByText("Rating")).toBeInTheDocument();
 
@@ -110,6 +110,21 @@ describe("BookModal", () => {
       expect(screen.getByText("El titulo es obligatorio.")).toBeInTheDocument();
     });
     expect(screen.getByText("El autor es obligatorio.")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("requires choosing a library before submitting in create mode", async () => {
+    const { onSubmit } = renderModal("create");
+
+    fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Neuromante" } });
+    fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
+    fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Selecciona una biblioteca.")).toBeInTheDocument();
+    });
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -124,6 +139,7 @@ describe("BookModal", () => {
   it("includes publisher in submitted values", async () => {
     const { onSubmit } = renderModal("create");
 
+    fireEvent.change(screen.getByLabelText("Biblioteca destino"), { target: { value: "1" } });
     fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Neuromante" } });
     fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
     fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });
@@ -148,6 +164,7 @@ describe("BookModal", () => {
       "Terror",
     ]);
 
+    fireEvent.change(screen.getByLabelText("Biblioteca destino"), { target: { value: "1" } });
     fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Neuromante" } });
     fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
     fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });

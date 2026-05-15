@@ -397,18 +397,6 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
     missing_stats_response = client.get("/stats/reading?library_id=9999", headers=owner_headers)
     assert missing_stats_response.status_code == 404
 
-    archive_response = client.post(
-        f"/libraries/{shared_library_id}/archive",
-        headers=owner_headers,
-    )
-    assert archive_response.status_code == 200
-
-    archived_stats_response = client.get(
-        f"/stats/catalog?library_id={shared_library_id}",
-        headers=owner_headers,
-    )
-    assert archived_stats_response.status_code == 409
-
 
 def test_reading_goal_endpoint_and_extended_reading_stats(
     client: TestClient,

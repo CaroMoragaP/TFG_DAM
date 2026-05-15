@@ -701,15 +701,8 @@ export function fetchMe(token: string): Promise<User> {
   });
 }
 
-export function fetchLibraries(
-  token: string,
-  params?: { includeArchived?: boolean },
-): Promise<Library[]> {
-  const queryString = buildQueryString({
-    include_archived: params?.includeArchived ? "true" : undefined,
-  });
-
-  return apiFetch<Library[]>(`/libraries${queryString}`, undefined, {
+export function fetchLibraries(token: string): Promise<Library[]> {
+  return apiFetch<Library[]>("/libraries", undefined, {
     token,
   });
 }
@@ -789,26 +782,6 @@ export function removeLibraryMemberRequest(
     `/libraries/${libraryId}/members/${memberUserId}`,
     {
       method: "DELETE",
-    },
-    { token },
-  );
-}
-
-export function archiveLibraryRequest(token: string, libraryId: number): Promise<Library> {
-  return apiFetch<Library>(
-    `/libraries/${libraryId}/archive`,
-    {
-      method: "POST",
-    },
-    { token },
-  );
-}
-
-export function restoreLibraryRequest(token: string, libraryId: number): Promise<Library> {
-  return apiFetch<Library>(
-    `/libraries/${libraryId}/restore`,
-    {
-      method: "POST",
     },
     { token },
   );

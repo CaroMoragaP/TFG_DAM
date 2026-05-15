@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
-
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -94,7 +92,6 @@ def list_user_libraries(
     db: Session,
     *,
     user_id: int,
-    include_archived: bool = False,
 ) -> Sequence[tuple[Library, UserLibraryRole, int, int]]:
     member_count_subquery = (
         select(
@@ -124,10 +121,9 @@ def list_user_libraries(
         .outerjoin(member_count_subquery, member_count_subquery.c.library_id == Library.id)
         .outerjoin(copy_count_subquery, copy_count_subquery.c.library_id == Library.id)
         .where(UserLibrary.user_id == user_id)
+        .where(Library.archived_at.is_(None))
         .order_by(Library.created_at.asc(), Library.id.asc())
     )
-    if not include_archived:
-        stmt = stmt.where(Library.archived_at.is_(None))
 
     return db.execute(stmt).all()
 
@@ -440,44 +436,6 @@ def leave_library(
     assert membership is not None
     db.delete(membership)
     db.commit()
-
-
-def archive_library(
-    db: Session,
-    *,
-    user_id: int,
-    library_id: int,
-) -> tuple[Library, UserLibraryRole]:
-    library, role = _get_shared_library_for_owner(
-        db,
-        user_id=user_id,
-        library_id=library_id,
-        allow_archived=True,
-    )
-    if library.archived_at is None:
-        library.archived_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(library)
-    return library, role
-
-
-def restore_library(
-    db: Session,
-    *,
-    user_id: int,
-    library_id: int,
-) -> tuple[Library, UserLibraryRole]:
-    library, role = _get_shared_library_for_owner(
-        db,
-        user_id=user_id,
-        library_id=library_id,
-        allow_archived=True,
-    )
-    if library.archived_at is not None:
-        library.archived_at = None
-        db.commit()
-        db.refresh(library)
-    return library, role
 
 
 def delete_library(

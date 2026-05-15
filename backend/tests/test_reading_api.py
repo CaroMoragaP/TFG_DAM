@@ -139,8 +139,8 @@ def test_reading_endpoint_treats_missing_user_copy_as_pending(client: TestClient
     assert item["reading_status"] == "pending"
 
 
-def test_reading_endpoint_supports_library_filter_and_excludes_archived_libraries(client: TestClient) -> None:
-    headers = register_user(client, name="Archivist", email="archivist@example.com")
+def test_reading_endpoint_supports_library_filter(client: TestClient) -> None:
+    headers = register_user(client, name="Reader Scoped", email="reader-scoped@example.com")
     personal_library_id = get_personal_library_id(client, headers)
     shared_library_id = create_library(client, headers, name="Club nocturno")
 
@@ -162,16 +162,6 @@ def test_reading_endpoint_supports_library_filter_and_excludes_archived_librarie
     scoped_response = client.get(f"/reading?library_id={shared_library_id}", headers=headers)
     assert scoped_response.status_code == 200
     assert [item["title"] for item in scoped_response.json()] == ["Patternmaster"]
-
-    archive_response = client.post(f"/libraries/{shared_library_id}/archive", headers=headers)
-    assert archive_response.status_code == 200
-
-    filtered_response = client.get("/reading", headers=headers)
-    assert filtered_response.status_code == 200
-    assert [item["title"] for item in filtered_response.json()] == ["Dawn"]
-
-    archived_response = client.get(f"/reading?library_id={shared_library_id}", headers=headers)
-    assert archived_response.status_code == 409
 
 
 def test_reading_endpoint_blocks_inaccessible_libraries(client: TestClient) -> None:

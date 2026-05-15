@@ -53,7 +53,7 @@ def test_create_and_rename_library(client: TestClient) -> None:
     assert rename_response.json()["is_archived"] is False
 
 
-def test_shared_library_membership_archive_restore_and_delete(client: TestClient) -> None:
+def test_shared_library_membership_and_delete(client: TestClient) -> None:
     owner_headers = register_user(client, email="owner-library@example.com")
 
     editor_register_response = client.post(
@@ -110,23 +110,6 @@ def test_shared_library_membership_archive_restore_and_delete(client: TestClient
     members_response = client.get(f"/libraries/{library_id}/members", headers=owner_headers)
     assert members_response.status_code == 200
     assert {member["role"] for member in members_response.json()} == {"owner", "editor", "viewer"}
-
-    archive_response = client.post(f"/libraries/{library_id}/archive", headers=owner_headers)
-    assert archive_response.status_code == 200
-    assert archive_response.json()["is_archived"] is True
-
-    default_list_response = client.get("/libraries", headers=owner_headers)
-    assert default_list_response.status_code == 200
-    assert all(item["id"] != library_id for item in default_list_response.json())
-
-    archived_list_response = client.get("/libraries?include_archived=true", headers=owner_headers)
-    assert archived_list_response.status_code == 200
-    archived_library = next(item for item in archived_list_response.json() if item["id"] == library_id)
-    assert archived_library["is_archived"] is True
-
-    restore_response = client.post(f"/libraries/{library_id}/restore", headers=owner_headers)
-    assert restore_response.status_code == 200
-    assert restore_response.json()["is_archived"] is False
 
     delete_while_members_response = client.delete(f"/libraries/{library_id}", headers=owner_headers)
     assert delete_while_members_response.status_code == 409

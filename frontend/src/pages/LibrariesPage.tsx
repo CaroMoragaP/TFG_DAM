@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 import {
   addLibraryMemberRequest,
-  archiveLibraryRequest,
   createLibraryRequest,
   deleteLibraryRequest,
   fetchLibraries,
   fetchLibraryMembers,
   removeLibraryMemberRequest,
-  restoreLibraryRequest,
   updateLibraryMemberRequest,
   updateLibraryRequest,
   type Library,
@@ -39,23 +37,14 @@ export function LibrariesPage() {
 
   const librariesQuery = useQuery({
     queryKey: ["libraries", "all"],
-    queryFn: () => fetchLibraries(token ?? "", { includeArchived: true }),
+    queryFn: () => fetchLibraries(token ?? ""),
     enabled: Boolean(token),
   });
 
   const allLibraries = librariesQuery.data ?? [];
-  const activeLibraries = useMemo(
-    () => allLibraries.filter((library) => !library.is_archived),
-    [allLibraries],
-  );
-  const archivedLibraries = useMemo(
-    () => allLibraries.filter((library) => library.is_archived),
-    [allLibraries],
-  );
   const selectedLibrary =
     allLibraries.find((library) => library.id === selectedLibraryId) ??
-    activeLibraries[0] ??
-    archivedLibraries[0] ??
+    allLibraries[0] ??
     null;
 
   useEffect(() => {
@@ -114,28 +103,6 @@ export function LibrariesPage() {
       }),
     onSuccess: async () => {
       await invalidateLibraries();
-    },
-  });
-
-  const archiveLibraryMutation = useMutation({
-    mutationFn: (libraryId: number) => archiveLibraryRequest(token ?? "", libraryId),
-    onSuccess: async () => {
-      await invalidateLibraries();
-      setLibraryActionErrorMessage(null);
-    },
-    onError: (error) => {
-      setLibraryActionErrorMessage(error instanceof Error ? error.message : "No se pudo archivar la biblioteca.");
-    },
-  });
-
-  const restoreLibraryMutation = useMutation({
-    mutationFn: (libraryId: number) => restoreLibraryRequest(token ?? "", libraryId),
-    onSuccess: async () => {
-      await invalidateLibraries();
-      setLibraryActionErrorMessage(null);
-    },
-    onError: (error) => {
-      setLibraryActionErrorMessage(error instanceof Error ? error.message : "No se pudo restaurar la biblioteca.");
     },
   });
 
@@ -230,9 +197,9 @@ export function LibrariesPage() {
     <section className="content-stack">
       <div className="catalog-hero panel hero-panel">
         <div>
-          <p className="eyebrow">Colaboración</p>
+          <p className="eyebrow">Colaboracion</p>
           <h2>Mis bibliotecas</h2>
-          <p>Gestiona bibliotecas personales y compartidas, miembros, archivado y permisos.</p>
+          <p>Gestiona bibliotecas personales y compartidas, miembros y permisos.</p>
         </div>
       </div>
 
@@ -273,32 +240,17 @@ export function LibrariesPage() {
 
         <div className="content-stack">
           <div className="panel">
-            <p className="eyebrow">Activas</p>
+            <p className="eyebrow">Bibliotecas</p>
             {librariesQuery.isPending ? (
               <div className="content-stack">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
                 ))}
               </div>
-            ) : activeLibraries.length === 0 ? (
-              <p>No tienes bibliotecas activas.</p>
+            ) : allLibraries.length === 0 ? (
+              <p>No tienes bibliotecas.</p>
             ) : (
-              <div className="content-stack">{activeLibraries.map(renderLibraryButton)}</div>
-            )}
-          </div>
-
-          <div className="panel">
-            <p className="eyebrow">Archivadas</p>
-            {librariesQuery.isPending ? (
-              <div className="content-stack">
-                {Array.from({ length: 2 }).map((_, index) => (
-                  <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
-                ))}
-              </div>
-            ) : archivedLibraries.length === 0 ? (
-              <p>No hay bibliotecas archivadas.</p>
-            ) : (
-              <div className="content-stack">{archivedLibraries.map(renderLibraryButton)}</div>
+              <div className="content-stack">{allLibraries.map(renderLibraryButton)}</div>
             )}
           </div>
         </div>
@@ -314,7 +266,7 @@ export function LibrariesPage() {
         <div className="panel content-stack">
           <div className="modal-header">
             <div>
-              <p className="eyebrow">{selectedLibrary.is_archived ? "Archivada" : "Activa"}</p>
+              <p className="eyebrow">Biblioteca</p>
               <h2>{selectedLibrary.name}</h2>
               <p>
                 {selectedLibrary.type} · {roleLabels[selectedLibrary.role]} · {selectedLibrary.copy_count} libros
@@ -353,42 +305,12 @@ export function LibrariesPage() {
 
               <div className="panel subtle-panel content-stack">
                 <p className="eyebrow">Acciones</p>
-                {selectedLibrary.type === "shared" && !selectedLibrary.is_archived ? (
-                  <button
-                    className="ghost-link compact-action"
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm("La biblioteca se archivará y saldrá del catálogo operativo.")) {
-                        setLibraryActionErrorMessage(null);
-                        archiveLibraryMutation.mutate(selectedLibrary.id);
-                      }
-                    }}
-                    disabled={archiveLibraryMutation.isPending}
-                  >
-                    Archivar biblioteca
-                  </button>
-                ) : null}
-
-                {selectedLibrary.type === "shared" && selectedLibrary.is_archived ? (
-                  <button
-                    className="ghost-link compact-action"
-                    type="button"
-                    onClick={() => {
-                      setLibraryActionErrorMessage(null);
-                      restoreLibraryMutation.mutate(selectedLibrary.id);
-                    }}
-                    disabled={restoreLibraryMutation.isPending}
-                  >
-                    Restaurar biblioteca
-                  </button>
-                ) : null}
-
                 {canDeleteSelectedLibrary ? (
                   <button
                     className="ghost-link compact-action danger-action"
                     type="button"
                     onClick={() => {
-                      if (window.confirm("La biblioteca se eliminará definitivamente. ¿Quieres continuar?")) {
+                      if (window.confirm("La biblioteca se eliminara definitivamente. Quieres continuar?")) {
                         setLibraryActionErrorMessage(null);
                         deleteLibraryMutation.mutate(selectedLibrary.id);
                       }
@@ -401,7 +323,7 @@ export function LibrariesPage() {
 
                 {selectedLibrary.type === "shared" && !canDeleteSelectedLibrary ? (
                   <p className="detail-inline-copy">
-                    El borrado definitivo solo está disponible si no hay miembros adicionales en la biblioteca.
+                    El borrado definitivo solo esta disponible si no hay miembros adicionales en la biblioteca.
                   </p>
                 ) : null}
                 {libraryActionErrorMessage ? <p className="form-error">{libraryActionErrorMessage}</p> : null}
@@ -437,11 +359,11 @@ export function LibrariesPage() {
                   <p className="form-error">
                     {addMemberMutation.error instanceof Error
                       ? addMemberMutation.error.message
-                      : "No se pudo añadir el miembro."}
+                      : "No se pudo anadir el miembro."}
                   </p>
                 ) : null}
-                <button className="submit-button" type="submit" disabled={addMemberMutation.isPending || !inviteEmail.trim() || selectedLibrary.is_archived}>
-                  {addMemberMutation.isPending ? "Añadiendo..." : "Añadir miembro"}
+                <button className="submit-button" type="submit" disabled={addMemberMutation.isPending || !inviteEmail.trim()}>
+                  {addMemberMutation.isPending ? "Anadiendo..." : "Anadir miembro"}
                 </button>
               </form>
 
@@ -480,7 +402,6 @@ export function LibrariesPage() {
                                     [member.user_id]: event.target.value as Exclude<UserLibraryRole, "owner">,
                                   }))
                                 }
-                                disabled={selectedLibrary.is_archived}
                               >
                                 <option value="editor">Editor</option>
                                 <option value="viewer">Viewer</option>
@@ -492,7 +413,7 @@ export function LibrariesPage() {
                                   setMemberActionErrorMessage(null);
                                   updateMemberMutation.mutate(member.user_id);
                                 }}
-                                disabled={updateMemberMutation.isPending || selectedLibrary.is_archived}
+                                disabled={updateMemberMutation.isPending}
                               >
                                 Guardar rol
                               </button>
@@ -506,7 +427,7 @@ export function LibrariesPage() {
                                   setMemberActionErrorMessage(null);
                                   removeMemberMutation.mutate(member.user_id);
                                 }}
-                                disabled={removeMemberMutation.isPending || selectedLibrary.is_archived}
+                                disabled={removeMemberMutation.isPending}
                               >
                                 Expulsar
                               </button>

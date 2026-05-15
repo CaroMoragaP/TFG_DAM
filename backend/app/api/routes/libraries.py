@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
-from fastapi import Query
 from fastapi import Response
 from fastapi import status
 from sqlalchemy.orm import Session
@@ -27,7 +26,6 @@ from app.services.libraries import LibraryNotFoundError
 from app.services.libraries import LibraryOwnershipRequiredError
 from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import add_library_member
-from app.services.libraries import archive_library
 from app.services.libraries import create_library as create_library_service
 from app.services.libraries import delete_library as delete_library_service
 from app.services.libraries import list_library_members
@@ -35,7 +33,6 @@ from app.services.libraries import list_user_libraries
 from app.services.libraries import leave_library
 from app.services.libraries import remove_library_member
 from app.services.libraries import rename_library
-from app.services.libraries import restore_library
 from app.services.libraries import transfer_library_ownership
 from app.services.libraries import update_library_member_role
 
@@ -48,15 +45,10 @@ router = APIRouter()
     summary="List the libraries available to the authenticated user",
 )
 def read_libraries(
-    include_archived: bool = Query(default=False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[LibraryOut]:
-    libraries = list_user_libraries(
-        db,
-        user_id=current_user.id,
-        include_archived=include_archived,
-    )
+    libraries = list_user_libraries(db, user_id=current_user.id)
     return [
         build_library_response(library, role, member_count, copy_count)
         for library, role, member_count, copy_count in libraries
@@ -327,72 +319,6 @@ def leave_library_entry(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post(
-    "/libraries/{library_id}/archive",
-    response_model=LibraryOut,
-    summary="Archive a shared library",
-)
-def archive_library_entry(
-    library_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> LibraryOut:
-    try:
-        library, role = archive_library(
-            db,
-            user_id=current_user.id,
-            library_id=library_id,
-        )
-    except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (
-        LibraryPermissionDeniedError,
-        LibraryOwnershipRequiredError,
-        LibraryMembershipOperationError,
-    ) as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-
-    return build_library_response(
-        library,
-        role,
-        member_count=len(library.user_libraries),
-        copy_count=len(library.copies),
-    )
-
-
-@router.post(
-    "/libraries/{library_id}/restore",
-    response_model=LibraryOut,
-    summary="Restore a shared library",
-)
-def restore_library_entry(
-    library_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> LibraryOut:
-    try:
-        library, role = restore_library(
-            db,
-            user_id=current_user.id,
-            library_id=library_id,
-        )
-    except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (
-        LibraryPermissionDeniedError,
-        LibraryOwnershipRequiredError,
-        LibraryMembershipOperationError,
-    ) as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-
-    return build_library_response(
-        library,
-        role,
-        member_count=len(library.user_libraries),
-        copy_count=len(library.copies),
-    )
 
 
 @router.delete(

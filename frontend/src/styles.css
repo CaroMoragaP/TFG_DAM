@@ -868,6 +868,11 @@ dd {
   cursor: pointer;
 }
 
+.list-management-card.active {
+  border-color: rgba(33, 79, 74, 0.35);
+  box-shadow: 0 10px 24px rgba(33, 79, 74, 0.1);
+}
+
 .list-management-card:focus-visible {
   outline: 2px solid rgba(201, 107, 59, 0.35);
   outline-offset: 3px;

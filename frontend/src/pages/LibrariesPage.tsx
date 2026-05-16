@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
@@ -18,10 +18,23 @@ import {
 } from "../lib/api";
 
 const roleLabels: Record<UserLibraryRole, string> = {
-  owner: "Owner",
+  owner: "Propietario",
   editor: "Editor",
-  viewer: "Viewer",
+  viewer: "Lector",
 };
+
+const typeLabels: Record<LibraryType, string> = {
+  personal: "Biblioteca personal",
+  shared: "Biblioteca compartida",
+};
+
+function formatCopiesLabel(copyCount: number) {
+  return copyCount === 1 ? "1 libro" : `${copyCount} libros`;
+}
+
+function formatMembersLabel(memberCount: number) {
+  return memberCount === 1 ? "1 miembro" : `${memberCount} miembros`;
+}
 
 export function LibrariesPage() {
   const { token } = useAuth();
@@ -60,11 +73,13 @@ export function LibrariesPage() {
   }, [selectedLibrary, selectedLibraryId]);
 
   useEffect(() => {
-    if (selectedLibrary) {
-      setRenameDraft(selectedLibrary.name);
-      setLibraryActionErrorMessage(null);
-      setMemberActionErrorMessage(null);
+    if (!selectedLibrary) {
+      return;
     }
+
+    setRenameDraft(selectedLibrary.name);
+    setLibraryActionErrorMessage(null);
+    setMemberActionErrorMessage(null);
   }, [selectedLibrary]);
 
   const membersQuery = useQuery({
@@ -167,24 +182,47 @@ export function LibrariesPage() {
       selectedLibrary.member_count === 1,
   );
 
-  function renderLibraryButton(library: Library) {
+  function handleSelectLibrary(libraryId: number) {
+    setSelectedLibraryId(libraryId);
+  }
+
+  function handleCardKeyDown(event: KeyboardEvent<HTMLElement>, libraryId: number) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    handleSelectLibrary(libraryId);
+  }
+
+  function renderLibraryCard(library: Library) {
+    const isActive = selectedLibrary?.id === library.id;
+
     return (
-      <button
+      <article
         key={library.id}
-        className={selectedLibrary?.id === library.id ? "list-summary-card active" : "list-summary-card"}
-        type="button"
-        onClick={() => setSelectedLibraryId(library.id)}
+        className={isActive ? "panel list-management-card active" : "panel list-management-card"}
+        role="button"
+        tabIndex={0}
+        onClick={() => handleSelectLibrary(library.id)}
+        onKeyDown={(event) => handleCardKeyDown(event, library.id)}
       >
-        <span>
-          <strong>{library.name}</strong>
-          <small>
-            {library.copy_count} libros · {library.member_count} miembros
-          </small>
-        </span>
-        <span className="status-chip">
-          {library.type} · {roleLabels[library.role]}
-        </span>
-      </button>
+        <div className="list-card-main">
+          <div>
+            <p className="eyebrow">{typeLabels[library.type]}</p>
+            <h3>{library.name}</h3>
+            <p>
+              {formatCopiesLabel(library.copy_count)} - {formatMembersLabel(library.member_count)}
+            </p>
+          </div>
+          <span className={isActive ? "status-chip active" : "status-chip"}>{roleLabels[library.role]}</span>
+        </div>
+        <div className="list-card-actions">
+          <span className="detail-inline-copy">
+            {isActive ? "Biblioteca seleccionada para editar." : "Haz clic para editar esta biblioteca."}
+          </span>
+        </div>
+      </article>
     );
   }
 
@@ -196,28 +234,9 @@ export function LibrariesPage() {
           <h2>Mis bibliotecas</h2>
           <p>Gestiona bibliotecas personales y compartidas, miembros y permisos.</p>
         </div>
-        <button
-          className="submit-button catalog-add-button"
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          + Añadir biblioteca
+        <button className="submit-button catalog-add-button" type="button" onClick={() => setIsCreateModalOpen(true)}>
+          + Anadir biblioteca
         </button>
-      </div>
-
-      <div className="panel">
-        <p className="eyebrow">Bibliotecas</p>
-        {librariesQuery.isPending ? (
-          <div className="content-stack">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
-            ))}
-          </div>
-        ) : allLibraries.length === 0 ? (
-          <p>No tienes bibliotecas.</p>
-        ) : (
-          <div className="content-stack">{allLibraries.map(renderLibraryButton)}</div>
-        )}
       </div>
 
       {librariesQuery.isError ? (
@@ -226,14 +245,36 @@ export function LibrariesPage() {
         </div>
       ) : null}
 
+      {librariesQuery.isPending ? (
+        <div className="catalog-grid">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="book-skeleton panel list-page-skeleton" aria-hidden="true" />
+          ))}
+        </div>
+      ) : null}
+
+      {librariesQuery.isSuccess && allLibraries.length === 0 ? (
+        <div className="panel empty-state">
+          <h3>Aun no tienes bibliotecas.</h3>
+          <p>Crea una para empezar a organizar tus lecturas o colaborar con otras personas.</p>
+        </div>
+      ) : null}
+
+      {librariesQuery.isSuccess && allLibraries.length > 0 ? (
+        <div className="catalog-grid">{allLibraries.map(renderLibraryCard)}</div>
+      ) : null}
+
       {selectedLibrary ? (
         <div className="panel content-stack">
           <div className="modal-header">
             <div>
-              <p className="eyebrow">Biblioteca</p>
+              <p className="eyebrow">
+                {selectedLibrary.role === "owner" ? "Editar biblioteca" : "Biblioteca seleccionada"}
+              </p>
               <h2>{selectedLibrary.name}</h2>
               <p>
-                {selectedLibrary.type} · {roleLabels[selectedLibrary.role]} · {selectedLibrary.copy_count} libros
+                {typeLabels[selectedLibrary.type]} - {roleLabels[selectedLibrary.role]} -{" "}
+                {formatCopiesLabel(selectedLibrary.copy_count)} - {formatMembersLabel(selectedLibrary.member_count)}
               </p>
             </div>
           </div>
@@ -250,20 +291,24 @@ export function LibrariesPage() {
                   void renameLibraryMutation.mutateAsync();
                 }}
               >
-                <p className="eyebrow">Renombrar</p>
+                <p className="eyebrow">Informacion</p>
                 <label className="field-group">
                   Nombre
                   <input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} />
                 </label>
+                <div className="subtle-panel modal-info-panel">
+                  <p className="eyebrow">Tipo</p>
+                  <p>{typeLabels[selectedLibrary.type]}</p>
+                </div>
                 {renameLibraryMutation.isError ? (
                   <p className="form-error">
                     {renameLibraryMutation.error instanceof Error
                       ? renameLibraryMutation.error.message
-                      : "No se pudo renombrar la biblioteca."}
+                      : "No se pudo actualizar la biblioteca."}
                   </p>
                 ) : null}
                 <button className="submit-button" type="submit" disabled={renameLibraryMutation.isPending || !renameDraft.trim()}>
-                  {renameLibraryMutation.isPending ? "Guardando..." : "Guardar nombre"}
+                  {renameLibraryMutation.isPending ? "Guardando..." : "Guardar cambios"}
                 </button>
               </form>
 
@@ -293,7 +338,16 @@ export function LibrariesPage() {
                 {libraryActionErrorMessage ? <p className="form-error">{libraryActionErrorMessage}</p> : null}
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="panel subtle-panel">
+              <p className="eyebrow">Permisos</p>
+              <p>
+                {selectedLibrary.role === "editor"
+                  ? "Puedes editar el contenido de esta biblioteca, pero el nombre y los permisos solo puede cambiarlos su propietario."
+                  : "Tienes acceso de lectura a esta biblioteca. El nombre y los permisos solo puede cambiarlos su propietario."}
+              </p>
+            </div>
+          )}
 
           {selectedLibrary.type === "shared" && selectedLibrary.role === "owner" ? (
             <div className="split-panel">
@@ -316,7 +370,7 @@ export function LibrariesPage() {
                     onChange={(event) => setInviteRole(event.target.value as Exclude<UserLibraryRole, "owner">)}
                   >
                     <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
+                    <option value="viewer">Lector</option>
                   </select>
                 </label>
                 {addMemberMutation.isError ? (
@@ -368,7 +422,7 @@ export function LibrariesPage() {
                                 }
                               >
                                 <option value="editor">Editor</option>
-                                <option value="viewer">Viewer</option>
+                                <option value="viewer">Lector</option>
                               </select>
                               <button
                                 className="ghost-link compact-action"

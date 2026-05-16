@@ -145,7 +145,7 @@ export function ListDetailPage() {
 
   if (!isValidListId) {
     return (
-      <section className="content-stack">
+      <section className="content-stack private-page-shell">
         <div className="panel">
           <p>El identificador de la lista no es valido.</p>
         </div>
@@ -166,7 +166,7 @@ export function ListDetailPage() {
   }
 
   return (
-    <section className="content-stack">
+    <section className="content-stack private-page-shell">
       <button className="ghost-link detail-back-button" type="button" onClick={() => navigate("/listas")}>
         Volver a mis listas
       </button>

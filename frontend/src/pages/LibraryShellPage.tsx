@@ -1,6 +1,6 @@
 export function LibraryShellPage() {
   return (
-    <section className="content-stack">
+    <section className="content-stack private-page-shell">
       <div className="panel">
         <p className="eyebrow">Placeholder</p>
         <h2>Estantería virtual</h2>

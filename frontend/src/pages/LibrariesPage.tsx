@@ -2,6 +2,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero, HeroActionButton } from "../components/DashboardHero";
 import { LibraryFormModal } from "../components/LibraryFormModal";
 import {
   addLibraryMemberRequest,
@@ -227,17 +228,22 @@ export function LibrariesPage() {
   }
 
   return (
-    <section className="content-stack">
-      <div className="catalog-hero panel hero-panel">
-        <div>
-          <p className="eyebrow">Colaboracion</p>
-          <h2>Mis bibliotecas</h2>
-          <p>Gestiona bibliotecas personales y compartidas, miembros y permisos.</p>
-        </div>
-        <button className="submit-button catalog-add-button" type="button" onClick={() => setIsCreateModalOpen(true)}>
-          + Anadir biblioteca
-        </button>
-      </div>
+    <section className="content-stack private-page-shell">
+      <DashboardHero
+        eyebrow="Colaboracion"
+        title="Mis bibliotecas"
+        description="Gestiona bibliotecas personales y compartidas, miembros y permisos."
+        icon="library"
+        actions={
+          <HeroActionButton
+            emphasis="primary"
+            icon="plus"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            Anadir biblioteca
+          </HeroActionButton>
+        }
+      />
 
       {librariesQuery.isError ? (
         <div className="panel">

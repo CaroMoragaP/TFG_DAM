@@ -335,7 +335,7 @@ export function DashboardPage() {
   }
 
   return (
-    <section className="content-stack dashboard-catalog-page">
+    <section className="content-stack private-page-shell dashboard-catalog-page">
       <CatalogHero
         onImport={() => {
           setImportError(null);

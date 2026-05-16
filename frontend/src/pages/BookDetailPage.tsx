@@ -170,7 +170,7 @@ export function BookDetailPage() {
 
   if (!isValidCopyId) {
     return (
-      <section className="content-stack">
+      <section className="content-stack private-page-shell">
         <div className="panel">
           <p>El identificador del ejemplar no es valido.</p>
         </div>
@@ -221,7 +221,7 @@ export function BookDetailPage() {
   }
 
   return (
-    <section className="content-stack">
+    <section className="content-stack private-page-shell">
       <button className="ghost-link detail-back-button" type="button" onClick={() => navigate(-1)}>
         Volver al catalogo
       </button>

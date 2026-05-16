@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero } from "../components/DashboardHero";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   fetchLibraryActivity,
@@ -150,7 +151,7 @@ export function ActivityPage() {
 
   if (isLibrariesError) {
     return (
-      <section className="content-stack">
+      <section className="content-stack private-page-shell">
         <div className="panel">
           <p>No se pudieron cargar las bibliotecas disponibles para el muro.</p>
         </div>
@@ -160,32 +161,29 @@ export function ActivityPage() {
 
   if (!isLibrariesLoading && sharedLibraries.length === 0) {
     return (
-      <section className="content-stack">
-        <div className="panel">
-          <p className="eyebrow">Comunidad</p>
-          <h2>Comunidad</h2>
-          <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
-        </div>
+      <section className="content-stack private-page-shell">
+        <DashboardHero
+          eyebrow="Comunidad"
+          title="Comunidad"
+          description="Todavia no tienes acceso a ninguna biblioteca compartida."
+          icon="community"
+        />
       </section>
     );
   }
 
   return (
-    <section className="content-stack">
-      <div className="panel hero-panel">
-        <p className="eyebrow">Comunidad</p>
-        <h2>Comunidad</h2>
-        <p>
-          {activeLibrary
-            ? (
-                <>
-                  Sigue el pulso de <strong>{activeLibrary.name}</strong> y descubre tanto la
-                  actividad del club como las valoraciones publicadas por sus miembros.
-                </>
-              )
-            : "Elige una biblioteca compartida para consultar su actividad y sus opiniones."}
-        </p>
-      </div>
+    <section className="content-stack private-page-shell">
+      <DashboardHero
+        eyebrow="Comunidad"
+        title="Comunidad"
+        description={
+          activeLibrary
+            ? `Sigue el pulso de ${activeLibrary.name} y descubre tanto la actividad del club como las valoraciones publicadas por sus miembros.`
+            : "Elige una biblioteca compartida para consultar su actividad y sus opiniones."
+        }
+        icon="community"
+      />
 
       <div className="panel reading-toolbar">
         <label className="field-group">

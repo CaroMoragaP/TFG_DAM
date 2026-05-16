@@ -10,9 +10,11 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { LibrariesPage } from "./pages/LibrariesPage";
 import { ListDetailPage } from "./pages/ListDetailPage";
 import { ListsPage } from "./pages/ListsPage";
+import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicHomePage } from "./pages/PublicHomePage";
 import { ReadingPage } from "./pages/ReadingPage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { StatsPage } from "./pages/StatsPage";
 
 const router = createBrowserRouter([
@@ -30,11 +32,11 @@ const router = createBrowserRouter([
       },
       {
         path: "login",
-        element: <Navigate to="/auth" replace />,
+        element: <LoginPage />,
       },
       {
         path: "register",
-        element: <Navigate to="/auth?tab=register" replace />,
+        element: <RegisterPage />,
       },
     ],
   },

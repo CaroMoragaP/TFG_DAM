@@ -1,10 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { ApiError } from "../lib/api";
 
 type AuthTab = "login" | "register";
+type AuthRouteMode = "query" | "path";
+
+type AuthPageProps = {
+  defaultTab?: AuthTab;
+  routeMode?: AuthRouteMode;
+};
 
 type LoginValues = {
   email: string;
@@ -24,13 +30,27 @@ type RegisterErrors = Partial<Record<keyof RegisterValues, string>>;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordMaxLength = 72;
 
-export function AuthPage() {
+function resolveRequestedTab(
+  defaultTab: AuthTab,
+  routeMode: AuthRouteMode,
+  searchParams: URLSearchParams,
+): AuthTab {
+  if (routeMode === "path") {
+    return defaultTab;
+  }
+
+  return searchParams.get("tab") === "register" ? "register" : "login";
+}
+
+export function AuthPage({
+  defaultTab = "login",
+  routeMode = "query",
+}: AuthPageProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, isBootstrapping, login, register } = useAuth();
 
-  const requestedTab: AuthTab =
-    searchParams.get("tab") === "register" ? "register" : "login";
+  const requestedTab = resolveRequestedTab(defaultTab, routeMode, searchParams);
 
   const [activeTab, setActiveTab] = useState<AuthTab>(requestedTab);
   const [loginValues, setLoginValues] = useState<LoginValues>({
@@ -60,6 +80,12 @@ export function AuthPage() {
 
   function handleTabChange(tab: AuthTab) {
     setActiveTab(tab);
+
+    if (routeMode === "path") {
+      navigate(tab === "register" ? "/register" : "/login", { replace: true });
+      return;
+    }
+
     setSearchParams(tab === "register" ? { tab: "register" } : {});
   }
 
@@ -69,11 +95,11 @@ export function AuthPage() {
     if (!values.email.trim()) {
       errors.email = "El email es obligatorio.";
     } else if (!emailPattern.test(values.email.trim())) {
-      errors.email = "Introduce un email válido.";
+      errors.email = "Introduce un email valido.";
     }
 
     if (!values.password) {
-      errors.password = "La contraseña es obligatoria.";
+      errors.password = "La contrasena es obligatoria.";
     }
 
     return errors;
@@ -89,21 +115,21 @@ export function AuthPage() {
     if (!values.email.trim()) {
       errors.email = "El email es obligatorio.";
     } else if (!emailPattern.test(values.email.trim())) {
-      errors.email = "Introduce un email válido.";
+      errors.email = "Introduce un email valido.";
     }
 
     if (!values.password) {
-      errors.password = "La contraseña es obligatoria.";
+      errors.password = "La contrasena es obligatoria.";
     } else if (values.password.length < 8) {
       errors.password = "Usa al menos 8 caracteres.";
     } else if (values.password.length > passwordMaxLength) {
-      errors.password = "La contraseña no puede superar 72 caracteres.";
+      errors.password = "La contrasena no puede superar 72 caracteres.";
     }
 
     if (!values.confirmPassword) {
-      errors.confirmPassword = "Confirma la contraseña.";
+      errors.confirmPassword = "Confirma la contrasena.";
     } else if (values.confirmPassword !== values.password) {
-      errors.confirmPassword = "Las contraseñas no coinciden.";
+      errors.confirmPassword = "Las contrasenas no coinciden.";
     }
 
     return errors;
@@ -130,9 +156,9 @@ export function AuthPage() {
       navigate("/catalogo", { replace: true });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        setLoginFormError("Email o contraseña incorrectos.");
+        setLoginFormError("Email o contrasena incorrectos.");
       } else {
-        setLoginFormError("No se pudo iniciar sesión. Inténtalo otra vez.");
+        setLoginFormError("No se pudo iniciar sesion. Intentalo otra vez.");
       }
     } finally {
       setIsLoginSubmitting(false);
@@ -165,7 +191,7 @@ export function AuthPage() {
           email: "Ya existe una cuenta con ese email.",
         });
       } else {
-        setRegisterFormError("No se pudo crear la cuenta. Inténtalo otra vez.");
+        setRegisterFormError("No se pudo crear la cuenta. Intentalo otra vez.");
       }
     } finally {
       setIsRegisterSubmitting(false);
@@ -174,18 +200,34 @@ export function AuthPage() {
 
   return (
     <section className="auth-section">
-      <div className="auth-card panel">
-        <div className="auth-copy">
-          <p className="eyebrow">Ventana 1</p>
-          <h1>Entra en tu biblioteca privada</h1>
-          <p className="lead">
-            Accede a tu catálogo personal, guarda sesión y prepara la zona
-            privada para las siguientes fases.
+      <div className="auth-page-shell">
+        <div className="auth-page-intro">
+          <p className="auth-page-kicker">{activeTab === "login" ? "Acceso privado" : "Nueva cuenta"}</p>
+          <h1 className="auth-page-title">
+            {activeTab === "login"
+              ? "Entra en tu biblioteca privada"
+              : "Crea tu espacio personal de lectura"}
+          </h1>
+          <p className="auth-page-lead">
+            {activeTab === "login"
+              ? "Accede a catalogo, listas, progreso y estadisticas con la misma identidad visual del resto de la aplicacion."
+              : "Registra tu cuenta para organizar libros, lecturas y bibliotecas compartidas desde una unica interfaz."}
           </p>
+          <div className="auth-page-links">
+            <Link className="auth-page-link" to="/">
+              Volver a la landing
+            </Link>
+            <Link
+              className="auth-page-link auth-page-link-strong"
+              to={activeTab === "login" ? "/register" : "/login"}
+            >
+              {activeTab === "login" ? "Crear cuenta" : "Ya tengo cuenta"}
+            </Link>
+          </div>
         </div>
 
-        <div className="content-stack">
-          <div className="auth-tabs" role="tablist" aria-label="Autenticación">
+        <div className="auth-card auth-card-centered panel">
+          <div className="auth-tabs" role="tablist" aria-label="Autenticacion">
             <button
               className={activeTab === "login" ? "auth-tab active" : "auth-tab"}
               type="button"
@@ -196,9 +238,7 @@ export function AuthPage() {
               Login
             </button>
             <button
-              className={
-                activeTab === "register" ? "auth-tab active" : "auth-tab"
-              }
+              className={activeTab === "register" ? "auth-tab active" : "auth-tab"}
               type="button"
               role="tab"
               aria-selected={activeTab === "register"}
@@ -209,10 +249,16 @@ export function AuthPage() {
           </div>
 
           {activeTab === "login" ? (
-            <form className="form-grid" onSubmit={handleLoginSubmit} noValidate>
-              <label className="field-group">
-                <span>Email</span>
+            <form className="auth-form" onSubmit={handleLoginSubmit} noValidate>
+              <div className="auth-form-copy">
+                <h2>Bienvenido otra vez</h2>
+                <p>Introduce tus datos para volver a tu zona privada.</p>
+              </div>
+
+              <label className="auth-field">
+                <span className="auth-field-label">Email</span>
                 <input
+                  className="auth-input"
                   type="email"
                   value={loginValues.email}
                   onChange={(event) =>
@@ -224,14 +270,13 @@ export function AuthPage() {
                   autoComplete="email"
                   placeholder="tu@email.com"
                 />
-                {loginErrors.email && (
-                  <p className="field-error">{loginErrors.email}</p>
-                )}
+                {loginErrors.email ? <p className="auth-field-error">{loginErrors.email}</p> : null}
               </label>
 
-              <label className="field-group">
-                <span>Contraseña</span>
+              <label className="auth-field">
+                <span className="auth-field-label">Contrasena</span>
                 <input
+                  className="auth-input"
                   type="password"
                   value={loginValues.password}
                   onChange={(event) =>
@@ -241,32 +286,30 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="current-password"
-                  placeholder="Introduce tu contraseña"
+                  placeholder="Introduce tu contrasena"
                 />
-                {loginErrors.password && (
-                  <p className="field-error">{loginErrors.password}</p>
-                )}
+                {loginErrors.password ? (
+                  <p className="auth-field-error">{loginErrors.password}</p>
+                ) : null}
               </label>
 
-              {loginFormError && <p className="form-error">{loginFormError}</p>}
+              {loginFormError ? <p className="auth-form-error">{loginFormError}</p> : null}
 
-              <button
-                className="submit-button"
-                type="submit"
-                disabled={isLoginSubmitting}
-              >
+              <button className="auth-submit" type="submit" disabled={isLoginSubmitting}>
                 {isLoginSubmitting ? "Entrando..." : "Entrar"}
               </button>
             </form>
           ) : (
-            <form
-              className="form-grid"
-              onSubmit={handleRegisterSubmit}
-              noValidate
-            >
-              <label className="field-group">
-                <span>Nombre</span>
+            <form className="auth-form" onSubmit={handleRegisterSubmit} noValidate>
+              <div className="auth-form-copy">
+                <h2>Crea tu cuenta</h2>
+                <p>Empieza con un perfil nuevo y entra directo a tu catalogo.</p>
+              </div>
+
+              <label className="auth-field">
+                <span className="auth-field-label">Nombre</span>
                 <input
+                  className="auth-input"
                   type="text"
                   value={registerValues.name}
                   onChange={(event) =>
@@ -276,16 +319,17 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="name"
-                  placeholder="Cómo quieres aparecer"
+                  placeholder="Como quieres aparecer"
                 />
-                {registerErrors.name && (
-                  <p className="field-error">{registerErrors.name}</p>
-                )}
+                {registerErrors.name ? (
+                  <p className="auth-field-error">{registerErrors.name}</p>
+                ) : null}
               </label>
 
-              <label className="field-group">
-                <span>Email</span>
+              <label className="auth-field">
+                <span className="auth-field-label">Email</span>
                 <input
+                  className="auth-input"
                   type="email"
                   value={registerValues.email}
                   onChange={(event) =>
@@ -297,14 +341,15 @@ export function AuthPage() {
                   autoComplete="email"
                   placeholder="tu@email.com"
                 />
-                {registerErrors.email && (
-                  <p className="field-error">{registerErrors.email}</p>
-                )}
+                {registerErrors.email ? (
+                  <p className="auth-field-error">{registerErrors.email}</p>
+                ) : null}
               </label>
 
-              <label className="field-group">
-                <span>Contraseña</span>
+              <label className="auth-field">
+                <span className="auth-field-label">Contrasena</span>
                 <input
+                  className="auth-input"
                   type="password"
                   value={registerValues.password}
                   onChange={(event) =>
@@ -317,14 +362,15 @@ export function AuthPage() {
                   placeholder="Entre 8 y 72 caracteres"
                   maxLength={passwordMaxLength}
                 />
-                {registerErrors.password && (
-                  <p className="field-error">{registerErrors.password}</p>
-                )}
+                {registerErrors.password ? (
+                  <p className="auth-field-error">{registerErrors.password}</p>
+                ) : null}
               </label>
 
-              <label className="field-group">
-                <span>Confirmación de contraseña</span>
+              <label className="auth-field">
+                <span className="auth-field-label">Confirmacion de contrasena</span>
                 <input
+                  className="auth-input"
                   type="password"
                   value={registerValues.confirmPassword}
                   onChange={(event) =>
@@ -334,25 +380,17 @@ export function AuthPage() {
                     }))
                   }
                   autoComplete="new-password"
-                  placeholder="Repite la contraseña"
+                  placeholder="Repite la contrasena"
                   maxLength={passwordMaxLength}
                 />
-                {registerErrors.confirmPassword && (
-                  <p className="field-error">
-                    {registerErrors.confirmPassword}
-                  </p>
-                )}
+                {registerErrors.confirmPassword ? (
+                  <p className="auth-field-error">{registerErrors.confirmPassword}</p>
+                ) : null}
               </label>
 
-              {registerFormError && (
-                <p className="form-error">{registerFormError}</p>
-              )}
+              {registerFormError ? <p className="auth-form-error">{registerFormError}</p> : null}
 
-              <button
-                className="submit-button"
-                type="submit"
-                disabled={isRegisterSubmitting}
-              >
+              <button className="auth-submit" type="submit" disabled={isRegisterSubmitting}>
                 {isRegisterSubmitting ? "Creando cuenta..." : "Crear cuenta"}
               </button>
             </form>

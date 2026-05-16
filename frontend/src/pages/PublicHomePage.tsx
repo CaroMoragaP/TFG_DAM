@@ -64,36 +64,6 @@ function BookStackIcon() {
   );
 }
 
-function ReadingIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path
-        d="M7.5 3.25a4.25 4.25 0 0 0-4.25 4.25v9.75A3.5 3.5 0 0 0 6.75 20.75h10.5a.75.75 0 0 0 0-1.5H6.75a2 2 0 0 1-2-2V7.5a2.75 2.75 0 0 1 2.75-2.75h8a.75.75 0 0 0 0-1.5h-8Z"
-        fill="currentColor"
-      />
-      <path
-        d="M11.22 8.22a.75.75 0 0 1 1.06 0l2.22 2.22 3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0l-2.75-2.75a.75.75 0 0 1 0-1.06Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function StatsIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path
-        d="M5.75 4.25a.75.75 0 0 1 .75.75v13.25h11.75a.75.75 0 0 1 0 1.5H5.75A.75.75 0 0 1 5 19V5a.75.75 0 0 1 .75-.75Z"
-        fill="currentColor"
-      />
-      <path
-        d="M9.25 13.5A1.25 1.25 0 0 1 10.5 12.25h.5a1.25 1.25 0 0 1 1.25 1.25v2.75h-3V13.5Zm4.75-4A1.25 1.25 0 0 1 15.25 8.25h.5A1.25 1.25 0 0 1 17 9.5v6.75h-3V9.5Zm-9.5 6A1.25 1.25 0 0 1 5.75 14.25h.5A1.25 1.25 0 0 1 7.5 15.5v.75H4.5v-.75Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 function LandingPreviewImage() {
   const [hasImageError, setHasImageError] = useState(false);
 
@@ -143,47 +113,6 @@ export function PublicHomePage() {
           <div className="landing-preview-shell">
             <div className="landing-preview-media">
               <LandingPreviewImage />
-            </div>
-
-            <div className="landing-preview-header">
-              <span className="landing-preview-pill">Catalogo privado</span>
-              <span className="landing-preview-chip">JWT activo</span>
-            </div>
-
-            <div className="landing-preview-card landing-preview-card-primary">
-              <div className="landing-preview-icon">
-                <BookStackIcon />
-              </div>
-              <div>
-                <strong>Todo tu fondo en un solo lugar</strong>
-                <p>Busca por titulo, autor, ISBN o biblioteca sin salir del panel principal.</p>
-              </div>
-            </div>
-
-            <div className="landing-preview-grid">
-              <article className="landing-preview-card">
-                <div className="landing-preview-icon">
-                  <ReadingIcon />
-                </div>
-                <div>
-                  <strong>Lectura al dia</strong>
-                  <p>Pendiente, en lectura y terminado con notas y puntuacion.</p>
-                </div>
-              </article>
-
-              <article className="landing-preview-card">
-                <div className="landing-preview-icon">
-                  <StatsIcon />
-                </div>
-                <div>
-                  <strong>Metricas utiles</strong>
-                  <p>Estadisticas claras para revisar habitos, formatos y evolucion.</p>
-                </div>
-              </article>
-            </div>
-
-            <div className="landing-preview-footer">
-              <span>Importa CSV, crea listas y consulta tu catalogo desde cualquier biblioteca.</span>
             </div>
           </div>
         </div>

@@ -16,6 +16,7 @@ import {
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero } from "../components/DashboardHero";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   fetchCatalogStats,
@@ -553,17 +554,13 @@ export function StatsPage() {
   }
 
   return (
-    <section className="content-stack">
-      <div className="panel hero-panel stats-hero">
-        <div>
-          <p className="eyebrow">Analitica personal</p>
-          <h2>Estadística</h2>
-          <p>
-            Revisa el equilibrio de tu catalogo, el progreso de lectura y los patrones que se van
-            formando en tus bibliotecas.
-          </p>
-        </div>
-      </div>
+    <section className="content-stack private-page-shell">
+      <DashboardHero
+        eyebrow="Analitica personal"
+        title="Estadistica"
+        description="Revisa el equilibrio de tu catalogo, el progreso de lectura y los patrones que se van formando en tus bibliotecas."
+        icon="stats"
+      />
 
       <div className="panel stats-toolbar">
         <label className="field-group">

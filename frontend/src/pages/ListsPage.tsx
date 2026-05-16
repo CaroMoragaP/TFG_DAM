@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero, HeroActionButton } from "../components/DashboardHero";
 import { ListFormModal } from "../components/ListFormModal";
 import {
   createListRequest,
@@ -101,17 +102,18 @@ export function ListsPage() {
   }
 
   return (
-    <section className="content-stack">
-      <div className="catalog-hero panel hero-panel">
-        <div>
-          <p className="eyebrow">Listas personales</p>
-          <h2>Mis Listas</h2>
-          <p>Organiza tus lecturas en colecciones disponibles para todo tu catalogo.</p>
-        </div>
-        <button className="submit-button catalog-add-button" type="button" onClick={handleOpenCreateForm}>
-          + Crear lista
-        </button>
-      </div>
+    <section className="content-stack private-page-shell">
+      <DashboardHero
+        eyebrow="Listas personales"
+        title="Mis listas"
+        description="Organiza tus lecturas en colecciones disponibles para todo tu catalogo."
+        icon="list"
+        actions={
+          <HeroActionButton emphasis="primary" icon="plus" onClick={handleOpenCreateForm}>
+            Crear lista
+          </HeroActionButton>
+        }
+      />
 
       {listsQuery.isError ? (
         <div className="panel">

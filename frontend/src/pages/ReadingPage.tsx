@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero } from "../components/DashboardHero";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   createCopyReviewRequest,
@@ -601,17 +602,13 @@ export function ReadingPage() {
   }
 
   return (
-    <section className="content-stack">
-      <div className="panel hero-panel reading-hero">
-        <div>
-          <p className="eyebrow">Seguimiento lector</p>
-          <h2>Mi registro de lectura</h2>
-          <p>
-            Gestiona tu progreso lector, anota impresiones personales y publica tu valoracion en las
-            bibliotecas compartidas sin duplicar notas.
-          </p>
-        </div>
-      </div>
+    <section className="content-stack private-page-shell">
+      <DashboardHero
+        eyebrow="Seguimiento lector"
+        title="Mi registro de lectura"
+        description="Gestiona tu progreso lector, anota impresiones personales y publica tu valoracion en las bibliotecas compartidas sin duplicar notas."
+        icon="reading"
+      />
 
       <div className="reading-count-grid">
         {readingTabSequence.map((status) => (

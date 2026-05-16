@@ -10,7 +10,7 @@ export function LibrarySectionPage({
   description,
 }: LibrarySectionPageProps) {
   return (
-    <section className="content-stack">
+    <section className="content-stack private-page-shell">
       <div className="panel">
         <p className="eyebrow">{eyebrow}</p>
         <h2>{title}</h2>

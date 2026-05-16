@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 
-import type { Book, Library, ReadingStatus } from "../lib/api";
+import type { Book, Library } from "../lib/api";
+import { ReadingStatusBadge } from "./ReadingStatusBadge";
+import { StarRating } from "./StarRating";
 
 type BookCardProps = {
   book: Book;
@@ -10,31 +12,6 @@ type BookCardProps = {
   onAddToList: (book: Book) => void;
   onEdit: (book: Book) => void;
 };
-
-const readingStatusCopy: Record<
-  ReadingStatus,
-  { label: string; toneClass: string; iconLabel: string }
-> = {
-  pending: {
-    label: "Pendiente",
-    toneClass: "pending",
-    iconLabel: "P",
-  },
-  reading: {
-    label: "Leyendo",
-    toneClass: "reading",
-    iconLabel: "L",
-  },
-  finished: {
-    label: "Leido",
-    toneClass: "finished",
-    iconLabel: "T",
-  },
-};
-
-function formatRating(value: number | null) {
-  return value === null ? "-" : `${value}/5`;
-}
 
 function formatPublicRating(value: number | null) {
   return value === null ? "sin media" : `${value.toFixed(1)}/5`;
@@ -52,15 +29,18 @@ function formatLoanLine(book: Book) {
 }
 
 function formatReadersLine(book: Book) {
-  if (book.shared_readers_count <= 0) {
+  const sharedReadersCount = book.shared_readers_count ?? 0;
+  const sharedReadersPreview = book.shared_readers_preview ?? [];
+
+  if (sharedReadersCount <= 0) {
     return null;
   }
 
-  if (book.shared_readers_count === 1 && book.shared_readers_preview[0]) {
-    return `Lo esta leyendo ${book.shared_readers_preview[0].name}`;
+  if (sharedReadersCount === 1 && sharedReadersPreview[0]) {
+    return `Lo esta leyendo ${sharedReadersPreview[0].name}`;
   }
 
-  return `${book.shared_readers_count} miembros lo estan leyendo`;
+  return `${sharedReadersCount} miembros lo estan leyendo`;
 }
 
 export function BookCard({
@@ -71,86 +51,91 @@ export function BookCard({
   onAddToList,
   onEdit,
 }: BookCardProps) {
-  const statusInfo = readingStatusCopy[book.reading_status];
   const author = book.authors[0] ?? "Autor sin registrar";
   const coverLetter = (book.title.trim().slice(0, 1) || "?").toUpperCase();
   const loanLine = formatLoanLine(book);
   const readersLine = formatReadersLine(book);
-  const hasCommunitySummary =
-    book.active_loan !== null || book.shared_readers_count > 0 || book.public_review_count > 0;
+  const publicReviewCount = book.public_review_count ?? 0;
+  const hasCommunitySummary = book.active_loan != null || Boolean(readersLine) || publicReviewCount > 0;
+  const detailChips = [book.genre, book.collection, book.author_country].filter(
+    (value): value is string => Boolean(value),
+  );
 
   return (
-    <article className="book-card panel">
-      <Link className="book-cover-shell" to={`/libros/${book.id}`} aria-label={`Ver detalle de ${book.title}`}>
+    <article className="dashboard-book-card panel">
+      <Link
+        className="dashboard-book-cover"
+        to={`/libros/${book.id}`}
+        aria-label={`Ver detalle de ${book.title}`}
+      >
         {book.cover_url ? (
-          <img className="book-cover-image" src={book.cover_url} alt={`Portada de ${book.title}`} />
+          <img src={book.cover_url} alt={`Portada de ${book.title}`} />
         ) : (
-          <div className="book-cover-placeholder" aria-hidden="true">
-            <span>{coverLetter}</span>
+          <div className="dashboard-book-cover-fallback" aria-hidden="true">
+            <span className="dashboard-book-cover-letter">{coverLetter}</span>
           </div>
         )}
+
+        <div className="dashboard-book-overlay">
+          <ReadingStatusBadge status={book.reading_status} />
+        </div>
       </Link>
 
-      <div className="book-card-body">
-        <div className="book-card-head">
-          <div>
+      <div className="dashboard-book-body">
+        <div className="dashboard-book-heading">
+          <div className="dashboard-book-title-block">
             <h3>
               <Link to={`/libros/${book.id}`}>{book.title}</Link>
             </h3>
-            <p className="book-card-author">{author}</p>
+            <p className="dashboard-book-author">{author}</p>
           </div>
-          <div className="card-actions">
-            <button className="ghost-link compact-action" type="button" onClick={() => onAddToList(book)}>
-              Anadir a lista
-            </button>
-            {canEdit ? (
-              <button className="ghost-link compact-action" type="button" onClick={() => onEdit(book)}>
-                Editar
-              </button>
-            ) : null}
-          </div>
+
+          {showLibraryBadge && library ? (
+            <span className="dashboard-library-pill">{library.name}</span>
+          ) : null}
         </div>
 
-        <dl className="book-meta-grid">
-          <div>
-            <dt>Rating</dt>
-            <dd>{formatRating(book.user_rating)}</dd>
+        <StarRating rating={book.user_rating} />
+
+        {detailChips.length > 0 ? (
+          <div className="dashboard-book-chip-row">
+            {detailChips.map((chip) => (
+              <span key={chip} className="dashboard-book-chip">
+                {chip}
+              </span>
+            ))}
           </div>
-          <div>
-            <dt>Genero</dt>
-            <dd>{book.genre ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Coleccion</dt>
-            <dd>{book.collection ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Pais autor</dt>
-            <dd>{book.author_country ?? "-"}</dd>
-          </div>
-        </dl>
+        ) : null}
 
         {hasCommunitySummary ? (
-          <div className="book-community-stack">
+          <div className="dashboard-book-community">
             {loanLine ? <p className="detail-inline-copy">{loanLine}</p> : null}
             {readersLine ? <p className="detail-inline-copy">{readersLine}</p> : null}
-            {book.public_review_count > 0 ? (
+            {publicReviewCount > 0 ? (
               <p className="detail-inline-copy">
-                {book.public_review_count} resenas publicas · {formatPublicRating(book.public_average_rating)}
+                {publicReviewCount} resenas publicas - {formatPublicRating(book.public_average_rating)}
               </p>
             ) : null}
           </div>
         ) : null}
 
-        <div className="book-card-footer">
-          <span className={`reading-pill ${statusInfo.toneClass}`}>
-            <span className="reading-pill-icon" aria-hidden="true">
-              {statusInfo.iconLabel}
-            </span>
-            {statusInfo.label}
-          </span>
-
-          {showLibraryBadge && library ? <span className="library-badge">{library.name}</span> : null}
+        <div className="dashboard-book-actions">
+          <button
+            className="dashboard-card-button dashboard-card-button-secondary"
+            type="button"
+            onClick={() => onAddToList(book)}
+          >
+            Anadir a lista
+          </button>
+          {canEdit ? (
+            <button
+              className="dashboard-card-button dashboard-card-button-primary"
+              type="button"
+              onClick={() => onEdit(book)}
+            >
+              Editar
+            </button>
+          ) : null}
         </div>
       </div>
     </article>

@@ -3,10 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { buildBookPayloadThemes, BookModal, type BookFormValues } from "../components/BookModal";
 import { AddToListModal } from "../components/AddToListModal";
 import { BookCard } from "../components/BookCard";
+import { buildBookPayloadThemes, BookModal, type BookFormValues } from "../components/BookModal";
+import { CatalogHero } from "../components/CatalogHero";
 import { CatalogImportModal } from "../components/CatalogImportModal";
+import { CatalogToolbar } from "../components/CatalogToolbar";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
 import { useLibraries } from "../libraries/useLibraries";
 import { LITERARY_GENRE_OPTIONS } from "../lib/bookMetadata";
@@ -16,8 +18,8 @@ import {
   createBookRequest,
   exportCatalogRequest,
   fetchBooks,
-  fetchThemes,
   fetchLists,
+  fetchThemes,
   previewCatalogImportRequest,
   updateCopyRequest,
   type Book,
@@ -225,6 +227,14 @@ export function DashboardPage() {
     setSearchParams(nextSearchParams, { replace: true });
   }
 
+  function clearCatalogFilters() {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    ["library", "listId", "genre", "theme", "collection", "authorCountry"].forEach((key) => {
+      nextSearchParams.delete(key);
+    });
+    setSearchParams(nextSearchParams, { replace: true });
+  }
+
   function handleOpenEditModal(book: Book) {
     setSelectedBook(book);
   }
@@ -325,125 +335,47 @@ export function DashboardPage() {
   }
 
   return (
-    <section className="content-stack">
-      <div className="catalog-hero panel hero-panel">
-        <div>
-          <p className="eyebrow">Catalogo privado</p>
-          <h2>Mi catálogo</h2>
-          <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
-        </div>
-        <div className="inline-actions">
-          <button
-            className="ghost-link compact-action"
-            type="button"
-            onClick={() => {
-              setImportError(null);
-              setImportPreview(null);
-              setIsImportModalOpen(true);
-            }}
-            disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
-          >
-            Importar CSV
-          </button>
-          <button
-            className="ghost-link compact-action"
-            type="button"
-            onClick={() => void handleExportCatalog()}
-            disabled={booksQuery.isPending || isExporting}
-          >
-            {isExporting ? "Exportando..." : "Exportar CSV"}
-          </button>
-          <button
-            className="submit-button catalog-add-button"
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
-          >
-            + Anadir libro
-          </button>
-        </div>
-      </div>
+    <section className="content-stack dashboard-catalog-page">
+      <CatalogHero
+        onImport={() => {
+          setImportError(null);
+          setImportPreview(null);
+          setIsImportModalOpen(true);
+        }}
+        onExport={() => void handleExportCatalog()}
+        onAddBook={() => setIsCreateModalOpen(true)}
+        isImportDisabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
+        isExportDisabled={booksQuery.isPending || isExporting}
+        isExporting={isExporting}
+      />
 
-      <div className="panel catalog-toolbar">
-        <div className="catalog-search-block">
-          <label className="field-group">
-            Buscar
-            <input
-              placeholder="Buscar por titulo, autor, ISBN..."
-              value={searchDraft}
-              onChange={(event) => setSearchDraft(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="catalog-filters">
-          <label className="field-group">
-            Biblioteca
-            <select value={libraryParam} onChange={(event) => updateFilter("library", event.target.value)}>
-              <option value="">Todas</option>
-              {libraries.map((library) => (
-                <option key={library.id} value={library.id}>
-                  {library.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field-group">
-            Lista
-            <select value={listIdParam} onChange={(event) => updateFilter("listId", event.target.value)}>
-              <option value="">Todas</option>
-              {visibleLists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name}
-                </option>
-              ))}
-              {selectedListId && !activeList && !listsQuery.isPending ? (
-                <option value={selectedListId}>Lista no disponible</option>
-              ) : null}
-            </select>
-          </label>
-
-          <label className="field-group">
-            Genero literario
-            <select value={genre} onChange={(event) => updateFilter("genre", event.target.value)}>
-              <option value="">Todos</option>
-              {LITERARY_GENRE_OPTIONS.map((genreOption) => (
-                <option key={genreOption.value} value={genreOption.value}>
-                  {genreOption.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field-group">
-            Tema
-            <select value={theme} onChange={(event) => updateFilter("theme", event.target.value)}>
-              <option value="">Todos</option>
-              {(themesQuery.data ?? []).map((themeOption) => (
-                <option key={themeOption} value={themeOption}>
-                  {themeOption}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field-group">
-            Coleccion
-            <input value={collection} onChange={(event) => updateFilter("collection", event.target.value)} />
-          </label>
-
-          <label className="field-group">
-            Pais del autor
-            <input value={authorCountry} onChange={(event) => updateFilter("authorCountry", event.target.value)} />
-          </label>
-
-        </div>
-      </div>
+      <CatalogToolbar
+        searchDraft={searchDraft}
+        onSearchChange={setSearchDraft}
+        libraryParam={libraryParam}
+        libraries={libraries}
+        onLibraryChange={(value) => updateFilter("library", value)}
+        listIdParam={listIdParam}
+        lists={visibleLists}
+        selectedListId={selectedListId}
+        activeList={activeList}
+        onListChange={(value) => updateFilter("listId", value)}
+        genre={genre}
+        genreOptions={LITERARY_GENRE_OPTIONS}
+        onGenreChange={(value) => updateFilter("genre", value)}
+        theme={theme}
+        themeOptions={themesQuery.data ?? []}
+        onThemeChange={(value) => updateFilter("theme", value)}
+        collection={collection}
+        onCollectionChange={(value) => updateFilter("collection", value)}
+        authorCountry={authorCountry}
+        onAuthorCountryChange={(value) => updateFilter("authorCountry", value)}
+        onClearFilters={clearCatalogFilters}
+      />
 
       {selectedListId ? (
-        <div className="panel subtle-panel active-filter-panel">
-          <div className="active-filter-copy">
+        <div className="panel dashboard-active-list-panel">
+          <div className="dashboard-active-list-copy">
             <p className="eyebrow">Lista activa</p>
             <h3>{activeList?.name ?? `Lista #${selectedListId}`}</h3>
             <p>
@@ -452,7 +384,11 @@ export function DashboardPage() {
                 : "La lista filtrada ya no esta disponible o no te pertenece."}
             </p>
           </div>
-          <button className="ghost-link compact-action" type="button" onClick={() => updateFilter("listId", "")}>
+          <button
+            className="dashboard-toolbar-clear"
+            type="button"
+            onClick={() => updateFilter("listId", "")}
+          >
             Limpiar filtro
           </button>
         </div>
@@ -470,10 +406,26 @@ export function DashboardPage() {
         </div>
       ) : null}
 
+      {booksQuery.data ? (
+        <div className="dashboard-results-row">
+          <p>
+            <strong>{booksQuery.data.length}</strong>{" "}
+            {booksQuery.data.length === 1 ? "libro encontrado" : "libros encontrados"}
+          </p>
+        </div>
+      ) : null}
+
       {booksQuery.isPending ? (
-        <div className="catalog-grid">
+        <div className="catalog-grid dashboard-catalog-grid">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="book-skeleton panel" aria-hidden="true" />
+            <div key={index} className="dashboard-book-skeleton panel" aria-hidden="true">
+              <div className="dashboard-book-skeleton-cover" />
+              <div className="dashboard-book-skeleton-line dashboard-book-skeleton-line-title" />
+              <div className="dashboard-book-skeleton-line" />
+              <div className="dashboard-book-skeleton-stars" />
+              <div className="dashboard-book-skeleton-line dashboard-book-skeleton-line-short" />
+              <div className="dashboard-book-skeleton-actions" />
+            </div>
           ))}
         </div>
       ) : null}
@@ -492,18 +444,31 @@ export function DashboardPage() {
       ) : null}
 
       {booksQuery.data && booksQuery.data.length === 0 ? (
-        <div className="panel empty-state">
+        <div className="panel dashboard-empty-state">
+          <div className="dashboard-empty-state-mark" aria-hidden="true">
+            <span />
+          </div>
           <h3>{selectedListId ? "La lista seleccionada esta vacia." : "No hay libros con esos filtros."}</h3>
           <p>
             {selectedListId
               ? 'Anade libros a esta lista desde el catalogo usando la accion "Anadir a lista".'
               : "Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo."}
           </p>
+          {!selectedListId ? (
+            <button
+              className="dashboard-card-button dashboard-card-button-primary"
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
+            >
+              Anadir primer libro
+            </button>
+          ) : null}
         </div>
       ) : null}
 
       {booksQuery.data && booksQuery.data.length > 0 ? (
-        <div className="catalog-grid">
+        <div className="catalog-grid dashboard-catalog-grid">
           {booksQuery.data.map((book) => {
             const library = libraryMap.get(book.library_id);
             const canEdit = library ? !library.is_archived && library.role !== "viewer" : false;

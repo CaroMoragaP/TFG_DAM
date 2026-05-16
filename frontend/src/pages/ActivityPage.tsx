@@ -163,7 +163,7 @@ export function ActivityPage() {
       <section className="content-stack">
         <div className="panel">
           <p className="eyebrow">Comunidad</p>
-          <h2>Muro</h2>
+          <h2>Comunidad</h2>
           <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
         </div>
       </section>
@@ -174,7 +174,7 @@ export function ActivityPage() {
     <section className="content-stack">
       <div className="panel hero-panel">
         <p className="eyebrow">Comunidad</p>
-        <h2>Muro</h2>
+        <h2>Comunidad</h2>
         <p>
           {activeLibrary
             ? (

@@ -557,17 +557,11 @@ export function StatsPage() {
       <div className="panel hero-panel stats-hero">
         <div>
           <p className="eyebrow">Analitica personal</p>
-          <h2>Estadisticas</h2>
+          <h2>Estadística</h2>
           <p>
             Revisa el equilibrio de tu catalogo, el progreso de lectura y los patrones que se van
             formando en tus bibliotecas.
           </p>
-        </div>
-        <div className="stats-hero-aside">
-          <span className="status-chip active">
-            {activeLibrary ? activeLibrary.name : "Todas mis bibliotecas"}
-          </span>
-          <p>Las metricas de lectura siempre se calculan con tus datos personales.</p>
         </div>
       </div>
 

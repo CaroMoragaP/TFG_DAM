@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
+import { LibraryFormModal } from "../components/LibraryFormModal";
 import {
   addLibraryMemberRequest,
   createLibraryRequest,
@@ -26,8 +27,7 @@ export function LibrariesPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLibraryId, setSelectedLibraryId] = useState<number | null>(null);
-  const [createName, setCreateName] = useState("");
-  const [createType, setCreateType] = useState<LibraryType>("shared");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Exclude<UserLibraryRole, "owner">>("editor");
@@ -83,16 +83,11 @@ export function LibrariesPage() {
   };
 
   const createLibraryMutation = useMutation({
-    mutationFn: () =>
-      createLibraryRequest(token ?? "", {
-        name: createName.trim(),
-        type: createType,
-      }),
+    mutationFn: (payload: { name: string; type: LibraryType }) => createLibraryRequest(token ?? "", payload),
     onSuccess: async (library) => {
       await invalidateLibraries();
-      setCreateName("");
-      setCreateType("shared");
       setSelectedLibraryId(library.id);
+      setIsCreateModalOpen(false);
     },
   });
 
@@ -201,59 +196,28 @@ export function LibrariesPage() {
           <h2>Mis bibliotecas</h2>
           <p>Gestiona bibliotecas personales y compartidas, miembros y permisos.</p>
         </div>
+        <button
+          className="submit-button catalog-add-button"
+          type="button"
+          onClick={() => setIsCreateModalOpen(true)}
+        >
+          + Añadir biblioteca
+        </button>
       </div>
 
-      <div className="split-panel">
-        <form
-          className="panel subtle-panel"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createLibraryMutation.mutateAsync();
-          }}
-        >
-          <p className="eyebrow">Nueva biblioteca</p>
-          <label className="field-group">
-            Nombre
-            <input value={createName} onChange={(event) => setCreateName(event.target.value)} />
-          </label>
-          <label className="field-group">
-            Tipo
-            <select
-              value={createType}
-              onChange={(event) => setCreateType(event.target.value as LibraryType)}
-            >
-              <option value="shared">Compartida</option>
-              <option value="personal">Personal</option>
-            </select>
-          </label>
-          {createLibraryMutation.isError ? (
-            <p className="form-error">
-              {createLibraryMutation.error instanceof Error
-                ? createLibraryMutation.error.message
-                : "No se pudo crear la biblioteca."}
-            </p>
-          ) : null}
-          <button className="submit-button" type="submit" disabled={createLibraryMutation.isPending || !createName.trim()}>
-            {createLibraryMutation.isPending ? "Creando..." : "Crear biblioteca"}
-          </button>
-        </form>
-
-        <div className="content-stack">
-          <div className="panel">
-            <p className="eyebrow">Bibliotecas</p>
-            {librariesQuery.isPending ? (
-              <div className="content-stack">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
-                ))}
-              </div>
-            ) : allLibraries.length === 0 ? (
-              <p>No tienes bibliotecas.</p>
-            ) : (
-              <div className="content-stack">{allLibraries.map(renderLibraryButton)}</div>
-            )}
+      <div className="panel">
+        <p className="eyebrow">Bibliotecas</p>
+        {librariesQuery.isPending ? (
+          <div className="content-stack">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="panel book-skeleton library-list-skeleton" aria-hidden="true" />
+            ))}
           </div>
-        </div>
+        ) : allLibraries.length === 0 ? (
+          <p>No tienes bibliotecas.</p>
+        ) : (
+          <div className="content-stack">{allLibraries.map(renderLibraryButton)}</div>
+        )}
       </div>
 
       {librariesQuery.isError ? (
@@ -444,6 +408,20 @@ export function LibrariesPage() {
           ) : null}
         </div>
       ) : null}
+
+      <LibraryFormModal
+        isOpen={isCreateModalOpen}
+        isSaving={createLibraryMutation.isPending}
+        onClose={() => {
+          if (createLibraryMutation.isPending) {
+            return;
+          }
+          setIsCreateModalOpen(false);
+        }}
+        onSubmit={async (payload) => {
+          await createLibraryMutation.mutateAsync(payload);
+        }}
+      />
     </section>
   );
 }

@@ -329,7 +329,7 @@ export function DashboardPage() {
       <div className="catalog-hero panel hero-panel">
         <div>
           <p className="eyebrow">Catalogo privado</p>
-          <h2>Mi catalogo</h2>
+          <h2>Mi catálogo</h2>
           <p>Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia.</p>
         </div>
         <div className="inline-actions">

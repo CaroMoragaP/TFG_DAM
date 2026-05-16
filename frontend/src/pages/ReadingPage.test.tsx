@@ -154,7 +154,7 @@ describe("ReadingPage", () => {
     });
 
     await screen.findByText("Dune");
-    expect(screen.getByText("Lectura")).toBeInTheDocument();
+    expect(screen.getByText("Mi registro de lectura")).toBeInTheDocument();
     expect(screen.queryByText("Importar CSV")).not.toBeInTheDocument();
     expect(screen.queryByText("Meta de lectura 2026")).not.toBeInTheDocument();
 

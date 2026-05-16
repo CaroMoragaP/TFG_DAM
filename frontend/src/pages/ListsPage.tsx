@@ -105,7 +105,7 @@ export function ListsPage() {
       <div className="catalog-hero panel hero-panel">
         <div>
           <p className="eyebrow">Listas personales</p>
-          <h2>Mis listas</h2>
+          <h2>Mis Listas</h2>
           <p>Organiza tus lecturas en colecciones disponibles para todo tu catalogo.</p>
         </div>
         <button className="submit-button catalog-add-button" type="button" onClick={handleOpenCreateForm}>

@@ -413,9 +413,6 @@ export function ReadingPage() {
     return sortReadingItems(items, sort);
   }, [readingQuery.data, sort, tab]);
 
-  const activeLibrary = selectedLibraryId
-    ? availableLibraries.find((library) => library.id === selectedLibraryId) ?? null
-    : null;
   const showLibraryBadge = availableLibraries.length > 1;
   const errorMessage =
     readingQuery.error instanceof Error
@@ -608,17 +605,10 @@ export function ReadingPage() {
       <div className="panel hero-panel reading-hero">
         <div>
           <p className="eyebrow">Seguimiento lector</p>
-          <h2>Lectura</h2>
+          <h2>Mi registro de lectura</h2>
           <p>
             Gestiona tu progreso lector, anota impresiones personales y publica tu valoracion en las
             bibliotecas compartidas sin duplicar notas.
-          </p>
-        </div>
-        <div className="reading-hero-aside">
-          <span className="status-chip active">{activeLibrary ? activeLibrary.name : "Todas tus bibliotecas"}</span>
-          <p>
-            Esta vista es tu espacio de trabajo diario. El muro se encarga del descubrimiento social y
-            la ficha del libro queda como resumen.
           </p>
         </div>
       </div>

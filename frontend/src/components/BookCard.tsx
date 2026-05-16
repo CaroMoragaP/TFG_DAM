@@ -13,34 +13,41 @@ type BookCardProps = {
   onEdit: (book: Book) => void;
 };
 
-function formatPublicRating(value: number | null) {
-  return value === null ? "sin media" : `${value.toFixed(1)}/5`;
+function BookPlaceholderIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M6.5 4.25A2.25 2.25 0 0 1 8.75 2h7a2.25 2.25 0 0 1 2.25 2.25V18a.75.75 0 0 1-1.22.58l-2.32-1.85a1 1 0 0 0-1.24 0l-1.44 1.14a1 1 0 0 1-1.24 0l-1.44-1.14a1 1 0 0 0-1.24 0L5.47 18.6A.75.75 0 0 1 4.25 18V6.5A2.25 2.25 0 0 1 6.5 4.25Z"
+        fill="currentColor"
+      />
+      <path
+        d="M9 7.25A.75.75 0 0 1 9.75 6.5h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 9 7.25Zm0 3A.75.75 0 0 1 9.75 9.5h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 9 10.25Z"
+        fill="#fdf9cd"
+      />
+    </svg>
+  );
 }
 
-function formatLoanLine(book: Book) {
-  if (!book.active_loan) {
-    return null;
-  }
-
-  const dueDate = book.active_loan.due_date
-    ? ` hasta ${new Date(book.active_loan.due_date).toLocaleDateString("es-ES")}`
-    : "";
-  return `Prestado a ${book.active_loan.borrower_name}${dueDate}`;
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M12 5.25a.75.75 0 0 1 .75.75v5.25H18a.75.75 0 0 1 0 1.5h-5.25V18a.75.75 0 0 1-1.5 0v-5.25H6a.75.75 0 0 1 0-1.5h5.25V6a.75.75 0 0 1 .75-.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
 
-function formatReadersLine(book: Book) {
-  const sharedReadersCount = book.shared_readers_count ?? 0;
-  const sharedReadersPreview = book.shared_readers_preview ?? [];
-
-  if (sharedReadersCount <= 0) {
-    return null;
-  }
-
-  if (sharedReadersCount === 1 && sharedReadersPreview[0]) {
-    return `Lo esta leyendo ${sharedReadersPreview[0].name}`;
-  }
-
-  return `${sharedReadersCount} miembros lo estan leyendo`;
+function EditIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M15.27 5.35a2.1 2.1 0 0 1 2.97 2.97l-8.4 8.4-3.38.42a.75.75 0 0 1-.83-.83l.42-3.38 8.4-8.4Zm1.9 1.06a.6.6 0 0 0-.84 0l-1 1 1.9 1.9 1-1a.6.6 0 0 0 0-.84l-1.06-1.06Zm-.84 3.96-1.9-1.9-6.76 6.76-.19 1.53 1.53-.19 7.32-7.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
 
 export function BookCard({
@@ -52,91 +59,61 @@ export function BookCard({
   onEdit,
 }: BookCardProps) {
   const author = book.authors[0] ?? "Autor sin registrar";
-  const coverLetter = (book.title.trim().slice(0, 1) || "?").toUpperCase();
-  const loanLine = formatLoanLine(book);
-  const readersLine = formatReadersLine(book);
-  const publicReviewCount = book.public_review_count ?? 0;
-  const hasCommunitySummary = book.active_loan != null || Boolean(readersLine) || publicReviewCount > 0;
-  const detailChips = [book.genre, book.collection, book.author_country].filter(
-    (value): value is string => Boolean(value),
-  );
 
   return (
-    <article className="dashboard-book-card panel">
-      <Link
-        className="dashboard-book-cover"
-        to={`/libros/${book.id}`}
-        aria-label={`Ver detalle de ${book.title}`}
-      >
-        {book.cover_url ? (
-          <img src={book.cover_url} alt={`Portada de ${book.title}`} />
-        ) : (
-          <div className="dashboard-book-cover-fallback" aria-hidden="true">
-            <span className="dashboard-book-cover-letter">{coverLetter}</span>
-          </div>
-        )}
+    <article className="dashboard-book-card">
+      <div className="dashboard-book-cover-shell">
+        <Link
+          className="dashboard-book-cover"
+          to={`/libros/${book.id}`}
+          aria-label={`Ver detalle de ${book.title}`}
+        >
+          {book.cover_url ? (
+            <img src={book.cover_url} alt={`Portada de ${book.title}`} loading="lazy" />
+          ) : (
+            <div className="dashboard-book-cover-fallback" aria-hidden="true">
+              <span className="dashboard-book-cover-fallback-icon">
+                <BookPlaceholderIcon />
+              </span>
+            </div>
+          )}
+        </Link>
 
-        <div className="dashboard-book-overlay">
+        <div className="dashboard-book-cover-top">
           <ReadingStatusBadge status={book.reading_status} />
+          {canEdit ? (
+            <button
+              className="dashboard-book-edit-button"
+              type="button"
+              onClick={() => onEdit(book)}
+              aria-label={`Editar ${book.title}`}
+            >
+              <EditIcon />
+            </button>
+          ) : null}
         </div>
-      </Link>
+      </div>
 
       <div className="dashboard-book-body">
-        <div className="dashboard-book-heading">
-          <div className="dashboard-book-title-block">
-            <h3>
-              <Link to={`/libros/${book.id}`}>{book.title}</Link>
-            </h3>
-            <p className="dashboard-book-author">{author}</p>
-          </div>
-
-          {showLibraryBadge && library ? (
-            <span className="dashboard-library-pill">{library.name}</span>
-          ) : null}
+        <div className="dashboard-book-copy">
+          <h3>
+            <Link to={`/libros/${book.id}`}>{book.title}</Link>
+          </h3>
+          <p className="dashboard-book-author">{author}</p>
         </div>
 
         <StarRating rating={book.user_rating} />
 
-        {detailChips.length > 0 ? (
-          <div className="dashboard-book-chip-row">
-            {detailChips.map((chip) => (
-              <span key={chip} className="dashboard-book-chip">
-                {chip}
-              </span>
-            ))}
-          </div>
+        {showLibraryBadge && library ? (
+          <p className="dashboard-book-library">{library.name}</p>
         ) : null}
 
-        {hasCommunitySummary ? (
-          <div className="dashboard-book-community">
-            {loanLine ? <p className="detail-inline-copy">{loanLine}</p> : null}
-            {readersLine ? <p className="detail-inline-copy">{readersLine}</p> : null}
-            {publicReviewCount > 0 ? (
-              <p className="detail-inline-copy">
-                {publicReviewCount} resenas publicas - {formatPublicRating(book.public_average_rating)}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="dashboard-book-actions">
-          <button
-            className="dashboard-card-button dashboard-card-button-secondary"
-            type="button"
-            onClick={() => onAddToList(book)}
-          >
-            Anadir a lista
-          </button>
-          {canEdit ? (
-            <button
-              className="dashboard-card-button dashboard-card-button-primary"
-              type="button"
-              onClick={() => onEdit(book)}
-            >
-              Editar
-            </button>
-          ) : null}
-        </div>
+        <button className="dashboard-card-button" type="button" onClick={() => onAddToList(book)}>
+          <span className="dashboard-card-button-icon">
+            <PlusIcon />
+          </span>
+          <span>Anadir a lista</span>
+        </button>
       </div>
     </article>
   );

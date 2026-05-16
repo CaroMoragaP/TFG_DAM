@@ -60,17 +60,15 @@ describe("BookCard", () => {
 
     expect(screen.getByText("Dune")).toBeInTheDocument();
     expect(screen.getByText("Frank Herbert")).toBeInTheDocument();
-    expect(screen.getByText("5/5")).toBeInTheDocument();
+    expect(screen.getByLabelText("Puntuacion personal 5 de 5")).toBeInTheDocument();
     expect(screen.getByText("Leyendo")).toBeInTheDocument();
-    expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
-    expect(screen.getByText("Estados Unidos")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca personal")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dune" })).toHaveAttribute("href", "/libros/7");
 
     fireEvent.click(screen.getByRole("button", { name: /lista/i }));
     expect(onAddToList).toHaveBeenCalledWith(book);
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar Dune" }));
     expect(onEdit).toHaveBeenCalledWith(book);
   });
 });

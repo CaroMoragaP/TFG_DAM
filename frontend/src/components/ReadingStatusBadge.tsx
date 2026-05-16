@@ -11,10 +11,5 @@ type ReadingStatusBadgeProps = {
 };
 
 export function ReadingStatusBadge({ status }: ReadingStatusBadgeProps) {
-  return (
-    <span className={`dashboard-status-badge is-${status}`}>
-      <span className="dashboard-status-badge-dot" aria-hidden="true" />
-      {STATUS_COPY[status] ?? status}
-    </span>
-  );
+  return <span className={`dashboard-status-badge is-${status}`}>{STATUS_COPY[status] ?? status}</span>;
 }

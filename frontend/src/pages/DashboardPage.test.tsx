@@ -174,6 +174,7 @@ describe("DashboardPage", () => {
     });
 
     await screen.findByText("Dune");
-    expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
+    expect(screen.getAllByText("Biblioteca personal")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /anadir a lista/i })).toBeInTheDocument();
   });
 });

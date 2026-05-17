@@ -1801,10 +1801,7 @@ dd {
 .dashboard-catalog-page {
   gap: 2rem;
   padding: 0.25rem 0 1rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 216, 216, 0.42), transparent 22%),
-    radial-gradient(circle at bottom left, rgba(253, 249, 205, 0.36), transparent 18%),
-    linear-gradient(180deg, #fdf5f5 0%, #fff9f6 100%);
+  background: transparent;
   border-radius: 2rem;
   color: #1b2853;
   font-family: "Geist", "Segoe UI", "Helvetica Neue", sans-serif;
@@ -2989,12 +2986,17 @@ dd {
 }
 
 .reading-toolbar {
-  grid-template-columns: minmax(260px, 1.25fr) minmax(220px, 280px) minmax(220px, 280px) minmax(0, 1fr);
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
 }
 
 .reading-search-shell {
   min-width: 0;
+}
+
+.reading-filters-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .reading-tab-strip {
@@ -3002,6 +3004,7 @@ dd {
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: flex-start;
+  padding-top: 0.15rem;
 }
 
 .reading-helper-panel p {

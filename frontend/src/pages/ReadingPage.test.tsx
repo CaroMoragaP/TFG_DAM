@@ -181,6 +181,7 @@ describe("ReadingPage", () => {
 
     await screen.findByText("Dune");
 
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
     fireEvent.change(screen.getByLabelText("Biblioteca"), {
       target: { value: "1" },
     });

@@ -323,6 +323,40 @@ function SearchIcon() {
   );
 }
 
+function SlidersIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M4 7.25a.75.75 0 0 1 .75-.75h4a.75.75 0 0 1 0 1.5h-4A.75.75 0 0 1 4 7.25Zm8.5 0A.75.75 0 0 1 13.25 6.5h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1-.75-.75Z"
+        fill="currentColor"
+      />
+      <path
+        d="M9.75 4.5a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-1.5 0v-4a.75.75 0 0 1 .75-.75Z"
+        fill="currentColor"
+      />
+      <path
+        d="M4 16.75a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm13.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1a.75.75 0 0 1-.75-.75Z"
+        fill="currentColor"
+      />
+      <path
+        d="M16.25 14a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-1.5 0v-4a.75.75 0 0 1 .75-.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={isExpanded ? "is-expanded" : ""}>
+      <path
+        d="m7.72 14.78 3.75-3.75a.75.75 0 0 1 1.06 0l3.75 3.75a.75.75 0 1 1-1.06 1.06L12 12.62l-3.22 3.22a.75.75 0 1 1-1.06-1.06Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function getLibraryForItem(libraries: Library[], item: ReadingShelfItem) {
   return libraries.find((candidate) => candidate.id === item.library_id) ?? null;
 }
@@ -345,6 +379,20 @@ export function ReadingPage() {
   const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
   const availableLibraries = libraries.filter((library) => !library.is_archived);
   const normalizedSearchQuery = searchDraft.trim();
+  const defaultSort = getDefaultSort(tab);
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+
+    if (libraryValue !== "all") {
+      count += 1;
+    }
+    if (sort !== defaultSort) {
+      count += 1;
+    }
+
+    return count;
+  }, [defaultSort, libraryValue, sort]);
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(activeFilterCount > 0);
 
   useEffect(() => {
     setSearchDraft(q);
@@ -371,6 +419,12 @@ export function ReadingPage() {
   useEffect(() => {
     setSort(getDefaultSort(tab));
   }, [tab]);
+
+  useEffect(() => {
+    if (activeFilterCount > 0) {
+      setIsFiltersExpanded(true);
+    }
+  }, [activeFilterCount]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -696,45 +750,89 @@ export function ReadingPage() {
         ))}
       </div>
 
-      <div className="panel reading-toolbar">
-        <label className="dashboard-search-shell reading-search-shell">
-          <span className="dashboard-search-icon">
-            <SearchIcon />
-          </span>
-          <input
-            aria-label="Buscar lecturas"
-            placeholder="Buscar por titulo, autor o coleccion..."
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-          />
-        </label>
+      <div className="panel dashboard-toolbar reading-toolbar">
+        <div className="dashboard-toolbar-top">
+          <label className="dashboard-search-shell reading-search-shell">
+            <span className="dashboard-search-icon">
+              <SearchIcon />
+            </span>
+            <input
+              aria-label="Buscar lecturas"
+              placeholder="Buscar por titulo, autor o coleccion..."
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+            />
+          </label>
 
-        <label className="field-group">
-          Biblioteca
-          <select
-            value={libraryValue}
-            onChange={(event) => updateSearchParam("library", event.target.value)}
-            disabled={isLibrariesLoading}
+          <button
+            className={`dashboard-filter-toggle${isFiltersExpanded ? " is-open" : ""}`}
+            type="button"
+            aria-expanded={isFiltersExpanded}
+            aria-controls="reading-filters-panel"
+            onClick={() => setIsFiltersExpanded((currentValue) => !currentValue)}
           >
-            <option value="all">Todas mis bibliotecas</option>
-            {availableLibraries.map((library) => (
-              <option key={library.id} value={library.id}>
-                {library.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            <span className="dashboard-filter-toggle-main">
+              <span className="dashboard-filter-toggle-icon">
+                <SlidersIcon />
+              </span>
+              <span>Filtros</span>
+            </span>
+            <span className="dashboard-filter-toggle-side">
+              {activeFilterCount > 0 ? (
+                <span className="dashboard-filter-toggle-count">{activeFilterCount}</span>
+              ) : null}
+              <ChevronIcon isExpanded={isFiltersExpanded} />
+            </span>
+          </button>
+        </div>
 
-        <label className="field-group">
-          Ordenar por
-          <select value={sort} onChange={(event) => setSort(event.target.value as ReadingSort)}>
-            {sortOptionsByTab[tab].map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {isFiltersExpanded ? (
+          <div id="reading-filters-panel" className="dashboard-filters-shell">
+            <div className="dashboard-filters-grid reading-filters-grid">
+              <label className="dashboard-filter-field">
+                <span>Biblioteca</span>
+                <select
+                  value={libraryValue}
+                  onChange={(event) => updateSearchParam("library", event.target.value)}
+                  disabled={isLibrariesLoading}
+                >
+                  <option value="all">Todas mis bibliotecas</option>
+                  {availableLibraries.map((library) => (
+                    <option key={library.id} value={library.id}>
+                      {library.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="dashboard-filter-field">
+                <span>Ordenar por</span>
+                <select value={sort} onChange={(event) => setSort(event.target.value as ReadingSort)}>
+                  {sortOptionsByTab[tab].map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {activeFilterCount > 0 ? (
+              <div className="dashboard-filters-footer">
+                <button
+                  className="dashboard-toolbar-clear"
+                  type="button"
+                  onClick={() => {
+                    updateSearchParam("library", "all");
+                    setSort(defaultSort);
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="reading-tab-strip" role="tablist" aria-label="Estados de lectura">
           {readingTabSequence.map((status) => (

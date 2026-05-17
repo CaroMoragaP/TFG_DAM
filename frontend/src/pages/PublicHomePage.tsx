@@ -101,7 +101,7 @@ export function PublicHomePage() {
           </p>
           <div className="landing-hero-actions">
             <Link className="landing-signup-link landing-hero-primary" to="/auth?tab=register">
-              Empezar gratis
+              Regístrate
             </Link>
             <Link className="landing-hero-secondary" to="/auth">
               Ya tengo cuenta
@@ -142,7 +142,7 @@ export function PublicHomePage() {
       <section id="como-funciona" className="landing-steps-section landing-section">
         <div className="landing-section-heading">
           <span>Como funciona</span>
-          <h2>Tres pasos para pasar de entrar a ordenar tu biblioteca</h2>
+          <h2>Ordena tu biblioteca en solo tres pasos</h2>
         </div>
 
         <div className="landing-steps-grid">

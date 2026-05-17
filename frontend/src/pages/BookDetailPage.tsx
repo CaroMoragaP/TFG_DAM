@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { BookMetadataModal, type BookMetadataValues } from "../components/BookMetadataModal";
-import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
+import { type BookMetadataValues } from "../components/BookMetadataModal";
+import { BookDetailEditModal, type BookDetailEditValues } from "../components/BookDetailEditModal";
+import { type CopyEditValues } from "../components/CopyEditModal";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   deleteCopyRequest,
@@ -102,8 +103,7 @@ export function BookDetailPage() {
     enabled: Boolean(token && isValidCopyId && copyQuery.data && isSharedLibraryView),
   });
 
-  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [deleteCopyErrorMessage, setDeleteCopyErrorMessage] = useState<string | null>(null);
 
   const updateCopyMutation = useMutation({
@@ -119,7 +119,6 @@ export function BookDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["copy", copyId] }),
         queryClient.invalidateQueries({ queryKey: ["books"] }),
       ]);
-      setIsCopyModalOpen(false);
     },
   });
 
@@ -152,7 +151,6 @@ export function BookDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["books"] }),
         queryClient.invalidateQueries({ queryKey: ["themes"] }),
       ]);
-      setIsBookModalOpen(false);
     },
   });
 
@@ -192,13 +190,17 @@ export function BookDetailPage() {
   const isSharedLibrary = library?.type === "shared";
   const canEditCopy = Boolean(library && !library.is_archived && library.role !== "viewer");
   const canEditBook = Boolean(library && !library.is_archived && library.role === "owner");
+  const canEditDetail = canEditBook || canEditCopy;
   const author = detail?.primary_author?.display_name ?? detail?.authors[0] ?? "Autor sin registrar";
   const genre = detail?.genre ?? "-";
   const themes = detail?.themes ?? [];
   const collection = detail?.collection ?? "-";
+  const publisher = detail?.publisher ?? "-";
   const authorCountry = detail?.author_country ?? "-";
   const authorSex = detail?.author_sex ? authorSexLabels[detail.author_sex] : "-";
   const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
+  const hasDescription = Boolean(detail?.description?.trim());
+  const hasPersonalNotes = Boolean(userData?.personal_notes?.trim());
   const community = (communityQuery.data ??
     (detail
       ? {
@@ -211,6 +213,17 @@ export function BookDetailPage() {
           latest_reviews: [],
         }
       : null)) as CopyCommunity | null;
+  const readingDetailPath = detail
+    ? `/lectura?tab=pending&library=${detail.library_id}&copy=${detail.id}`
+    : "/lectura?tab=pending";
+  const hasCommunityStats =
+    (community?.public_review_count ?? 0) > 0 || community?.public_average_rating !== null;
+  const hasCommunityLoan = Boolean(community?.active_loan);
+  const hasCommunityReaders = Boolean(community?.shared_readers_count);
+  const hasCommunityReviews = Boolean(community?.latest_reviews.length);
+  const showCommunityBlock = Boolean(
+    isSharedLibrary && (hasCommunityStats || hasCommunityLoan || hasCommunityReaders || hasCommunityReviews),
+  );
 
   async function handleDelete() {
     if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
@@ -239,7 +252,7 @@ export function BookDetailPage() {
       ) : null}
 
       {detail && userData ? (
-        <div className="detail-layout">
+        <div className="content-stack">
           <article className="panel detail-main-card">
             <div className="detail-hero">
               <div className="detail-cover-shell">
@@ -256,7 +269,6 @@ export function BookDetailPage() {
                 <p className="eyebrow">Ficha del ejemplar</p>
                 <h2>{detail.title}</h2>
                 <p className="detail-author">{author}</p>
-                {detail.description ? <p className="detail-description">{detail.description}</p> : null}
 
                 <dl className="detail-meta-grid">
                   <div>
@@ -270,6 +282,10 @@ export function BookDetailPage() {
                   <div>
                     <dt>Coleccion</dt>
                     <dd>{collection}</dd>
+                  </div>
+                  <div>
+                    <dt>Editorial</dt>
+                    <dd>{publisher}</dd>
                   </div>
                   <div>
                     <dt>Pais autor</dt>
@@ -291,35 +307,23 @@ export function BookDetailPage() {
                     <dt>Formato</dt>
                     <dd>{detail.format}</dd>
                   </div>
+                  {hasDescription ? (
+                    <div className="detail-meta-item-full">
+                      <dt>Descripcion</dt>
+                      <dd>{detail.description}</dd>
+                    </div>
+                  ) : null}
                 </dl>
 
                 <div className="detail-actions">
-                  <Link className="ghost-link" to={`/lectura?library=${detail.library_id}&copy=${detail.id}`}>
-                    Abrir seguimiento
-                  </Link>
-                  {isSharedLibrary ? (
-                    <Link className="ghost-link" to={`/muro?tab=reviews&library=${detail.library_id}`}>
-                      Abrir muro
-                    </Link>
-                  ) : null}
-                  {canEditBook ? (
+                  {canEditDetail ? (
                     <button
                       className="ghost-link"
                       type="button"
-                      onClick={() => setIsBookModalOpen(true)}
-                      disabled={updateBookMutation.isPending}
+                      onClick={() => setIsEditModalOpen(true)}
+                      disabled={updateBookMutation.isPending || updateCopyMutation.isPending}
                     >
-                      Editar ficha
-                    </button>
-                  ) : null}
-                  {canEditCopy ? (
-                    <button
-                      className="ghost-link"
-                      type="button"
-                      onClick={() => setIsCopyModalOpen(true)}
-                      disabled={updateCopyMutation.isPending}
-                    >
-                      Editar ejemplar
+                      Editar
                     </button>
                   ) : null}
                   {canEditCopy ? (
@@ -339,132 +343,118 @@ export function BookDetailPage() {
             </div>
           </article>
 
-          <aside className="content-stack">
-            <div className="panel detail-side-card content-stack">
-              <div className="notes-header">
-                <div>
-                  <p className="eyebrow">Mi lectura</p>
-                  <p className="detail-inline-copy">
-                    El trabajo diario vive ahora en <Link to={`/lectura?library=${detail.library_id}&copy=${detail.id}`}>Lectura</Link>.
-                  </p>
-                </div>
-              </div>
-
-              <dl className="reading-entry-meta">
-                <div>
-                  <dt>Estado</dt>
-                  <dd>{statusLabels[userData.reading_status]}</dd>
-                </div>
-                <div>
-                  <dt>Valoracion</dt>
-                  <dd>{userData.rating ? `${userData.rating}/5` : "-"}</dd>
-                </div>
-                <div>
-                  <dt>Inicio</dt>
-                  <dd>{formatDateLabel(userData.start_date)}</dd>
-                </div>
-                <div>
-                  <dt>Fin</dt>
-                  <dd>{formatDateLabel(userData.end_date)}</dd>
-                </div>
-              </dl>
-
-              <div className="content-stack">
-                <strong>Notas personales</strong>
-                <p className="reading-notes-preview">
-                  {userData.personal_notes ? userData.personal_notes : "Sin notas personales todavia."}
-                </p>
-              </div>
+          <div className="panel detail-side-card content-stack">
+            <div className="notes-header">
+              <p className="eyebrow">Mi lectura</p>
+              <Link className="ghost-link compact-action" to={readingDetailPath}>
+                Editar
+              </Link>
             </div>
 
-            {isSharedLibrary ? (
-              <div className="panel detail-side-card content-stack">
-                <p className="eyebrow">Comunidad</p>
+            <dl className="reading-entry-meta">
+              <div>
+                <dt>Estado</dt>
+                <dd>{statusLabels[userData.reading_status]}</dd>
+              </div>
+              <div>
+                <dt>Valoracion</dt>
+                <dd>{userData.rating ? `${userData.rating}/5` : "-"}</dd>
+              </div>
+              <div>
+                <dt>Inicio</dt>
+                <dd>{formatDateLabel(userData.start_date)}</dd>
+              </div>
+              <div>
+                <dt>Fin</dt>
+                <dd>{formatDateLabel(userData.end_date)}</dd>
+              </div>
+            </dl>
+
+            {hasPersonalNotes ? (
+              <div className="content-stack">
+                <strong>Notas personales</strong>
+                <p className="reading-notes-preview">{userData.personal_notes}</p>
+              </div>
+            ) : null}
+          </div>
+
+          {showCommunityBlock ? (
+            <div className="panel detail-side-card content-stack">
+              <p className="eyebrow">Comunidad</p>
+
+              {hasCommunityStats ? (
                 <div className="community-stat-row">
                   <span className="status-chip active">{community?.public_review_count ?? 0} resenas</span>
                   <span className="status-chip">{formatCommunityRating(community?.public_average_rating ?? null)}</span>
                 </div>
+              ) : null}
 
-                {community?.active_loan ? (
-                  <div className="community-list-item">
-                    <strong>Prestamo activo</strong>
-                    <p>
-                      Prestado a {community.active_loan.borrower_name}
-                      {community.active_loan.due_date ? ` hasta ${formatDateLabel(community.active_loan.due_date)}` : ""}
-                    </p>
-                  </div>
-                ) : (
-                  <p>No hay ningun prestamo activo para este ejemplar.</p>
-                )}
+              {community?.active_loan ? (
+                <div className="community-list-item">
+                  <strong>Prestamo activo</strong>
+                  <p>
+                    Prestado a {community.active_loan.borrower_name}
+                    {community.active_loan.due_date ? ` hasta ${formatDateLabel(community.active_loan.due_date)}` : ""}
+                  </p>
+                </div>
+              ) : null}
 
+              {hasCommunityReaders ? (
                 <div className="content-stack">
                   <strong>Lectores actuales</strong>
-                  {community?.shared_readers_count ? (
-                    community.shared_readers.map((reader) => <p key={reader.user_id}>{reader.name}</p>)
-                  ) : (
-                    <p>Nadie lo esta leyendo ahora mismo.</p>
-                  )}
+                  {community?.shared_readers.map((reader) => <p key={reader.user_id}>{reader.name}</p>)}
                 </div>
+              ) : null}
 
+              {hasCommunityReviews ? (
                 <div className="content-stack">
                   <strong>Ultimas resenas</strong>
-                  {community?.latest_reviews.length ? (
-                    community.latest_reviews.slice(0, 3).map((review) => (
-                      <div key={review.id} className="community-list-item">
-                        <strong>
-                          {review.user_name} · {review.rating}/5
-                        </strong>
-                        <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p>Todavia no hay resenas publicas.</p>
-                  )}
+                  {community?.latest_reviews.slice(0, 3).map((review) => (
+                    <div key={review.id} className="community-list-item">
+                      <strong>
+                        {review.user_name} - {review.rating}/5
+                      </strong>
+                      <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
+                    </div>
+                  ))}
                 </div>
+              ) : null}
+            </div>
+          ) : null}
 
-                <div className="inline-actions">
-                  <Link className="ghost-link compact-action" to={`/muro?tab=reviews&library=${detail.library_id}`}>
-                    Ver opiniones
-                  </Link>
-                  <Link className="ghost-link compact-action" to={`/muro?tab=activity&library=${detail.library_id}`}>
-                    Ver actividad
-                  </Link>
-                </div>
-              </div>
-            ) : null}
-
-            {library?.is_archived ? (
-              <div className="panel subtle-panel">
-                <p className="eyebrow">Biblioteca archivada</p>
-                <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catalogo.</p>
-              </div>
-            ) : null}
-          </aside>
+          {library?.is_archived ? (
+            <div className="panel subtle-panel">
+              <p className="eyebrow">Biblioteca archivada</p>
+              <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catalogo.</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {detail ? (
-        <>
-          <CopyEditModal
-            isOpen={isCopyModalOpen}
-            copy={detail}
-            isSaving={updateCopyMutation.isPending}
-            onClose={() => setIsCopyModalOpen(false)}
-            onSubmit={async (payload) => {
-              await updateCopyMutation.mutateAsync(payload);
-            }}
-          />
-          <BookMetadataModal
-            isOpen={isBookModalOpen}
-            book={toBookMetadata(detail)}
-            themeOptions={themesQuery.data ?? []}
-            isSaving={updateBookMutation.isPending}
-            onClose={() => setIsBookModalOpen(false)}
-            onSubmit={async (payload) => {
-              await updateBookMutation.mutateAsync(payload);
-            }}
-          />
-        </>
+        <BookDetailEditModal
+          isOpen={isEditModalOpen}
+          book={toBookMetadata(detail)}
+          copy={detail}
+          library={library}
+          canEditBook={canEditBook}
+          canEditCopy={canEditCopy}
+          themeOptions={themesQuery.data ?? []}
+          isSaving={updateBookMutation.isPending || updateCopyMutation.isPending}
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={async (payload: BookDetailEditValues) => {
+            if (canEditBook) {
+              await updateBookMutation.mutateAsync(payload.book);
+            }
+
+            if (canEditCopy) {
+              await updateCopyMutation.mutateAsync(payload.copy);
+            }
+
+            setIsEditModalOpen(false);
+          }}
+          token={token ?? ""}
+        />
       ) : null}
     </section>
   );

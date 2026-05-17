@@ -29,15 +29,24 @@ import {
 
 type StatsTab = "catalog" | "reading";
 
-const PIE_COLORS = [
-  "#214f4a",
-  "#c96b3b",
-  "#94b49f",
-  "#d9a66b",
-  "#5b6f95",
-  "#d27d6d",
-  "#85a6a0",
-  "#b5c7af",
+const CHART_GRID_COLOR = "rgba(27, 40, 83, 0.12)";
+const CHART_TICK_COLOR = "#53607f";
+const CHART_PRIMARY_COLOR = "#1b2853";
+const CHART_PRIMARY_ALT_COLOR = "#233163";
+const CHART_ROSE_COLOR = "#d98ca5";
+const CHART_ROSE_SOFT_COLOR = "#ffc9c9";
+const CHART_GOLD_COLOR = "#cd9d37";
+const CHART_CREAM_COLOR = "#fdf9cd";
+
+const CHART_PALETTE = [
+  CHART_PRIMARY_COLOR,
+  CHART_ROSE_COLOR,
+  CHART_GOLD_COLOR,
+  CHART_PRIMARY_ALT_COLOR,
+  CHART_ROSE_SOFT_COLOR,
+  "#8f9dd0",
+  "#efd6d1",
+  CHART_CREAM_COLOR,
 ];
 
 const readingStatusCards = [
@@ -111,6 +120,10 @@ function buildCountryPieData(items: StatsBreakdownItem[]) {
       percentage: Number(otherPercentage.toFixed(2)),
     },
   ];
+}
+
+function getChartColor(index: number) {
+  return CHART_PALETTE[index % CHART_PALETTE.length];
 }
 
 function MetricCard({
@@ -190,23 +203,30 @@ function BreakdownBarCard({
         >
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={data} margin={{ top: 12, right: 18, left: 4, bottom: 42 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 36, 51, 0.12)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis
                 dataKey="label"
                 angle={data.length > 6 ? -25 : 0}
                 textAnchor={data.length > 6 ? "end" : "middle"}
                 height={data.length > 6 ? 64 : 40}
                 interval={0}
-                tick={{ fill: "#5f6b7f", fontSize: 12 }}
+                tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }}
               />
-              <YAxis tickFormatter={formatPercentage} tick={{ fill: "#5f6b7f", fontSize: 12 }} />
+              <YAxis
+                tickFormatter={formatPercentage}
+                tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }}
+              />
               <Tooltip
                 formatter={(value, _name, entry) => [
                   `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} - ${entry.payload.count} ${countLabel}`,
                   "Peso",
                 ]}
               />
-              <Bar dataKey="percentage" radius={[10, 10, 0, 0]} fill="#214f4a" />
+              <Bar dataKey="percentage" radius={[10, 10, 0, 0]}>
+                {data.map((item, index) => (
+                  <Cell key={item.key} fill={getChartColor(index)} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -253,7 +273,7 @@ function BreakdownPieCard({
               paddingAngle={2}
             >
               {data.map((item, index) => (
-                <Cell key={item.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                <Cell key={item.key} fill={getChartColor(index)} />
               ))}
             </Pie>
             <Tooltip
@@ -627,13 +647,13 @@ export function StatsPage() {
             />
             <MetricCard
               eyebrow="Formato"
-              label="Libros fisicos"
-              value={numberFormatter.format(catalogQuery.data.totals.physical)}
+              label="Libros fisicos - libros digitales"
+              value={`${numberFormatter.format(catalogQuery.data.totals.physical)} - ${numberFormatter.format(catalogQuery.data.totals.digital)}`}
             />
             <MetricCard
-              eyebrow="Formato"
-              label="Libros digitales"
-              value={numberFormatter.format(catalogQuery.data.totals.digital)}
+              eyebrow="Catalogo"
+              label="Total de autores"
+              value={numberFormatter.format(catalogQuery.data.totals.distinct_authors)}
             />
           </div>
 
@@ -756,9 +776,12 @@ export function StatsPage() {
                     data={readingQuery.data.monthly_progress}
                     margin={{ top: 12, right: 18, left: 4, bottom: 12 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 36, 51, 0.12)" />
-                    <XAxis dataKey="month" tick={{ fill: "#5f6b7f", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#5f6b7f", fontSize: 12 }} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                    <XAxis dataKey="month" tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }} />
+                    <YAxis
+                      tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }}
+                      allowDecimals={false}
+                    />
                     <Tooltip
                       formatter={(value, name) => [
                         `${typeof value === "number" ? value : Number(value ?? 0)} libros`,
@@ -768,12 +791,17 @@ export function StatsPage() {
                     <Legend
                       formatter={(value) => (value === "started" ? "Iniciados" : "Terminados")}
                     />
-                    <Bar dataKey="started" name="started" radius={[10, 10, 0, 0]} fill="#214f4a" />
+                    <Bar
+                      dataKey="started"
+                      name="started"
+                      radius={[10, 10, 0, 0]}
+                      fill={CHART_PRIMARY_COLOR}
+                    />
                     <Bar
                       dataKey="finished"
                       name="finished"
                       radius={[10, 10, 0, 0]}
-                      fill="#c96b3b"
+                      fill={CHART_ROSE_COLOR}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -801,16 +829,19 @@ export function StatsPage() {
                     data={readingQuery.data.finished_by_year}
                     margin={{ top: 12, right: 18, left: 4, bottom: 12 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 36, 51, 0.12)" />
-                    <XAxis dataKey="year" tick={{ fill: "#5f6b7f", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#5f6b7f", fontSize: 12 }} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                    <XAxis dataKey="year" tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }} />
+                    <YAxis
+                      tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }}
+                      allowDecimals={false}
+                    />
                     <Tooltip
                       formatter={(value) => [
                         `${typeof value === "number" ? value : Number(value ?? 0)} libros`,
                         "Terminados",
                       ]}
                     />
-                    <Bar dataKey="count" radius={[10, 10, 0, 0]} fill="#c96b3b" />
+                    <Bar dataKey="count" radius={[10, 10, 0, 0]} fill={CHART_GOLD_COLOR} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -841,16 +872,23 @@ export function StatsPage() {
                     data={readingQuery.data.rating_summary.distribution}
                     margin={{ top: 8, right: 12, left: 4, bottom: 8 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(29, 36, 51, 0.12)" />
-                    <XAxis dataKey="rating" tick={{ fill: "#5f6b7f", fontSize: 12 }} />
-                    <YAxis tickFormatter={formatPercentage} tick={{ fill: "#5f6b7f", fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                    <XAxis dataKey="rating" tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }} />
+                    <YAxis
+                      tickFormatter={formatPercentage}
+                      tick={{ fill: CHART_TICK_COLOR, fontSize: 12 }}
+                    />
                     <Tooltip
                       formatter={(value, _name, entry) => [
                         `${formatPercentage(typeof value === "number" ? value : Number(value ?? 0))} - ${entry.payload.count} libros`,
                         `${entry.payload.rating} estrellas`,
                       ]}
                     />
-                    <Bar dataKey="percentage" radius={[10, 10, 0, 0]} fill="#214f4a" />
+                    <Bar dataKey="percentage" radius={[10, 10, 0, 0]}>
+                      {readingQuery.data.rating_summary.distribution.map((item, index) => (
+                        <Cell key={item.rating} fill={getChartColor(index)} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

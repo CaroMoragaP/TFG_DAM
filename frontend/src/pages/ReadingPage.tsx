@@ -139,6 +139,31 @@ function compareText(left: string, right: string) {
   return left.localeCompare(right, "es", { sensitivity: "base" });
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearchQuery(item: ReadingShelfItem, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const normalizedQuery = normalizeSearchText(query);
+  const searchableFields = [
+    item.title,
+    ...item.authors,
+    item.collection ?? "",
+    item.genre ?? "",
+    item.author_country ?? "",
+  ];
+
+  return searchableFields.some((field) => normalizeSearchText(field).includes(normalizedQuery));
+}
+
 function compareNullableDates(left: string | null, right: string | null, descending: boolean) {
   if (left === null && right === null) {
     return 0;
@@ -287,6 +312,17 @@ function renderCover(item: ReadingShelfItem) {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M10.5 4.25a6.25 6.25 0 1 1 0 12.5 6.25 6.25 0 0 1 0-12.5Zm0 1.5a4.75 4.75 0 1 0 0 9.5 4.75 4.75 0 0 0 0-9.5Zm6.97 9.91 2.78 2.78a.75.75 0 1 1-1.06 1.06l-2.78-2.78a.75.75 0 1 1 1.06-1.06Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function getLibraryForItem(libraries: Library[], item: ReadingShelfItem) {
   return libraries.find((candidate) => candidate.id === item.library_id) ?? null;
 }
@@ -296,15 +332,23 @@ export function ReadingPage() {
   const queryClient = useQueryClient();
   const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [sort, setSort] = useState<ReadingSort>("recent-start");
+  const [pinnedCopyId, setPinnedCopyId] = useState<number | null>(null);
   const [editingCopyId, setEditingCopyId] = useState<number | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
 
+  const q = searchParams.get("q") ?? "";
   const tab = normalizeTab(searchParams.get("tab"));
   const libraryValue = normalizeLibraryValue(searchParams.get("library"));
   const selectedCopyId = normalizeCopyValue(searchParams.get("copy"));
   const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
   const availableLibraries = libraries.filter((library) => !library.is_archived);
+  const normalizedSearchQuery = searchDraft.trim();
+
+  useEffect(() => {
+    setSearchDraft(q);
+  }, [q]);
 
   useEffect(() => {
     const nextTab = searchParams.get("tab");
@@ -327,6 +371,27 @@ export function ReadingPage() {
   useEffect(() => {
     setSort(getDefaultSort(tab));
   }, [tab]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const normalizedQuery = searchDraft.trim();
+      if (normalizedQuery === q) {
+        return;
+      }
+
+      const nextSearchParams = new URLSearchParams(searchParams);
+      if (normalizedQuery) {
+        nextSearchParams.set("q", normalizedQuery);
+      } else {
+        nextSearchParams.delete("q");
+      }
+      setSearchParams(nextSearchParams, { replace: true });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [q, searchDraft, searchParams, setSearchParams]);
 
   const readingQuery = useQuery({
     queryKey: ["reading-shelf", selectedLibraryId ?? "all"],
@@ -410,9 +475,22 @@ export function ReadingPage() {
   }, [readingQuery.data]);
 
   const filteredItems = useMemo(() => {
-    const items = (readingQuery.data ?? []).filter((item) => item.reading_status === tab);
+    const items = (readingQuery.data ?? []).filter(
+      (item) => item.reading_status === tab && matchesSearchQuery(item, normalizedSearchQuery),
+    );
     return sortReadingItems(items, sort);
-  }, [readingQuery.data, sort, tab]);
+  }, [normalizedSearchQuery, readingQuery.data, sort, tab]);
+  const pinnedItem = useMemo(
+    () => (readingQuery.data ?? []).find((item) => item.copy_id === pinnedCopyId) ?? null,
+    [pinnedCopyId, readingQuery.data],
+  );
+  const visibleItems = useMemo(() => {
+    if (!pinnedItem || filteredItems.some((item) => item.copy_id === pinnedItem.copy_id)) {
+      return filteredItems;
+    }
+
+    return [pinnedItem, ...filteredItems];
+  }, [filteredItems, pinnedItem]);
 
   const showLibraryBadge = availableLibraries.length > 1;
   const errorMessage =
@@ -420,7 +498,7 @@ export function ReadingPage() {
       ? readingQuery.error.message
       : "No se pudieron cargar tus lecturas.";
 
-  function updateSearchParam(key: "tab" | "library" | "copy", value: string | null) {
+  function updateSearchParam(key: "tab" | "library" | "copy" | "q", value: string | null) {
     const nextSearchParams = new URLSearchParams(searchParams);
     if (value === null) {
       nextSearchParams.delete(key);
@@ -441,16 +519,12 @@ export function ReadingPage() {
       return;
     }
 
-    if (tab !== targetItem.reading_status) {
-      updateSearchParam("tab", targetItem.reading_status);
-      return;
-    }
-
     if (libraryValue !== "all" && selectedLibraryId !== targetItem.library_id) {
       updateSearchParam("library", String(targetItem.library_id));
       return;
     }
 
+    setPinnedCopyId(targetItem.copy_id);
     setEditingCopyId(targetItem.copy_id);
     setEditorState(buildEditorState(targetItem));
     updateSearchParam("copy", null);
@@ -458,11 +532,13 @@ export function ReadingPage() {
 
   function handleOpenEditor(item: ReadingShelfItem) {
     if (editingCopyId === item.copy_id) {
+      setPinnedCopyId((currentPinnedCopyId) => (currentPinnedCopyId === item.copy_id ? null : currentPinnedCopyId));
       setEditingCopyId(null);
       setEditorState(null);
       return;
     }
 
+    setPinnedCopyId(null);
     setEditingCopyId(item.copy_id);
     setEditorState(buildEditorState(item));
   }
@@ -621,6 +697,18 @@ export function ReadingPage() {
       </div>
 
       <div className="panel reading-toolbar">
+        <label className="dashboard-search-shell reading-search-shell">
+          <span className="dashboard-search-icon">
+            <SearchIcon />
+          </span>
+          <input
+            aria-label="Buscar lecturas"
+            placeholder="Buscar por titulo, autor o coleccion..."
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+          />
+        </label>
+
         <label className="field-group">
           Biblioteca
           <select
@@ -662,19 +750,6 @@ export function ReadingPage() {
         </div>
       </div>
 
-      {tab === "pending" ? (
-        <div className="panel subtle-panel reading-helper-panel">
-          <div>
-            <p className="eyebrow">Planificacion manual</p>
-            <h3>Separado de tus listas personales</h3>
-            <p>
-              Esta pestana solo muestra libros sin empezar. Si quieres curar prioridades o selecciones
-              propias, usa <Link className="ghost-link compact-action" to="/listas">Mis listas</Link>.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       {isLibrariesError ? (
         <div className="panel">
           <p>No se pudieron cargar las bibliotecas disponibles para esta vista.</p>
@@ -695,14 +770,30 @@ export function ReadingPage() {
         </div>
       ) : null}
 
-      {!readingQuery.isPending && !readingQuery.isError && filteredItems.length === 0 ? (
+      {!readingQuery.isPending && !readingQuery.isError && visibleItems.length === 0 ? (
         <div className="panel empty-state">
-          <h3>No hay libros en {statusLabels[tab].toLowerCase()}.</h3>
-          <p>{statusDescriptions[tab]}</p>
+          <h3>{normalizedSearchQuery ? "No hay resultados para esa busqueda." : `No hay libros en ${statusLabels[tab].toLowerCase()}.`}</h3>
+          <p>
+            {normalizedSearchQuery
+              ? "Prueba con otro titulo, autor o coleccion, o limpia la busqueda actual."
+              : statusDescriptions[tab]}
+          </p>
           <div className="inline-actions">
             <Link className="ghost-link compact-action" to="/catalogo">
               Ir al catalogo
             </Link>
+            {normalizedSearchQuery ? (
+              <button
+                className="ghost-link compact-action"
+                type="button"
+                onClick={() => {
+                  setSearchDraft("");
+                  updateSearchParam("q", null);
+                }}
+              >
+                Limpiar busqueda
+              </button>
+            ) : null}
             {tab === "pending" ? (
               <Link className="ghost-link compact-action" to="/listas">
                 Abrir Mis listas
@@ -712,9 +803,9 @@ export function ReadingPage() {
         </div>
       ) : null}
 
-      {!readingQuery.isPending && !readingQuery.isError && filteredItems.length > 0 ? (
+      {!readingQuery.isPending && !readingQuery.isError && visibleItems.length > 0 ? (
         <div className="content-stack">
-          {filteredItems.map((item) => {
+          {visibleItems.map((item) => {
             const library = getLibraryForItem(libraries, item);
             const isEditing = editingCopyId === item.copy_id && editorState !== null;
             const isSharedItem = library?.type === "shared";
@@ -727,7 +818,6 @@ export function ReadingPage() {
                   <div className="reading-entry-content">
                     <div className="reading-entry-head">
                       <div>
-                        <p className="eyebrow">Lectura personal</p>
                         <h3>{item.title}</h3>
                         <p className="book-card-author">{item.authors[0] ?? "Autor sin registrar"}</p>
                       </div>
@@ -748,10 +838,6 @@ export function ReadingPage() {
 
                     <dl className="reading-entry-meta">
                       <div>
-                        <dt>Estado</dt>
-                        <dd>{statusLabels[item.reading_status]}</dd>
-                      </div>
-                      <div>
                         <dt>Valoracion</dt>
                         <dd>{item.rating ? `${item.rating}/5` : "-"}</dd>
                       </div>
@@ -765,14 +851,8 @@ export function ReadingPage() {
                       </div>
                     </dl>
 
-                    <div className="reading-entry-footer">
+                    <div className={item.personal_notes ? "reading-entry-footer has-notes" : "reading-entry-footer"}>
                       <div className="reading-entry-badges">
-                        <span className={`reading-pill ${item.reading_status}`}>
-                          <span className="reading-pill-icon" aria-hidden="true">
-                            {item.reading_status === "pending" ? "P" : item.reading_status === "reading" ? "L" : "T"}
-                          </span>
-                          {statusLabels[item.reading_status]}
-                        </span>
                         {showLibraryBadge && library ? <span className="library-badge">{library.name}</span> : null}
                         {item.my_public_review ? <span className="status-chip active">Publicada</span> : null}
                         {isSharedItem && item.public_review_count > 0 ? (
@@ -781,9 +861,7 @@ export function ReadingPage() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="reading-notes-preview">
-                        {item.personal_notes ? item.personal_notes : "Sin notas personales todavia."}
-                      </p>
+                      {item.personal_notes ? <p className="reading-notes-preview">{item.personal_notes}</p> : null}
                     </div>
                   </div>
                 </div>

@@ -193,11 +193,11 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
     assert theme_response.status_code == 200
     assert {book["title"] for book in theme_response.json()} == {"Dune", "Hyperion"}
 
-    collection_response = client.get("/books?collection=cronicas de arrakis", headers=headers)
+    collection_response = client.get("/books?collection=arrakis", headers=headers)
     assert collection_response.status_code == 200
     assert [book["title"] for book in collection_response.json()] == ["Dune"]
 
-    author_country_response = client.get("/books?author_country=estados unidos", headers=headers)
+    author_country_response = client.get("/books?author_country=unidos", headers=headers)
     assert author_country_response.status_code == 200
     assert [book["title"] for book in author_country_response.json()] == ["Dune"]
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -73,7 +73,7 @@ describe("BookDetailPage", () => {
     vi.clearAllMocks();
   });
 
-  it("shows a compact reading summary and shared community block", async () => {
+  it("simplifies the detail view and opens a single edit modal", async () => {
     apiMocks.fetchCopyById.mockResolvedValue({
       id: 7,
       book_id: 3,
@@ -145,13 +145,90 @@ describe("BookDetailPage", () => {
     });
 
     expect(screen.getByText("Cronicas de Arrakis")).toBeInTheDocument();
+    expect(screen.getByText("Editorial")).toBeInTheDocument();
     expect(screen.getByText("Estados Unidos")).toBeInTheDocument();
     expect(screen.getByText("Mi lectura")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir seguimiento" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir muro" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar" })).toHaveAttribute(
+      "href",
+      "/lectura?tab=pending&library=1&copy=7",
+    );
+    expect(screen.queryByText("El trabajo diario vive ahora en")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Abrir seguimiento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Abrir muro" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Estado")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Guardar fechas" })).not.toBeInTheDocument();
-    expect(screen.getByText("Ultimas resenas")).toBeInTheDocument();
-    expect(screen.getByText("Ver opiniones")).toBeInTheDocument();
+    expect(screen.getByText("Comunidad")).toBeInTheDocument();
+    expect(screen.queryByText("Ver opiniones")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ver actividad")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Ejemplar local")).toBeInTheDocument();
+    expect(screen.getByText("Ficha canonica")).toBeInTheDocument();
+  });
+
+  it("hides empty notes and community sections when there is no content", async () => {
+    apiMocks.fetchCopyById.mockResolvedValue({
+      id: 7,
+      book_id: 3,
+      library_id: 1,
+      title: "Dune",
+      isbn: "123",
+      publication_year: 1965,
+      description: null,
+      cover_url: null,
+      publisher: "Ace",
+      collection: "Cronicas de Arrakis",
+      author_country: "Estados Unidos",
+      author_sex: "male",
+      primary_author: {
+        first_name: "Frank",
+        last_name: "Herbert",
+        display_name: "Frank Herbert",
+      },
+      authors: ["Frank Herbert"],
+      genre: "narrativo",
+      themes: ["Ciencia ficcion"],
+      format: "physical",
+      physical_location: null,
+      digital_location: null,
+      status: "available",
+      active_loan: null,
+      shared_readers_preview: [],
+      shared_readers_count: 0,
+      public_review_count: 0,
+      public_average_rating: null,
+    });
+    apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion", "Fantasia"]);
+    apiMocks.fetchUserCopyData.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "pending",
+      rating: null,
+      start_date: null,
+      end_date: null,
+      personal_notes: null,
+    });
+    apiMocks.fetchCopyCommunity.mockResolvedValue({
+      copy_id: 7,
+      active_loan: null,
+      shared_readers: [],
+      shared_readers_count: 0,
+      public_review_count: 0,
+      public_average_rating: null,
+      latest_reviews: [],
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Dune")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Notas personales")).not.toBeInTheDocument();
+    expect(screen.queryByText("Comunidad")).not.toBeInTheDocument();
+    expect(screen.queryByText("No hay ningun prestamo activo para este ejemplar.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nadie lo esta leyendo ahora mismo.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Todavia no hay resenas publicas.")).not.toBeInTheDocument();
   });
 });

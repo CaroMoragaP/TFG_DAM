@@ -22,6 +22,7 @@ class CatalogTotalsOut(BaseModel):
     total: int
     physical: int
     digital: int
+    distinct_authors: int
 
 
 class CatalogStatsOut(BaseModel):

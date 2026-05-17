@@ -9,11 +9,6 @@ type LibraryFormModalProps = {
   onSubmit: (payload: LibraryCreatePayload) => Promise<void>;
 };
 
-const typeDescriptions: Record<LibraryType, string> = {
-  personal: "Solo tuya, ideal para organizar tu espacio personal.",
-  shared: "Compartida con otras personas para colaborar en una misma biblioteca.",
-};
-
 export function LibraryFormModal({
   isOpen,
   isSaving,
@@ -91,12 +86,6 @@ export function LibraryFormModal({
               <option value="personal">Personal</option>
             </select>
           </label>
-
-          <div className="subtle-panel modal-info-panel">
-            <p className="eyebrow">Visibilidad</p>
-            <p>{typeDescriptions[type]}</p>
-          </div>
-
           {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
 
           <div className="modal-actions">

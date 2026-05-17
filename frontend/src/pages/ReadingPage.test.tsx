@@ -157,11 +157,13 @@ describe("ReadingPage", () => {
     expect(screen.getByText("Mi registro de lectura")).toBeInTheDocument();
     expect(screen.queryByText("Importar CSV")).not.toBeInTheDocument();
     expect(screen.queryByText("Meta de lectura 2026")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Buscar lecturas" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pendiente" }));
 
     await screen.findByText("Kindred");
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
+    expect(screen.queryByText("Planificacion manual")).not.toBeInTheDocument();
   });
 
   it("filters by library and saves reading changes from the main workflow", async () => {
@@ -254,6 +256,40 @@ describe("ReadingPage", () => {
         body: "Quiero comentarlo con el club.",
       });
     });
+  });
+
+  it("keeps the pending tab active when opening a non-pending copy from the query string", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+
+    renderPage("/lectura?tab=pending&library=1&copy=11");
+
+    await screen.findByText("Dune");
+    await waitFor(() => {
+      expect(screen.getByText("Mi lectura")).toBeInTheDocument();
+    });
+
+    expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith("token", { libraryId: 1 });
+    expect(screen.getByRole("button", { name: "Pendiente" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Cerrar editor" })).toBeInTheDocument();
+  });
+
+  it("filters the shelf with the search box and only shows personal notes when available", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+
+    renderPage("/lectura?tab=pending&library=all");
+
+    await screen.findByText("Kindred");
+    expect(screen.queryByText("Sin notas personales todavia.")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Buscar lecturas" }), {
+      target: { value: "Arrakis" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Kindred")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("No hay resultados para esa busqueda.")).toBeInTheDocument();
   });
 
   it("cancels an active reading by moving it back to pending and clearing both dates", async () => {

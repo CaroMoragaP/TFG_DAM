@@ -92,6 +92,13 @@ def get_catalog_stats(
         total=total_copies,
         physical=sum(1 for copy in copies if copy.format == CopyFormat.PHYSICAL),
         digital=sum(1 for copy in copies if copy.format == CopyFormat.DIGITAL),
+        distinct_authors=len(
+            {
+                relation.author.id
+                for copy in copies
+                for relation in copy.book.book_authors
+            }
+        ),
     )
 
     author_sex_counts = Counter()

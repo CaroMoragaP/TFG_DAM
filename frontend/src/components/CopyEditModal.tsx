@@ -137,33 +137,10 @@ export function CopyEditModal({
             </label>
 
             <label className="field-group">
-              Estado
-              <select
-                value={formValues.status}
-                onChange={(event) => handleFieldChange("status", event.target.value as CopyStatus)}
-              >
-                <option value="available">Disponible</option>
-                {formValues.status === "loaned" ? <option value="loaned">Prestado (reservado)</option> : null}
-                <option value="reserved">Reservado</option>
-              </select>
-              <p className="detail-inline-copy">
-                El estado prestado queda reservado para la futura gestion de prestamos.
-              </p>
-            </label>
-
-            <label className="field-group">
               Ubicación física
               <input
                 value={formValues.physicalLocation}
                 onChange={(event) => handleFieldChange("physicalLocation", event.target.value)}
-              />
-            </label>
-
-            <label className="field-group">
-              Ubicación digital
-              <input
-                value={formValues.digitalLocation}
-                onChange={(event) => handleFieldChange("digitalLocation", event.target.value)}
               />
             </label>
           </div>

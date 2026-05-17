@@ -160,6 +160,8 @@ export function BookModal({
 }: BookModalProps) {
   const [formValues, setFormValues] = useState<BookFormValues>(emptyFormValues(defaultLibraryId));
   const [errors, setErrors] = useState<FormErrors>({});
+  const isCreateMode = mode === "create";
+  const selectedRating = formValues.userRating ? Number(formValues.userRating) : 0;
   const currentLibrary =
     libraries.find((library) =>
       mode === "edit" && book ? library.id === book.library_id : library.id === defaultLibraryId,
@@ -285,8 +287,13 @@ export function BookModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">{mode === "create" ? "Nuevo libro" : "Editar libro"}</p>
-            <h2 id="book-modal-title">{mode === "create" ? "Anadir libro" : "Guardar cambios"}</h2>
+            <p className="eyebrow">{isCreateMode ? "Nuevo libro" : "Editar libro"}</p>
+            <h2 id="book-modal-title">{isCreateMode ? "Anadir libro" : "Guardar cambios"}</h2>
+            {isCreateMode ? (
+              <p className="detail-inline-copy modal-subtitle">
+                Busca por ISBN o por titulo, nombre y editorial.
+              </p>
+            ) : null}
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -295,7 +302,7 @@ export function BookModal({
 
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-grid">
-            {mode === "create" ? (
+            {isCreateMode ? (
               <label className="field-group">
                 Biblioteca destino
                 <select
@@ -321,9 +328,34 @@ export function BookModal({
             ) : null}
 
             <label className="field-group">
+              ISBN
+              <div className="compound-field">
+                <input value={formValues.isbn} onChange={(event) => handleFieldChange("isbn", event.target.value)} />
+                <button
+                  className="ghost-link compact-action"
+                  type="button"
+                  onClick={() => importMutation.mutate()}
+                  disabled={importMutation.isPending}
+                >
+                  {importMutation.isPending ? "Buscando..." : "Buscar en Open Library"}
+                </button>
+              </div>
+              {errors.isbn ? <p className="field-error">{errors.isbn}</p> : null}
+            </label>
+
+            <label className="field-group">
               Titulo
               <input value={formValues.title} onChange={(event) => handleFieldChange("title", event.target.value)} />
               {errors.title ? <p className="field-error">{errors.title}</p> : null}
+            </label>
+
+            <label className="field-group">
+              Editorial
+              <input
+                value={formValues.publisherName}
+                onChange={(event) => handleFieldChange("publisherName", event.target.value)}
+              />
+              {errors.publisherName ? <p className="field-error">{errors.publisherName}</p> : null}
             </label>
 
             <label className="field-group">
@@ -378,31 +410,6 @@ export function BookModal({
             </label>
 
             <label className="field-group">
-              ISBN
-              <div className="compound-field">
-                <input value={formValues.isbn} onChange={(event) => handleFieldChange("isbn", event.target.value)} />
-                <button
-                  className="ghost-link compact-action"
-                  type="button"
-                  onClick={() => importMutation.mutate()}
-                  disabled={importMutation.isPending}
-                >
-                  {importMutation.isPending ? "Buscando..." : "Buscar en Open Library"}
-                </button>
-              </div>
-              {errors.isbn ? <p className="field-error">{errors.isbn}</p> : null}
-            </label>
-
-            <label className="field-group">
-              Editorial
-              <input
-                value={formValues.publisherName}
-                onChange={(event) => handleFieldChange("publisherName", event.target.value)}
-              />
-              {errors.publisherName ? <p className="field-error">{errors.publisherName}</p> : null}
-            </label>
-
-            <label className="field-group">
               Genero literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
                 <option value="">Sin genero</option>
@@ -421,6 +428,7 @@ export function BookModal({
               options={themeOptions}
               selectedThemes={formValues.themes}
               onChange={(nextThemes) => handleFieldChange("themes", nextThemes)}
+              variant="dropdowns"
             />
 
             <label className="field-group">
@@ -441,22 +449,32 @@ export function BookModal({
               {errors.coverUrl ? <p className="field-error">{errors.coverUrl}</p> : null}
             </label>
 
-            {mode === "create" ? (
-              <label className="field-group">
-                Rating
-                <select
-                  value={formValues.userRating}
-                  onChange={(event) => handleFieldChange("userRating", event.target.value)}
-                >
-                  <option value="">Sin rating</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                </select>
+            {isCreateMode ? (
+              <div className="field-group field-span-full">
+                <span>Rating</span>
+                <div className="rating-block">
+                  <div className="star-row" role="group" aria-label="Seleccionar rating">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        className={star <= selectedRating ? "star-button active" : "star-button"}
+                        type="button"
+                        aria-label={`Puntuar con ${star} estrellas`}
+                        aria-pressed={formValues.userRating === String(star)}
+                        onClick={() =>
+                          handleFieldChange("userRating", formValues.userRating === String(star) ? "" : String(star))
+                        }
+                      >
+                        *
+                      </button>
+                    ))}
+                  </div>
+                  <p className="detail-inline-copy">
+                    {formValues.userRating ? `${formValues.userRating}/5` : "Sin rating"}
+                  </p>
+                </div>
                 {errors.userRating ? <p className="field-error">{errors.userRating}</p> : null}
-              </label>
+              </div>
             ) : null}
           </div>
 

@@ -103,6 +103,7 @@ describe("BookModal", () => {
     expect(librarySelect.value).toBe("");
     expect(screen.queryByText("Estado inicial")).not.toBeInTheDocument();
     expect(screen.getByText("Rating")).toBeInTheDocument();
+    expect(screen.getByText("Busca por ISBN o por titulo, nombre y editorial.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
 
@@ -169,10 +170,9 @@ describe("BookModal", () => {
     fireEvent.change(screen.getByLabelText("Nombre del autor"), { target: { value: "William" } });
     fireEvent.change(screen.getByLabelText("Apellido del autor"), { target: { value: "Gibson" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Ciencia ficcion" }));
-    fireEvent.click(screen.getByRole("button", { name: "Fantasia" }));
-    fireEvent.click(screen.getByRole("button", { name: "Suspense" }));
-    expect(screen.getByRole("button", { name: "Terror" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Tema 1"), { target: { value: "Ciencia ficcion" } });
+    fireEvent.change(screen.getByLabelText("Tema 2"), { target: { value: "Fantasia" } });
+    fireEvent.change(screen.getByLabelText("Tema 3"), { target: { value: "Suspense" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
 
@@ -225,5 +225,18 @@ describe("BookModal", () => {
         publisher: "De Bolsillo",
       });
     });
+  });
+
+  it("lets the user rate with stars in create mode", () => {
+    renderModal("create");
+
+    const fourStarButton = screen.getByRole("button", { name: "Puntuar con 4 estrellas" });
+    fireEvent.click(fourStarButton);
+
+    expect(screen.getByText("4/5")).toBeInTheDocument();
+
+    fireEvent.click(fourStarButton);
+
+    expect(screen.getByText("Sin rating")).toBeInTheDocument();
   });
 });

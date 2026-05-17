@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 
-import { ApiError, type AuthorSex, type BookMetadata } from "../lib/api";
+import { ApiError, fetchOpenLibraryBook, type AuthorSex, type BookMetadata, type ExternalBookLookup, type Library } from "../lib/api";
 import {
   LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
@@ -29,9 +30,11 @@ type BookMetadataModalProps = {
   book: BookMetadata | null;
   isOpen: boolean;
   isSaving: boolean;
+  library?: Library | null;
   themeOptions: string[];
   onClose: () => void;
   onSubmit: (values: BookMetadataValues) => Promise<void>;
+  token: string;
 };
 
 type FormErrors = Partial<Record<keyof BookMetadataValues | "form", string>>;
@@ -72,13 +75,40 @@ function toFormValues(book: BookMetadata): BookMetadataValues {
   };
 }
 
+function buildAuthorDisplayName(firstName: string, lastName: string) {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+}
+
+function applyImportedBook(
+  values: BookMetadataValues,
+  importedBook: ExternalBookLookup,
+): BookMetadataValues {
+  return {
+    ...values,
+    title: importedBook.title,
+    authorFirstName:
+      importedBook.primary_author?.first_name ??
+      importedBook.primary_author?.display_name ??
+      importedBook.authors[0] ??
+      "",
+    authorLastName: importedBook.primary_author?.last_name ?? "",
+    publicationYear: importedBook.publication_year ? String(importedBook.publication_year) : "",
+    isbn: importedBook.isbn ?? "",
+    publisherName: importedBook.publisher_name ?? "",
+    themes: normalizeThemeSelection(importedBook.themes),
+    coverUrl: importedBook.cover_url ?? "",
+  };
+}
+
 export function BookMetadataModal({
   book,
   isOpen,
   isSaving,
+  library,
   themeOptions,
   onClose,
   onSubmit,
+  token,
 }: BookMetadataModalProps) {
   const [formValues, setFormValues] = useState<BookMetadataValues>(emptyValues());
   const [errors, setErrors] = useState<FormErrors>({});
@@ -91,6 +121,59 @@ export function BookMetadataModal({
     setErrors({});
     setFormValues(toFormValues(book));
   }, [book, isOpen]);
+
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      const isbn = formValues.isbn.trim();
+      const title = formValues.title.trim();
+      const author = buildAuthorDisplayName(formValues.authorFirstName, formValues.authorLastName);
+      const publisher = formValues.publisherName.trim();
+
+      if (!isbn && !title) {
+        throw new Error("Escribe un ISBN o un titulo antes de buscar.");
+      }
+
+      return fetchOpenLibraryBook(
+        token,
+        isbn
+          ? { isbn }
+          : {
+              title,
+              author: author || undefined,
+              publisher: publisher || undefined,
+            },
+      );
+    },
+    onSuccess: (importedBook) => {
+      setErrors((currentErrors) => {
+        const nextErrors = { ...currentErrors };
+        delete nextErrors.form;
+        delete nextErrors.title;
+        delete nextErrors.authorFirstName;
+        delete nextErrors.authorLastName;
+        delete nextErrors.authorCountry;
+        delete nextErrors.publicationYear;
+        delete nextErrors.isbn;
+        delete nextErrors.genre;
+        delete nextErrors.themes;
+        delete nextErrors.collection;
+        delete nextErrors.coverUrl;
+        delete nextErrors.publisherName;
+        return nextErrors;
+      });
+      setFormValues((currentValues) => applyImportedBook(currentValues, importedBook));
+    },
+    onError: (error) => {
+      const message =
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "No se pudo importar informacion desde Open Library.";
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        form: message,
+      }));
+    },
+  });
 
   if (!isOpen || !book) {
     return null;
@@ -158,6 +241,9 @@ export function BookMetadataModal({
           <div>
             <p className="eyebrow">Ficha canonica</p>
             <h2 id="book-metadata-modal-title">Editar libro</h2>
+            <p className="detail-inline-copy modal-subtitle">
+              Busca por ISBN o por titulo, nombre y editorial.
+            </p>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
             Cerrar
@@ -166,6 +252,26 @@ export function BookMetadataModal({
 
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-grid">
+            <div className="field-group">
+              Biblioteca
+              <div className="readonly-field">{library?.name ?? "Biblioteca"}</div>
+            </div>
+
+            <label className="field-group">
+              ISBN
+              <div className="compound-field">
+                <input value={formValues.isbn} onChange={(event) => handleFieldChange("isbn", event.target.value)} />
+                <button
+                  className="ghost-link compact-action"
+                  type="button"
+                  onClick={() => importMutation.mutate()}
+                  disabled={importMutation.isPending}
+                >
+                  {importMutation.isPending ? "Buscando..." : "Buscar en Open Library"}
+                </button>
+              </div>
+            </label>
+
             <label className="field-group">
               Titulo
               <input value={formValues.title} onChange={(event) => handleFieldChange("title", event.target.value)} />
@@ -173,16 +279,24 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Nombre del autor principal
+              Editorial
               <input
-                  value={formValues.authorFirstName}
-                  onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
-                />
-                {errors.authorFirstName ? <p className="field-error">{errors.authorFirstName}</p> : null}
-              </label>
+                value={formValues.publisherName}
+                onChange={(event) => handleFieldChange("publisherName", event.target.value)}
+              />
+            </label>
 
             <label className="field-group">
-              Apellido del autor principal
+              Nombre del autor
+              <input
+                value={formValues.authorFirstName}
+                onChange={(event) => handleFieldChange("authorFirstName", event.target.value)}
+              />
+              {errors.authorFirstName ? <p className="field-error">{errors.authorFirstName}</p> : null}
+            </label>
+
+            <label className="field-group">
+              Apellido del autor
               <input
                 value={formValues.authorLastName}
                 onChange={(event) => handleFieldChange("authorLastName", event.target.value)}
@@ -222,11 +336,6 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              ISBN
-              <input value={formValues.isbn} onChange={(event) => handleFieldChange("isbn", event.target.value)} />
-            </label>
-
-            <label className="field-group">
               Genero literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
                 <option value="">Sin genero</option>
@@ -244,6 +353,7 @@ export function BookMetadataModal({
               options={themeOptions}
               selectedThemes={formValues.themes}
               onChange={(nextThemes) => handleFieldChange("themes", nextThemes)}
+              variant="dropdowns"
             />
 
             <label className="field-group">
@@ -251,14 +361,6 @@ export function BookMetadataModal({
               <input
                 value={formValues.collection}
                 onChange={(event) => handleFieldChange("collection", event.target.value)}
-              />
-            </label>
-
-            <label className="field-group">
-              Editorial
-              <input
-                value={formValues.publisherName}
-                onChange={(event) => handleFieldChange("publisherName", event.target.value)}
               />
             </label>
 

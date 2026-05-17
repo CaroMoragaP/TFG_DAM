@@ -80,7 +80,7 @@ export function PublicLayout() {
               Iniciar sesion
             </Link>
             <Link className="landing-signup-link" to="/auth?tab=register">
-              Crear cuenta gratis
+              Regístrate
             </Link>
           </div>
 
@@ -109,7 +109,7 @@ export function PublicLayout() {
                 Iniciar sesion
               </Link>
               <Link className="landing-signup-link" to="/auth?tab=register">
-                Crear cuenta gratis
+                Regístrate
               </Link>
             </div>
           </div>

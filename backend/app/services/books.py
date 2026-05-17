@@ -234,14 +234,16 @@ def list_books(
 
     normalized_collection = collection.strip().lower() if collection else None
     if normalized_collection:
+        collection_like_pattern = f"%{normalized_collection}%"
         stmt = stmt.where(
-            func.lower(func.coalesce(Collection.name, "")) == normalized_collection,
+            func.lower(func.coalesce(Collection.name, "")).like(collection_like_pattern),
         )
 
     normalized_author_country = author_country.strip().lower() if author_country else None
     if normalized_author_country:
+        author_country_like_pattern = f"%{normalized_author_country}%"
         stmt = stmt.where(
-            func.lower(func.coalesce(Country.name, "")) == normalized_author_country,
+            func.lower(func.coalesce(Country.name, "")).like(author_country_like_pattern),
         )
 
     if reading_status is not None:

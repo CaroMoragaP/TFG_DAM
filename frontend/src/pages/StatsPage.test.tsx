@@ -183,6 +183,7 @@ describe("StatsPage", () => {
         total: 10,
         physical: 6,
         digital: 4,
+        distinct_authors: 7,
       },
       author_sex_distribution: [
         { key: "male", label: "Hombre", count: 5, percentage: 50 },
@@ -208,6 +209,9 @@ describe("StatsPage", () => {
     });
 
     await screen.findByText("Total de ejemplares");
+    expect(screen.getByText("Libros fisicos - libros digitales")).toBeInTheDocument();
+    expect(screen.getByText("Total de autores")).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Estadisticas del catalogo" })).toHaveClass("active");
     expect(screen.getByText("Frank Herbert")).toBeInTheDocument();
 
@@ -228,6 +232,7 @@ describe("StatsPage", () => {
         total: 4,
         physical: 2,
         digital: 2,
+        distinct_authors: 3,
       },
       author_sex_distribution: [
         { key: "male", label: "Hombre", count: 2, percentage: 50 },
@@ -291,6 +296,7 @@ describe("StatsPage", () => {
         total: 0,
         physical: 0,
         digital: 0,
+        distinct_authors: 0,
       },
       author_sex_distribution: [],
       author_country_distribution: [],

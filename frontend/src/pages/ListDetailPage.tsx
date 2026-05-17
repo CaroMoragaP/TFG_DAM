@@ -222,16 +222,18 @@ export function ListDetailPage() {
           </div>
 
           <div className="panel list-detail-toolbar">
-            <label className="field-group">
-              Ordenar por
-              <select value={sort} onChange={(event) => setSort(event.target.value as SortOption)}>
-                <option value="recent">Mas recientes</option>
-                <option value="oldest">Mas antiguos</option>
-                <option value="title">Titulo A-Z</option>
-                <option value="author">Autor A-Z</option>
-                <option value="year">Ano mas reciente</option>
-              </select>
-            </label>
+            <div className="dashboard-filters-grid">
+              <label className="dashboard-filter-field">
+                <span>Ordenar por</span>
+                <select value={sort} onChange={(event) => setSort(event.target.value as SortOption)}>
+                  <option value="recent">Mas recientes</option>
+                  <option value="oldest">Mas antiguos</option>
+                  <option value="title">Titulo A-Z</option>
+                  <option value="author">Autor A-Z</option>
+                  <option value="year">Ano mas reciente</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {removeBookErrorMessage ? (

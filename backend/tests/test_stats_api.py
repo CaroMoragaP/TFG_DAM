@@ -285,6 +285,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         "total": 14,
         "physical": 7,
         "digital": 7,
+        "distinct_authors": 12,
     }
     assert catalog_payload["author_sex_distribution"][0]["key"] == "male"
     assert catalog_payload["author_sex_distribution"][0]["count"] == 3
@@ -317,6 +318,7 @@ def test_stats_endpoints_aggregate_catalog_and_reading_views(
         "total": 2,
         "physical": 1,
         "digital": 1,
+        "distinct_authors": 2,
     }
 
     reading_response = client.get("/stats/reading", headers=owner_headers)

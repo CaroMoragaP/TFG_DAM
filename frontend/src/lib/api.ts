@@ -433,6 +433,7 @@ export type CatalogStats = {
     total: number;
     physical: number;
     digital: number;
+    distinct_authors: number;
   };
   author_sex_distribution: StatsBreakdownItem[];
   author_country_distribution: StatsBreakdownItem[];

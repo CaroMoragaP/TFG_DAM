@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
@@ -331,14 +331,23 @@ export function ActivityPage() {
     (selectedLibraryId === null ? defaultLibrary : null);
 
   useEffect(() => {
-    if (isLibrariesLoading || !defaultLibrary || searchParams.has("library")) {
+    if (isLibrariesLoading || !defaultLibrary) {
       return;
     }
 
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set("library", String(defaultLibrary.id));
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [defaultLibrary, isLibrariesLoading, searchParams, setSearchParams]);
+    const hasValidSelectedLibrary =
+      selectedLibraryId !== null &&
+      sharedLibraries.some((library) => library.id === selectedLibraryId);
+    if (hasValidSelectedLibrary) {
+      return;
+    }
+
+    setSearchParams((currentSearchParams) => {
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      nextSearchParams.set("library", String(defaultLibrary.id));
+      return nextSearchParams;
+    }, { replace: true });
+  }, [defaultLibrary, isLibrariesLoading, selectedLibraryId, setSearchParams, sharedLibraries]);
 
   const activityQuery = useQuery({
     queryKey: ["library-activity", activeLibrary?.id ?? null],
@@ -359,18 +368,23 @@ export function ActivityPage() {
     enabled: Boolean(token && activeLibrary && tab === "reviews"),
   });
 
-  function updateSearchParam(
-    key: "tab" | "filter" | "sort" | "library",
-    value: string,
-  ) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    if (key === "library" && !value) {
-      nextSearchParams.delete(key);
-    } else {
-      nextSearchParams.set(key, value);
-    }
-    setSearchParams(nextSearchParams, { replace: true });
-  }
+  const updateSearchParam = useCallback(
+    (
+      key: "tab" | "filter" | "sort" | "library",
+      value: string,
+    ) => {
+      setSearchParams((currentSearchParams) => {
+        const nextSearchParams = new URLSearchParams(currentSearchParams);
+        if (key === "library" && !value) {
+          nextSearchParams.delete(key);
+        } else {
+          nextSearchParams.set(key, value);
+        }
+        return nextSearchParams;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   if (isLibrariesError) {
     return (

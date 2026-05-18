@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -10,6 +11,7 @@ import {
   fetchMe,
   loginRequest,
   registerRequest,
+  setUnauthorizedHandler,
   type LoginPayload,
   type RegisterPayload,
   type User,
@@ -81,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const currentUser = await fetchMe(storedSession.token);
+        const currentUser = await fetchMe(storedSession.token, {
+          handleUnauthorized: false,
+        });
         if (isCancelled) {
           return;
         }
@@ -109,27 +113,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(payload: LoginPayload) {
+  const login = useCallback(async (payload: LoginPayload) => {
     const response = await loginRequest(payload);
     setToken(response.access_token);
     setUser(response.user);
     persistSession(response.access_token, response.user);
-  }
+  }, []);
 
-  async function register(payload: RegisterPayload) {
+  const register = useCallback(async (payload: RegisterPayload) => {
     const response = await registerRequest(payload);
     setToken(response.access_token);
     setUser(response.user);
     persistSession(response.access_token, response.user);
-  }
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     clearStoredSession();
     setToken(null);
     setUser(null);
-  }
+  }, []);
 
-  async function refreshMe() {
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+      window.location.replace("/login");
+    });
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, [logout]);
+
+  const refreshMe = useCallback(async () => {
     if (!token) {
       setUser(null);
       return;
@@ -141,9 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       persistSession(token, currentUser);
     } catch {
       logout();
-      throw new Error("No se pudo refrescar la sesión.");
+      throw new Error("No se pudo refrescar la sesion.");
     }
-  }
+  }, [logout, token]);
 
   return (
     <AuthContext.Provider

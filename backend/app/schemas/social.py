@@ -52,7 +52,7 @@ class CopyLoanOut(BaseModel):
     lender_user_id: int
     lender_name: str
     borrower_user_id: int | None
-    borrower_name: str
+    borrower_name: str | None
     is_internal: bool
     loaned_at: datetime
     due_date: date | None

@@ -232,3 +232,17 @@ def test_partial_admin_settings_raise_configuration_error() -> None:
 
     with pytest.raises(AdminSeedConfigurationError):
         get_admin_seed_config(settings)
+
+
+def test_production_settings_require_a_non_default_secret_key() -> None:
+    with pytest.raises(ValueError, match="SECRET_KEY debe configurarse"):
+        build_settings(environment="production")
+
+
+def test_production_settings_accept_a_custom_secret_key() -> None:
+    settings = build_settings(
+        environment="production",
+        secret_key="super-secret-key-for-production",
+    )
+
+    assert settings.secret_key == "super-secret-key-for-production"

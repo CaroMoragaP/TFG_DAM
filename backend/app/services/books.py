@@ -349,7 +349,7 @@ def update_book_metadata(
 ) -> Book:
     book = _get_editable_book_for_owner(db, user_id=user_id, book_id=book_id)
 
-    if "title" in data.model_fields_set:
+    if "title" in data.model_fields_set and data.title is not None:
         book.title = data.title
     if "isbn" in data.model_fields_set:
         _ensure_unique_isbn(db, isbn=data.isbn, current_book_id=book.id)
@@ -371,6 +371,7 @@ def update_book_metadata(
             BookAuthor(author=author)
             for author in _resolve_authors(db, _build_author_inputs(data))
         ]
+        db.flush()
     if "author_country_name" in data.model_fields_set or "author_sex" in data.model_fields_set:
         _assign_primary_author_metadata(
             book.book_authors,

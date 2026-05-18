@@ -10,6 +10,7 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import text
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -234,6 +235,7 @@ class UserCopy(Base):
         EnumValueType(ReadingStatus),
         nullable=False,
         default=ReadingStatus.PENDING,
+        server_default=text("'pending'"),
     )
     rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)

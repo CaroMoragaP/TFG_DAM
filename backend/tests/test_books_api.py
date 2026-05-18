@@ -791,6 +791,17 @@ def test_shared_library_roles_split_copy_and_book_permissions(client: TestClient
     assert owner_metadata_update_response.status_code == 200
     assert owner_metadata_update_response.json()["title"] == "Solaris revisado"
 
+    owner_null_title_response = client.put(
+        f"/books/{created_book['book_id']}/metadata",
+        headers=owner_headers,
+        json={
+            "title": None,
+            "genre": "narrativo",
+        },
+    )
+    assert owner_null_title_response.status_code == 200
+    assert owner_null_title_response.json()["title"] == "Solaris revisado"
+
 
 def test_catalog_csv_preview_commit_and_export(client: TestClient, monkeypatch) -> None:
     headers = register_user(client)

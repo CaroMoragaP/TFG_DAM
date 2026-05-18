@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -549,15 +549,20 @@ export function ReadingPage() {
       ? readingQuery.error.message
       : "No se pudieron cargar tus lecturas.";
 
-  function updateSearchParam(key: "tab" | "library" | "copy" | "q", value: string | null) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    if (value === null) {
-      nextSearchParams.delete(key);
-    } else {
-      nextSearchParams.set(key, value);
-    }
-    setSearchParams(nextSearchParams, { replace: true });
-  }
+  const updateSearchParam = useCallback(
+    (key: "tab" | "library" | "copy" | "q", value: string | null) => {
+      setSearchParams((currentSearchParams) => {
+        const nextSearchParams = new URLSearchParams(currentSearchParams);
+        if (value === null) {
+          nextSearchParams.delete(key);
+        } else {
+          nextSearchParams.set(key, value);
+        }
+        return nextSearchParams;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   useEffect(() => {
     if (selectedCopyId === null) {
@@ -587,7 +592,7 @@ export function ReadingPage() {
     autoOpenedCopyIdRef.current = targetItem.copy_id;
     setEditingCopyId(targetItem.copy_id);
     setEditorState(buildEditorState(targetItem));
-  }, [libraryValue, readingQuery.data, selectedCopyId, selectedItem, selectedLibraryId]);
+  }, [libraryValue, readingQuery.data, selectedCopyId, selectedItem, selectedLibraryId, updateSearchParam]);
 
   function handleOpenEditor(item: ReadingShelfItem) {
     if (editingCopyId === item.copy_id) {

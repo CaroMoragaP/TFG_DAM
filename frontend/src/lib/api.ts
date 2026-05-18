@@ -1,5 +1,11 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 export type HealthResponse = {
   service: string;
   status: string;
@@ -37,7 +43,7 @@ export type CommunityLoan = {
   lender_user_id: number;
   lender_name: string;
   borrower_user_id: number | null;
-  borrower_name: string;
+  borrower_name: string | null;
   is_internal: boolean;
   loaned_at: string;
   due_date: string | null;
@@ -566,6 +572,7 @@ export type AuthResponse = {
 
 type ApiFetchOptions = {
   token?: string | null;
+  handleUnauthorized?: boolean;
 };
 
 export class ApiError extends Error {
@@ -633,6 +640,15 @@ export async function apiFetch<T>(
     : await response.text();
 
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      options?.token &&
+      options.handleUnauthorized !== false &&
+      unauthorizedHandler
+    ) {
+      unauthorizedHandler();
+    }
+
     throw new ApiError(
       extractErrorMessage(
         responseBody,
@@ -665,6 +681,15 @@ export async function apiFetchBlob(
       ? ((await response.json()) as unknown)
       : await response.text();
 
+    if (
+      response.status === 401 &&
+      options?.token &&
+      options.handleUnauthorized !== false &&
+      unauthorizedHandler
+    ) {
+      unauthorizedHandler();
+    }
+
     throw new ApiError(
       extractErrorMessage(
         responseBody,
@@ -696,9 +721,13 @@ export function registerRequest(payload: RegisterPayload): Promise<AuthResponse>
   });
 }
 
-export function fetchMe(token: string): Promise<User> {
+export function fetchMe(
+  token: string,
+  options?: Pick<ApiFetchOptions, "handleUnauthorized">,
+): Promise<User> {
   return apiFetch<User>("/auth/me", undefined, {
     token,
+    handleUnauthorized: options?.handleUnauthorized,
   });
 }
 

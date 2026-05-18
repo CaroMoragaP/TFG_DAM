@@ -32,7 +32,7 @@ class UserRegister(BaseModel):
     @classmethod
     def validate_password_length(cls, value: str) -> str:
         if len(value) > 72:
-            raise ValueError("La contrasena no puede superar 72 caracteres.")
+            raise ValueError("La contraseña no puede superar 72 caracteres.")
         return value
 
 
@@ -49,7 +49,7 @@ class UserLogin(BaseModel):
     @classmethod
     def validate_password_length(cls, value: str) -> str:
         if len(value) > 72:
-            raise ValueError("La contrasena no puede superar 72 caracteres.")
+            raise ValueError("La contraseña no puede superar 72 caracteres.")
         return value
 
 

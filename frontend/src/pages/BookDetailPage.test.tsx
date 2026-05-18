@@ -231,4 +231,85 @@ describe("BookDetailPage", () => {
     expect(screen.queryByText("Nadie lo esta leyendo ahora mismo.")).not.toBeInTheDocument();
     expect(screen.queryByText("Todavia no hay resenas publicas.")).not.toBeInTheDocument();
   });
+
+  it("shows a safe borrower fallback when an internal loan arrives without borrower_name", async () => {
+    apiMocks.fetchCopyById.mockResolvedValue({
+      id: 7,
+      book_id: 3,
+      library_id: 1,
+      title: "Dune",
+      isbn: "123",
+      publication_year: 1965,
+      description: null,
+      cover_url: null,
+      publisher: "Ace",
+      collection: "Cronicas de Arrakis",
+      author_country: "Estados Unidos",
+      author_sex: "male",
+      primary_author: {
+        first_name: "Frank",
+        last_name: "Herbert",
+        display_name: "Frank Herbert",
+      },
+      authors: ["Frank Herbert"],
+      genre: "narrativo",
+      themes: ["Ciencia ficcion"],
+      format: "physical",
+      physical_location: null,
+      digital_location: null,
+      status: "loaned",
+      active_loan: {
+        id: 19,
+        copy_id: 7,
+        lender_user_id: 1,
+        lender_name: "Owner",
+        borrower_user_id: 2,
+        borrower_name: null,
+        is_internal: true,
+        loaned_at: "2026-05-01T10:00:00Z",
+        due_date: "2026-05-10",
+        returned_at: null,
+        notes: null,
+      },
+      shared_readers_preview: [],
+      shared_readers_count: 0,
+      public_review_count: 0,
+      public_average_rating: null,
+    });
+    apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion"]);
+    apiMocks.fetchUserCopyData.mockResolvedValue({
+      copy_id: 7,
+      reading_status: "pending",
+      rating: null,
+      start_date: null,
+      end_date: null,
+      personal_notes: null,
+    });
+    apiMocks.fetchCopyCommunity.mockResolvedValue({
+      copy_id: 7,
+      active_loan: {
+        id: 19,
+        copy_id: 7,
+        lender_user_id: 1,
+        lender_name: "Owner",
+        borrower_user_id: 2,
+        borrower_name: null,
+        is_internal: true,
+        loaned_at: "2026-05-01T10:00:00Z",
+        due_date: "2026-05-10",
+        returned_at: null,
+        notes: null,
+      },
+      shared_readers: [],
+      shared_readers_count: 0,
+      public_review_count: 0,
+      public_average_rating: null,
+      latest_reviews: [],
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Prestamo activo")).toBeInTheDocument();
+    expect(screen.getByText(/Prestado a Miembro de la biblioteca/)).toBeInTheDocument();
+  });
 });

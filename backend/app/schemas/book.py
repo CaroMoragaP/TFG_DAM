@@ -155,7 +155,7 @@ class BookUpdate(BaseModel):
     @classmethod
     def normalize_title(cls, value: str | None) -> str | None:
         if value is None:
-            raise ValueError("El titulo no puede ser nulo.")
+            return None
 
         normalized = value.strip()
         if not normalized:
@@ -244,7 +244,7 @@ class BookMetadataUpdate(BaseModel):
     @classmethod
     def normalize_metadata_title(cls, value: str | None) -> str | None:
         if value is None:
-            raise ValueError("El titulo no puede ser nulo.")
+            return None
 
         normalized = value.strip()
         if not normalized:

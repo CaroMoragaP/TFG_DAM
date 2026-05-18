@@ -186,6 +186,28 @@ describe("ActivityPage", () => {
     });
   });
 
+  it("repairs an invalid library query param by falling back to the first shared library", async () => {
+    apiMocks.fetchLibraryReviews.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
+
+    renderPage("/muro?tab=reviews&library=999");
+
+    await waitFor(() => {
+      expect(apiMocks.fetchLibraryReviews).toHaveBeenCalledWith("token", 2, {
+        filter: "all",
+        sort: "recent",
+        limit: 50,
+        offset: 0,
+      });
+    });
+
+    expect(screen.getByLabelText("Biblioteca compartida")).toHaveValue("2");
+  });
+
   it("shows review cards separating the user's publication from the community", async () => {
     apiMocks.fetchLibraryReviews.mockResolvedValue({
       items: [

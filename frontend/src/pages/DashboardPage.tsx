@@ -343,7 +343,10 @@ export function DashboardPage() {
           setIsImportModalOpen(true);
         }}
         onExport={() => void handleExportCatalog()}
-        onAddBook={() => setIsCreateModalOpen(true)}
+        onAddBook={() => {
+          createBookMutation.reset();
+          setIsCreateModalOpen(true);
+        }}
         isImportDisabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
         isExportDisabled={booksQuery.isPending || isExporting}
         isExporting={isExporting}
@@ -500,6 +503,7 @@ export function DashboardPage() {
           if (createBookMutation.isPending) {
             return;
           }
+          createBookMutation.reset();
           setIsCreateModalOpen(false);
         }}
         onSubmit={handleSubmitBook}

@@ -8,6 +8,7 @@ import { BookDetailEditModal, type BookDetailEditValues } from "../components/Bo
 import { type CopyEditValues } from "../components/CopyEditModal";
 import { useLibraries } from "../libraries/useLibraries";
 import {
+  type CommunityLoan,
   deleteCopyRequest,
   fetchCopyById,
   fetchCopyCommunity,
@@ -63,6 +64,18 @@ function formatDateLabel(value: string | null) {
 
 function formatCommunityRating(value: number | null) {
   return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+}
+
+function formatBorrowerName(loan: CommunityLoan) {
+  if (loan.borrower_name?.trim()) {
+    return loan.borrower_name;
+  }
+
+  if (loan.borrower_user_id !== null) {
+    return "Miembro de la biblioteca";
+  }
+
+  return "Prestatario desconocido";
 }
 
 export function BookDetailPage() {
@@ -393,7 +406,7 @@ export function BookDetailPage() {
                 <div className="community-list-item">
                   <strong>Prestamo activo</strong>
                   <p>
-                    Prestado a {community.active_loan.borrower_name}
+                    Prestado a {formatBorrowerName(community.active_loan)}
                     {community.active_loan.due_date ? ` hasta ${formatDateLabel(community.active_loan.due_date)}` : ""}
                   </p>
                 </div>

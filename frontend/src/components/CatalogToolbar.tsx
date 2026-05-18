@@ -152,7 +152,7 @@ export function CatalogToolbar({
   }, [activeFilterCount]);
 
   return (
-    <div className="dashboard-toolbar">
+    <div className="dashboard-toolbar catalog-toolbar">
       <div className="dashboard-toolbar-top">
         <label className="dashboard-search-shell">
           <span className="dashboard-search-icon">

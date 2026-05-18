@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -367,10 +367,10 @@ export function ReadingPage() {
   const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
-  const [sort, setSort] = useState<ReadingSort>("recent-start");
-  const [pinnedCopyId, setPinnedCopyId] = useState<number | null>(null);
+  const [sort, setSort] = useState<ReadingSort>(() => getDefaultSort(normalizeTab(searchParams.get("tab"))));
   const [editingCopyId, setEditingCopyId] = useState<number | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const autoOpenedCopyIdRef = useRef<number | null>(null);
 
   const q = searchParams.get("q") ?? "";
   const tab = normalizeTab(searchParams.get("tab"));
@@ -383,6 +383,9 @@ export function ReadingPage() {
   const activeFilterCount = useMemo(() => {
     let count = 0;
 
+    if (selectedCopyId !== null) {
+      count += 1;
+    }
     if (libraryValue !== "all") {
       count += 1;
     }
@@ -391,7 +394,7 @@ export function ReadingPage() {
     }
 
     return count;
-  }, [defaultSort, libraryValue, sort]);
+  }, [defaultSort, libraryValue, selectedCopyId, sort]);
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(activeFilterCount > 0);
 
   useEffect(() => {
@@ -534,17 +537,11 @@ export function ReadingPage() {
     );
     return sortReadingItems(items, sort);
   }, [normalizedSearchQuery, readingQuery.data, sort, tab]);
-  const pinnedItem = useMemo(
-    () => (readingQuery.data ?? []).find((item) => item.copy_id === pinnedCopyId) ?? null,
-    [pinnedCopyId, readingQuery.data],
+  const selectedItem = useMemo(
+    () => (readingQuery.data ?? []).find((item) => item.copy_id === selectedCopyId) ?? null,
+    [readingQuery.data, selectedCopyId],
   );
-  const visibleItems = useMemo(() => {
-    if (!pinnedItem || filteredItems.some((item) => item.copy_id === pinnedItem.copy_id)) {
-      return filteredItems;
-    }
-
-    return [pinnedItem, ...filteredItems];
-  }, [filteredItems, pinnedItem]);
+  const visibleItems = selectedItem ? [selectedItem] : filteredItems;
 
   const showLibraryBadge = availableLibraries.length > 1;
   const errorMessage =
@@ -563,11 +560,16 @@ export function ReadingPage() {
   }
 
   useEffect(() => {
+    if (selectedCopyId === null) {
+      autoOpenedCopyIdRef.current = null;
+      return;
+    }
+
     if (!selectedCopyId || !readingQuery.data) {
       return;
     }
 
-    const targetItem = readingQuery.data.find((item) => item.copy_id === selectedCopyId);
+    const targetItem = selectedItem;
     if (!targetItem) {
       updateSearchParam("copy", null);
       return;
@@ -578,21 +580,22 @@ export function ReadingPage() {
       return;
     }
 
-    setPinnedCopyId(targetItem.copy_id);
+    if (autoOpenedCopyIdRef.current === targetItem.copy_id) {
+      return;
+    }
+
+    autoOpenedCopyIdRef.current = targetItem.copy_id;
     setEditingCopyId(targetItem.copy_id);
     setEditorState(buildEditorState(targetItem));
-    updateSearchParam("copy", null);
-  }, [libraryValue, readingQuery.data, searchParams, selectedCopyId, selectedLibraryId, setSearchParams, tab]);
+  }, [libraryValue, readingQuery.data, selectedCopyId, selectedItem, selectedLibraryId]);
 
   function handleOpenEditor(item: ReadingShelfItem) {
     if (editingCopyId === item.copy_id) {
-      setPinnedCopyId((currentPinnedCopyId) => (currentPinnedCopyId === item.copy_id ? null : currentPinnedCopyId));
       setEditingCopyId(null);
       setEditorState(null);
       return;
     }
 
-    setPinnedCopyId(null);
     setEditingCopyId(item.copy_id);
     setEditorState(buildEditorState(item));
   }
@@ -823,6 +826,7 @@ export function ReadingPage() {
                   className="dashboard-toolbar-clear"
                   type="button"
                   onClick={() => {
+                    updateSearchParam("copy", null);
                     updateSearchParam("library", "all");
                     setSort(defaultSort);
                   }}
@@ -840,13 +844,35 @@ export function ReadingPage() {
               key={status}
               className={status === tab ? "stats-tab active" : "stats-tab"}
               type="button"
-              onClick={() => updateSearchParam("tab", status)}
+              onClick={() => {
+                setSort(getDefaultSort(status));
+                updateSearchParam("tab", status);
+              }}
             >
               {statusLabels[status]}
             </button>
           ))}
         </div>
       </div>
+
+      {selectedItem ? (
+        <div className="panel active-filter-panel">
+          <div className="active-filter-copy">
+            <h3>Mostrando solo el libro seleccionado</h3>
+            <p>
+              {selectedItem.title} · {selectedItem.authors[0] ?? "Autor sin registrar"}
+            </p>
+            <p>Quita este filtro para volver a ver todo el listado del tab actual.</p>
+          </div>
+          <button
+            className="ghost-link compact-action"
+            type="button"
+            onClick={() => updateSearchParam("copy", null)}
+          >
+            Quitar filtro
+          </button>
+        </div>
+      ) : null}
 
       {isLibrariesError ? (
         <div className="panel">

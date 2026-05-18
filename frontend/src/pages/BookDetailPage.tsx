@@ -214,7 +214,7 @@ export function BookDetailPage() {
         }
       : null)) as CopyCommunity | null;
   const readingDetailPath = detail
-    ? `/lectura?tab=pending&library=${detail.library_id}&copy=${detail.id}`
+    ? `/lectura?tab=${userData?.reading_status ?? "pending"}&library=${detail.library_id}&copy=${detail.id}`
     : "/lectura?tab=pending";
   const hasCommunityStats =
     (community?.public_review_count ?? 0) > 0 || community?.public_average_rating !== null;

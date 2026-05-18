@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -117,6 +117,25 @@ function buildShelf() {
       public_average_rating: null,
       my_public_review: null,
     },
+    {
+      copy_id: 14,
+      book_id: 6,
+      library_id: 1,
+      title: "La campana de cristal",
+      authors: ["Sylvia Plath"],
+      cover_url: null,
+      genre: "narrativo",
+      collection: null,
+      author_country: "Estados Unidos",
+      reading_status: "reading",
+      rating: 3,
+      start_date: "2026-04-12",
+      end_date: null,
+      personal_notes: null,
+      public_review_count: 0,
+      public_average_rating: null,
+      my_public_review: null,
+    },
   ];
 }
 
@@ -137,6 +156,14 @@ function renderPage(initialEntry = "/lectura?tab=reading&library=all") {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+function openEditorForTitle(title: string) {
+  const cardHeading = screen.getByRole("heading", { name: title });
+  const card = cardHeading.closest("article");
+
+  expect(card).not.toBeNull();
+  fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Gestionar lectura" }));
 }
 
 describe("ReadingPage", () => {
@@ -191,7 +218,7 @@ describe("ReadingPage", () => {
     });
 
     await screen.findByText("Dune");
-    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
+    openEditorForTitle("Dune");
     fireEvent.change(screen.getByLabelText("Estado de lectura"), {
       target: { value: "finished" },
     });
@@ -236,6 +263,9 @@ describe("ReadingPage", () => {
     renderPage("/lectura?tab=pending&library=2&copy=12");
 
     await screen.findByText("Kindred");
+    expect(screen.queryByText("Dune")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando solo el libro seleccionado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar filtro" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("Mi valoracion y publicacion")).toBeInTheDocument();
     });
@@ -265,6 +295,7 @@ describe("ReadingPage", () => {
     renderPage("/lectura?tab=pending&library=1&copy=11");
 
     await screen.findByText("Dune");
+    expect(screen.queryByText("Kindred")).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("Mi lectura")).toBeInTheDocument();
     });
@@ -272,6 +303,22 @@ describe("ReadingPage", () => {
     expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith("token", { libraryId: 1 });
     expect(screen.getByRole("button", { name: "Pendiente" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "Cerrar editor" })).toBeInTheDocument();
+  });
+
+  it("removes the selected-book filter and restores the active tab listing", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+
+    renderPage("/lectura?tab=reading&library=all&copy=11");
+
+    await screen.findByText("Dune");
+    fireEvent.click(screen.getByRole("button", { name: "Quitar filtro" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("La campana de cristal")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+    expect(screen.queryByText("Mostrando solo el libro seleccionado")).not.toBeInTheDocument();
   });
 
   it("filters the shelf with the search box and only shows personal notes when available", async () => {
@@ -308,7 +355,7 @@ describe("ReadingPage", () => {
 
     await screen.findByText("Dune");
 
-    fireEvent.click(screen.getByRole("button", { name: "Gestionar lectura" }));
+    openEditorForTitle("Dune");
     fireEvent.change(screen.getByLabelText("Estado de lectura"), {
       target: { value: "pending" },
     });

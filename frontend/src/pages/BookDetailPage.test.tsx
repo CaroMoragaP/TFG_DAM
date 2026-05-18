@@ -150,7 +150,7 @@ describe("BookDetailPage", () => {
     expect(screen.getByText("Mi lectura")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Editar" })).toHaveAttribute(
       "href",
-      "/lectura?tab=pending&library=1&copy=7",
+      "/lectura?tab=reading&library=1&copy=7",
     );
     expect(screen.queryByText("El trabajo diario vive ahora en")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Abrir seguimiento" })).not.toBeInTheDocument();

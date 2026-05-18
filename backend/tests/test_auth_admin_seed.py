@@ -58,6 +58,21 @@ def test_regular_auth_responses_expose_is_admin_false(client: TestClient) -> Non
     assert login_response.json()["user"]["is_admin"] is False
 
 
+def test_login_preflight_allows_www_localhost_origin(client: TestClient) -> None:
+    response = client.options(
+        "/auth/login",
+        headers={
+            "Origin": "http://www.localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://www.localhost:5173"
+    assert "POST" in response.headers["access-control-allow-methods"]
+
+
 def test_seeded_admin_can_authenticate_as_admin(
     client: TestClient,
     db_session: Session,

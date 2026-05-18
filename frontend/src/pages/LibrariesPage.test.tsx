@@ -48,7 +48,7 @@ function renderPage() {
 }
 
 describe("LibrariesPage", () => {
-  it("lists the user libraries and edits the selected one after clicking it", async () => {
+  it("lists the user libraries and edits one from its modal", async () => {
     apiMocks.fetchLibraries.mockResolvedValue([
       {
         id: 1,
@@ -100,9 +100,9 @@ describe("LibrariesPage", () => {
       expect(screen.getAllByText("Club lector").length).toBeGreaterThan(0);
     });
 
-    expect(screen.queryByText("Bibliotecas")).not.toBeInTheDocument();
+    expect(screen.queryByText("Biblioteca seleccionada para editar.")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Club lector").closest("article")!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[1]);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("Club lector")).toBeInTheDocument();

@@ -56,20 +56,11 @@ export function LibrariesPage() {
   });
 
   const allLibraries = librariesQuery.data ?? [];
-  const selectedLibrary =
-    allLibraries.find((library) => library.id === selectedLibraryId) ??
-    allLibraries[0] ??
-    null;
+  const selectedLibrary = allLibraries.find((library) => library.id === selectedLibraryId) ?? null;
 
   useEffect(() => {
     if (!selectedLibrary && selectedLibraryId !== null) {
       setSelectedLibraryId(null);
-      return;
-    }
-
-    if (selectedLibrary && selectedLibrary.id !== selectedLibraryId) {
-      setSelectedLibraryId(selectedLibrary.id);
-      setRenameDraft(selectedLibrary.name);
     }
   }, [selectedLibrary, selectedLibraryId]);
 
@@ -183,7 +174,7 @@ export function LibrariesPage() {
       selectedLibrary.member_count === 1,
   );
 
-  function handleSelectLibrary(libraryId: number) {
+  function handleOpenEditModal(libraryId: number) {
     setSelectedLibraryId(libraryId);
   }
 
@@ -193,7 +184,7 @@ export function LibrariesPage() {
     }
 
     event.preventDefault();
-    handleSelectLibrary(libraryId);
+    handleOpenEditModal(libraryId);
   }
 
   function renderLibraryCard(library: Library) {
@@ -205,7 +196,7 @@ export function LibrariesPage() {
         className={isActive ? "panel list-management-card active" : "panel list-management-card"}
         role="button"
         tabIndex={0}
-        onClick={() => handleSelectLibrary(library.id)}
+        onClick={() => handleOpenEditModal(library.id)}
         onKeyDown={(event) => handleCardKeyDown(event, library.id)}
       >
         <div className="list-card-main">
@@ -219,9 +210,16 @@ export function LibrariesPage() {
           <span className={isActive ? "status-chip active" : "status-chip"}>{roleLabels[library.role]}</span>
         </div>
         <div className="list-card-actions">
-          <span className="detail-inline-copy">
-            {isActive ? "Biblioteca seleccionada para editar." : "Haz clic para editar esta biblioteca."}
-          </span>
+          <button
+            className="ghost-link compact-action"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleOpenEditModal(library.id);
+            }}
+          >
+            Editar
+          </button>
         </div>
       </article>
     );
@@ -270,205 +268,6 @@ export function LibrariesPage() {
         <div className="catalog-grid">{allLibraries.map(renderLibraryCard)}</div>
       ) : null}
 
-      {selectedLibrary ? (
-        <div className="panel content-stack">
-          <div className="modal-header">
-            <div>
-              <p className="eyebrow">
-                {selectedLibrary.role === "owner" ? "Editar biblioteca" : "Biblioteca seleccionada"}
-              </p>
-              <h2>{selectedLibrary.name}</h2>
-              <p>
-                {typeLabels[selectedLibrary.type]} - {roleLabels[selectedLibrary.role]} -{" "}
-                {formatCopiesLabel(selectedLibrary.copy_count)} - {formatMembersLabel(selectedLibrary.member_count)}
-              </p>
-            </div>
-          </div>
-
-          {selectedLibrary.role === "owner" ? (
-            <div className="split-panel">
-              <form
-                className="panel subtle-panel"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!selectedLibrary) {
-                    return;
-                  }
-                  void renameLibraryMutation.mutateAsync();
-                }}
-              >
-                <p className="eyebrow">Informacion</p>
-                <label className="field-group">
-                  Nombre
-                  <input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} />
-                </label>
-                <div className="subtle-panel modal-info-panel">
-                  <p className="eyebrow">Tipo</p>
-                  <p>{typeLabels[selectedLibrary.type]}</p>
-                </div>
-                {renameLibraryMutation.isError ? (
-                  <p className="form-error">
-                    {renameLibraryMutation.error instanceof Error
-                      ? renameLibraryMutation.error.message
-                      : "No se pudo actualizar la biblioteca."}
-                  </p>
-                ) : null}
-                <button className="submit-button" type="submit" disabled={renameLibraryMutation.isPending || !renameDraft.trim()}>
-                  {renameLibraryMutation.isPending ? "Guardando..." : "Guardar cambios"}
-                </button>
-              </form>
-
-              <div className="panel subtle-panel content-stack">
-                <p className="eyebrow">Acciones</p>
-                {canDeleteSelectedLibrary ? (
-                  <button
-                    className="ghost-link compact-action danger-action"
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm("La biblioteca se eliminara definitivamente. Quieres continuar?")) {
-                        setLibraryActionErrorMessage(null);
-                        deleteLibraryMutation.mutate(selectedLibrary.id);
-                      }
-                    }}
-                    disabled={deleteLibraryMutation.isPending}
-                  >
-                    Borrar definitivamente
-                  </button>
-                ) : null}
-
-                {selectedLibrary.type === "shared" && !canDeleteSelectedLibrary ? (
-                  <p className="detail-inline-copy">
-                    El borrado definitivo solo esta disponible si no hay miembros adicionales en la biblioteca.
-                  </p>
-                ) : null}
-                {libraryActionErrorMessage ? <p className="form-error">{libraryActionErrorMessage}</p> : null}
-              </div>
-            </div>
-          ) : (
-            <div className="panel subtle-panel">
-              <p className="eyebrow">Permisos</p>
-              <p>
-                {selectedLibrary.role === "editor"
-                  ? "Puedes editar el contenido de esta biblioteca, pero el nombre y los permisos solo puede cambiarlos su propietario."
-                  : "Tienes acceso de lectura a esta biblioteca. El nombre y los permisos solo puede cambiarlos su propietario."}
-              </p>
-            </div>
-          )}
-
-          {selectedLibrary.type === "shared" && selectedLibrary.role === "owner" ? (
-            <div className="split-panel">
-              <form
-                className="panel subtle-panel"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void addMemberMutation.mutateAsync();
-                }}
-              >
-                <p className="eyebrow">Compartir por email</p>
-                <label className="field-group">
-                  Email
-                  <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
-                </label>
-                <label className="field-group">
-                  Rol
-                  <select
-                    value={inviteRole}
-                    onChange={(event) => setInviteRole(event.target.value as Exclude<UserLibraryRole, "owner">)}
-                  >
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Lector</option>
-                  </select>
-                </label>
-                {addMemberMutation.isError ? (
-                  <p className="form-error">
-                    {addMemberMutation.error instanceof Error
-                      ? addMemberMutation.error.message
-                      : "No se pudo anadir el miembro."}
-                  </p>
-                ) : null}
-                <button className="submit-button" type="submit" disabled={addMemberMutation.isPending || !inviteEmail.trim()}>
-                  {addMemberMutation.isPending ? "Anadiendo..." : "Anadir miembro"}
-                </button>
-              </form>
-
-              <div className="content-stack">
-                <div className="panel">
-                  <p className="eyebrow">Miembros</p>
-                  {membersQuery.isPending ? (
-                    <div className="content-stack">
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <div key={index} className="panel book-skeleton library-member-skeleton" aria-hidden="true" />
-                      ))}
-                    </div>
-                  ) : null}
-                  {membersQuery.isError ? <p>No se pudieron cargar los miembros.</p> : null}
-                  {membersQuery.data ? (
-                    <div className="content-stack">
-                      {membersQuery.data.map((member) => (
-                        <article key={member.user_id} className="panel library-manager-card">
-                          <div className="library-manager-header">
-                            <div>
-                              <h3>{member.name}</h3>
-                              <p>{member.email}</p>
-                            </div>
-                            <span className="status-chip">{roleLabels[member.role]}</span>
-                          </div>
-
-                          {member.role === "owner" ? (
-                            <p className="detail-inline-copy">Propietario actual de la biblioteca.</p>
-                          ) : (
-                            <div className="inline-actions">
-                              <select
-                                value={memberRoleDrafts[member.user_id] ?? member.role}
-                                onChange={(event) =>
-                                  setMemberRoleDrafts((current) => ({
-                                    ...current,
-                                    [member.user_id]: event.target.value as Exclude<UserLibraryRole, "owner">,
-                                  }))
-                                }
-                              >
-                                <option value="editor">Editor</option>
-                                <option value="viewer">Lector</option>
-                              </select>
-                              <button
-                                className="ghost-link compact-action"
-                                type="button"
-                                onClick={() => {
-                                  setMemberActionErrorMessage(null);
-                                  updateMemberMutation.mutate(member.user_id);
-                                }}
-                                disabled={updateMemberMutation.isPending}
-                              >
-                                Guardar rol
-                              </button>
-                              <button
-                                className="ghost-link compact-action danger-action"
-                                type="button"
-                                onClick={() => {
-                                  if (!window.confirm(`Se expulsara a ${member.name} de la biblioteca. Quieres continuar?`)) {
-                                    return;
-                                  }
-                                  setMemberActionErrorMessage(null);
-                                  removeMemberMutation.mutate(member.user_id);
-                                }}
-                                disabled={removeMemberMutation.isPending}
-                              >
-                                Expulsar
-                              </button>
-                            </div>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                  ) : null}
-                  {memberActionErrorMessage ? <p className="form-error">{memberActionErrorMessage}</p> : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
       <LibraryFormModal
         isOpen={isCreateModalOpen}
         isSaving={createLibraryMutation.isPending}
@@ -482,6 +281,242 @@ export function LibrariesPage() {
           await createLibraryMutation.mutateAsync(payload);
         }}
       />
+
+      {selectedLibrary ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            setSelectedLibraryId(null);
+          }}
+        >
+          <div
+            className="modal-panel panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="library-edit-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">
+                  {selectedLibrary.role === "owner" ? "Editar biblioteca" : "Biblioteca seleccionada"}
+                </p>
+                <h2 id="library-edit-modal-title">{selectedLibrary.name}</h2>
+                <p>
+                  {typeLabels[selectedLibrary.type]} - {roleLabels[selectedLibrary.role]} -{" "}
+                  {formatCopiesLabel(selectedLibrary.copy_count)} - {formatMembersLabel(selectedLibrary.member_count)}
+                </p>
+              </div>
+              <button
+                className="ghost-link compact-action"
+                type="button"
+                onClick={() => {
+                  setSelectedLibraryId(null);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="modal-form">
+              {selectedLibrary.role === "owner" ? (
+                <div className="split-panel">
+                  <form
+                    className="panel subtle-panel"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (!selectedLibrary) {
+                        return;
+                      }
+                      void renameLibraryMutation.mutateAsync();
+                    }}
+                  >
+                    <p className="eyebrow">Informacion</p>
+                    <label className="field-group">
+                      Nombre
+                      <input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} />
+                    </label>
+                    <div className="subtle-panel modal-info-panel">
+                      <p className="eyebrow">Tipo</p>
+                      <p>{typeLabels[selectedLibrary.type]}</p>
+                    </div>
+                    {renameLibraryMutation.isError ? (
+                      <p className="form-error">
+                        {renameLibraryMutation.error instanceof Error
+                          ? renameLibraryMutation.error.message
+                          : "No se pudo actualizar la biblioteca."}
+                      </p>
+                    ) : null}
+                    <button
+                      className="submit-button"
+                      type="submit"
+                      disabled={renameLibraryMutation.isPending || !renameDraft.trim()}
+                    >
+                      {renameLibraryMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                  </form>
+
+                  <div className="panel subtle-panel content-stack">
+                    <p className="eyebrow">Acciones</p>
+                    {canDeleteSelectedLibrary ? (
+                      <button
+                        className="ghost-link compact-action danger-action"
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm("La biblioteca se eliminara definitivamente. Quieres continuar?")) {
+                            setLibraryActionErrorMessage(null);
+                            deleteLibraryMutation.mutate(selectedLibrary.id);
+                          }
+                        }}
+                        disabled={deleteLibraryMutation.isPending}
+                      >
+                        Borrar definitivamente
+                      </button>
+                    ) : null}
+
+                    {selectedLibrary.type === "shared" && !canDeleteSelectedLibrary ? (
+                      <p className="detail-inline-copy">
+                        El borrado definitivo solo esta disponible si no hay miembros adicionales en la biblioteca.
+                      </p>
+                    ) : null}
+                    {libraryActionErrorMessage ? <p className="form-error">{libraryActionErrorMessage}</p> : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="panel subtle-panel">
+                  <p className="eyebrow">Permisos</p>
+                  <p>
+                    {selectedLibrary.role === "editor"
+                      ? "Puedes editar el contenido de esta biblioteca, pero el nombre y los permisos solo puede cambiarlos su propietario."
+                      : "Tienes acceso de lectura a esta biblioteca. El nombre y los permisos solo puede cambiarlos su propietario."}
+                  </p>
+                </div>
+              )}
+
+              {selectedLibrary.type === "shared" && selectedLibrary.role === "owner" ? (
+                <div className="split-panel">
+                  <form
+                    className="panel subtle-panel"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void addMemberMutation.mutateAsync();
+                    }}
+                  >
+                    <p className="eyebrow">Compartir por email</p>
+                    <label className="field-group">
+                      Email
+                      <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
+                    </label>
+                    <label className="field-group">
+                      Rol
+                      <select
+                        value={inviteRole}
+                        onChange={(event) => setInviteRole(event.target.value as Exclude<UserLibraryRole, "owner">)}
+                      >
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Lector</option>
+                      </select>
+                    </label>
+                    {addMemberMutation.isError ? (
+                      <p className="form-error">
+                        {addMemberMutation.error instanceof Error
+                          ? addMemberMutation.error.message
+                          : "No se pudo anadir el miembro."}
+                      </p>
+                    ) : null}
+                    <button
+                      className="submit-button"
+                      type="submit"
+                      disabled={addMemberMutation.isPending || !inviteEmail.trim()}
+                    >
+                      {addMemberMutation.isPending ? "Anadiendo..." : "Anadir miembro"}
+                    </button>
+                  </form>
+
+                  <div className="content-stack">
+                    <div className="panel">
+                      <p className="eyebrow">Miembros</p>
+                      {membersQuery.isPending ? (
+                        <div className="content-stack">
+                          {Array.from({ length: 2 }).map((_, index) => (
+                            <div key={index} className="panel book-skeleton library-member-skeleton" aria-hidden="true" />
+                          ))}
+                        </div>
+                      ) : null}
+                      {membersQuery.isError ? <p>No se pudieron cargar los miembros.</p> : null}
+                      {membersQuery.data ? (
+                        <div className="content-stack">
+                          {membersQuery.data.map((member) => (
+                            <article key={member.user_id} className="panel library-manager-card">
+                              <div className="library-manager-header">
+                                <div>
+                                  <h3>{member.name}</h3>
+                                  <p>{member.email}</p>
+                                </div>
+                                <span className="status-chip">{roleLabels[member.role]}</span>
+                              </div>
+
+                              {member.role === "owner" ? (
+                                <p className="detail-inline-copy">Propietario actual de la biblioteca.</p>
+                              ) : (
+                                <div className="inline-actions">
+                                  <select
+                                    value={memberRoleDrafts[member.user_id] ?? member.role}
+                                    onChange={(event) =>
+                                      setMemberRoleDrafts((current) => ({
+                                        ...current,
+                                        [member.user_id]: event.target.value as Exclude<UserLibraryRole, "owner">,
+                                      }))
+                                    }
+                                  >
+                                    <option value="editor">Editor</option>
+                                    <option value="viewer">Lector</option>
+                                  </select>
+                                  <button
+                                    className="ghost-link compact-action"
+                                    type="button"
+                                    onClick={() => {
+                                      setMemberActionErrorMessage(null);
+                                      updateMemberMutation.mutate(member.user_id);
+                                    }}
+                                    disabled={updateMemberMutation.isPending}
+                                  >
+                                    Guardar rol
+                                  </button>
+                                  <button
+                                    className="ghost-link compact-action danger-action"
+                                    type="button"
+                                    onClick={() => {
+                                      if (
+                                        !window.confirm(
+                                          `Se expulsara a ${member.name} de la biblioteca. Quieres continuar?`,
+                                        )
+                                      ) {
+                                        return;
+                                      }
+                                      setMemberActionErrorMessage(null);
+                                      removeMemberMutation.mutate(member.user_id);
+                                    }}
+                                    disabled={removeMemberMutation.isPending}
+                                  >
+                                    Expulsar
+                                  </button>
+                                </div>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
+                      {memberActionErrorMessage ? <p className="form-error">{memberActionErrorMessage}</p> : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

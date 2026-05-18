@@ -155,7 +155,6 @@ export function ListsPage() {
             >
               <div className="list-card-main">
                 <div>
-                  <p className="eyebrow">Lista personal</p>
                   <h3>{list.name}</h3>
                   <p>{list.book_count} libros guardados en esta lista.</p>
                 </div>

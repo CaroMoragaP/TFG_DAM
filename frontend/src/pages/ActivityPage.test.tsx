@@ -37,6 +37,17 @@ const librariesState = vi.hoisted(() => ({
         member_count: 3,
         copy_count: 4,
       },
+      {
+        id: 3,
+        name: "Circulo nocturno",
+        type: "shared",
+        created_at: "2026-04-21T00:00:00Z",
+        role: "viewer",
+        is_archived: false,
+        archived_at: null,
+        member_count: 5,
+        copy_count: 6,
+      },
     ],
   },
 }));
@@ -104,11 +115,22 @@ describe("ActivityPage", () => {
           member_count: 3,
           copy_count: 4,
         },
+        {
+          id: 3,
+          name: "Circulo nocturno",
+          type: "shared",
+          created_at: "2026-04-21T00:00:00Z",
+          role: "viewer",
+          is_archived: false,
+          archived_at: null,
+          member_count: 5,
+          copy_count: 6,
+        },
       ],
     };
   });
 
-  it("does not fetch until a shared library is selected", async () => {
+  it("auto-selects the first shared library when no library is present in the url", async () => {
     apiMocks.fetchLibraryReviews.mockResolvedValue({
       items: [],
       total: 0,
@@ -118,18 +140,44 @@ describe("ActivityPage", () => {
 
     renderPage("/muro?tab=reviews");
 
-    expect(
-      await screen.findByText("Selecciona una biblioteca compartida para ver su actividad y sus opiniones."),
-    ).toBeInTheDocument();
-    expect(apiMocks.fetchLibraryActivity).not.toHaveBeenCalled();
-    expect(apiMocks.fetchLibraryReviews).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText("Biblioteca compartida"), {
-      target: { value: "2" },
+    await waitFor(() => {
+      expect(apiMocks.fetchLibraryReviews).toHaveBeenCalledWith("token", 2, {
+        filter: "all",
+        sort: "recent",
+        limit: 50,
+        offset: 0,
+      });
     });
+
+    expect(screen.getByLabelText("Biblioteca compartida")).toHaveValue("2");
+    expect(screen.queryByText("Selecciona una biblioteca compartida para ver su actividad y sus opiniones.")).not.toBeInTheDocument();
+  });
+
+  it("keeps the selector available to switch shared libraries manually", async () => {
+    apiMocks.fetchLibraryReviews.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
+
+    renderPage("/muro?tab=reviews");
 
     await waitFor(() => {
       expect(apiMocks.fetchLibraryReviews).toHaveBeenCalledWith("token", 2, {
+        filter: "all",
+        sort: "recent",
+        limit: 50,
+        offset: 0,
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText("Biblioteca compartida"), {
+      target: { value: "3" },
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.fetchLibraryReviews).toHaveBeenLastCalledWith("token", 3, {
         filter: "all",
         sort: "recent",
         limit: 50,

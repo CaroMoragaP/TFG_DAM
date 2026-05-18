@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { DashboardHero } from "../components/DashboardHero";
 import {
   fetchListBooks,
   fetchLists,
@@ -203,23 +204,22 @@ export function ListDetailPage() {
 
       {!isLoading && !listsQuery.isError && !booksQuery.isError && activeList ? (
         <>
-          <div className="panel hero-panel list-detail-hero">
-            <div>
-              <p className="eyebrow">Detalle de lista</p>
-              <h2>{activeList.name}</h2>
-              <p>
-                {activeList.book_count} {activeList.book_count === 1 ? "libro guardado" : "libros guardados"} en esta
-                lista personal.
-              </p>
-            </div>
-
-            <div className="list-detail-hero-aside">
-              <span className="status-chip active">{activeList.type}</span>
-              <Link className="ghost-link compact-action" to={`/catalogo?listId=${activeList.id}`}>
-                Ver esta lista en catalogo
-              </Link>
-            </div>
-          </div>
+          <DashboardHero
+            eyebrow="Detalle de lista"
+            title={activeList.name}
+            description={`${activeList.book_count} ${
+              activeList.book_count === 1 ? "libro guardado" : "libros guardados"
+            } en esta lista personal.`}
+            icon="list"
+            actions={
+              <div className="list-detail-hero-actions">
+                <span className="status-chip active">{activeList.type}</span>
+                <Link className="dashboard-hero-action dashboard-hero-action-secondary" to={`/catalogo?listId=${activeList.id}`}>
+                  Ver esta lista en catalogo
+                </Link>
+              </div>
+            }
+          />
 
           <div className="panel list-detail-toolbar">
             <div className="dashboard-filters-grid">

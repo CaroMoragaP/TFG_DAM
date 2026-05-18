@@ -76,14 +76,14 @@ function formatBorrowerName(loan: CommunityLoan) {
 
 export function BookDetailPage() {
   const confirm = useConfirm();
-  const { id } = useParams();
+  const { copyId: copyIdParam } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
   const { notifySuccess } = useToast();
   const { libraries } = useLibraries();
 
-  const copyId = Number(id);
+  const copyId = Number(copyIdParam);
   const isValidCopyId = Number.isInteger(copyId) && copyId > 0;
 
   const copyQuery = useQuery({
@@ -195,7 +195,7 @@ export function BookDetailPage() {
       ? copyQuery.error.message
       : userDataQuery.error instanceof Error
         ? userDataQuery.error.message
-        : "No se pudo cargar el detalle del libro.";
+        : "No se pudo cargar el detalle del ejemplar.";
   const detail = copyQuery.data;
   const userData = userDataQuery.data;
   const library = detail ? libraries.find((item) => item.id === detail.library_id) ?? null : null;
@@ -259,7 +259,7 @@ export function BookDetailPage() {
 
       {isLoading ? (
         <div className="panel">
-          <p>Cargando detalle del libro...</p>
+          <p>Cargando detalle del ejemplar...</p>
         </div>
       ) : null}
 

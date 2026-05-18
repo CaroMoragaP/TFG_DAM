@@ -1,10 +1,15 @@
-import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
+import {
+  Navigate,
+  RouterProvider,
+  createBrowserRouter,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
 import { PrivateRoute } from "./components/PrivateRoute";
 import { PrivateLayout } from "./layouts/PrivateLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { ActivityPage } from "./pages/ActivityPage";
-import { AuthPage } from "./pages/AuthPage";
 import { BookDetailPage } from "./pages/BookDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LibrariesPage } from "./pages/LibrariesPage";
@@ -18,6 +23,19 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
 import { StatsPage } from "./pages/StatsPage";
 
+function LegacyAuthRedirect() {
+  const [searchParams] = useSearchParams();
+  const targetPath = searchParams.get("tab") === "register" ? "/register" : "/login";
+
+  return <Navigate to={targetPath} replace />;
+}
+
+function LegacyBookDetailRedirect() {
+  const { id } = useParams();
+
+  return <Navigate to={id ? `/ejemplar/${id}` : "/catalogo"} replace />;
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -29,7 +47,7 @@ const router = createBrowserRouter([
       },
       {
         path: "auth",
-        element: <AuthPage />,
+        element: <LegacyAuthRedirect />,
       },
       {
         path: "login",
@@ -54,8 +72,12 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
-        path: "libros/:id",
+        path: "ejemplar/:copyId",
         element: <BookDetailPage />,
+      },
+      {
+        path: "libros/:id",
+        element: <LegacyBookDetailRedirect />,
       },
       {
         path: "lectura",

@@ -379,6 +379,11 @@ export function ActivityPage() {
         <div className="panel community-empty-panel">
           <h3>Comunidad</h3>
           <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
+          <div className="inline-actions">
+            <Link className="button-primary compact-action" to="/bibliotecas">
+              Ir a Mis bibliotecas
+            </Link>
+          </div>
         </div>
       </section>
     );
@@ -534,7 +539,7 @@ export function ActivityPage() {
 
                     {event.copy_id ? (
                       <div className="community-card-actions">
-                        <Link className="ghost-link compact-action" to={`/libros/${event.copy_id}`}>
+                        <Link className="ghost-link compact-action" to={`/ejemplar/${event.copy_id}`}>
                           Abrir ficha
                         </Link>
                         <Link
@@ -660,7 +665,7 @@ export function ActivityPage() {
                   </div>
 
                   <div className="community-card-actions">
-                    <Link className="ghost-link compact-action" to={`/libros/${card.copy_id}`}>
+                    <Link className="ghost-link compact-action" to={`/ejemplar/${card.copy_id}`}>
                       Abrir ficha
                     </Link>
                     <Link

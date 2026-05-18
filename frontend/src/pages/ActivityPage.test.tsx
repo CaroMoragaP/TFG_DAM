@@ -292,6 +292,10 @@ describe("ActivityPage", () => {
     renderPage("/muro?tab=activity");
 
     expect(await screen.findByText("Todavia no tienes acceso a ninguna biblioteca compartida.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ir a Mis bibliotecas" })).toHaveAttribute(
+      "href",
+      "/bibliotecas",
+    );
     expect(apiMocks.fetchLibraryActivity).not.toHaveBeenCalled();
   });
 

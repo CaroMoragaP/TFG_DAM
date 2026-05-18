@@ -100,10 +100,10 @@ export function PublicHomePage() {
             autenticacion persistente y una interfaz preparada para trabajar desde el primer dia.
           </p>
           <div className="landing-hero-actions">
-            <Link className="landing-signup-link landing-hero-primary" to="/auth?tab=register">
+            <Link className="landing-signup-link landing-hero-primary" to="/register">
               Regístrate
             </Link>
-            <Link className="landing-hero-secondary" to="/auth">
+            <Link className="landing-hero-secondary" to="/login">
               Ya tengo cuenta
             </Link>
           </div>
@@ -167,10 +167,10 @@ export function PublicHomePage() {
             </p>
           </div>
           <div className="landing-cta-actions">
-            <Link className="landing-cta-primary" to="/auth?tab=register">
+            <Link className="landing-cta-primary" to="/register">
               Crear mi biblioteca
             </Link>
-            <Link className="landing-cta-secondary" to="/auth">
+            <Link className="landing-cta-secondary" to="/login">
               Iniciar sesion
             </Link>
           </div>
@@ -191,7 +191,7 @@ export function PublicHomePage() {
         <nav className="landing-footer-nav" aria-label="Accesos rapidos">
           <a href="#funciones">Funciones</a>
           <a href="#como-funciona">Como funciona</a>
-          <Link to="/auth">Iniciar sesion</Link>
+          <Link to="/login">Iniciar sesion</Link>
         </nav>
 
         <p className="landing-footer-copy">(c) {new Date().getFullYear()} Mi Biblioteca</p>

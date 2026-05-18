@@ -76,10 +76,10 @@ export function PublicLayout() {
           </div>
 
           <div className="landing-nav-actions">
-            <Link className="landing-login-link" to="/auth">
+            <Link className="landing-login-link" to="/login">
               Iniciar sesion
             </Link>
-            <Link className="landing-signup-link" to="/auth?tab=register">
+            <Link className="landing-signup-link" to="/register">
               Regístrate
             </Link>
           </div>
@@ -105,10 +105,10 @@ export function PublicLayout() {
               ))}
             </div>
             <div className="landing-mobile-actions">
-              <Link className="landing-login-link" to="/auth">
+              <Link className="landing-login-link" to="/login">
                 Iniciar sesion
               </Link>
-              <Link className="landing-signup-link" to="/auth?tab=register">
+              <Link className="landing-signup-link" to="/register">
                 Regístrate
               </Link>
             </div>

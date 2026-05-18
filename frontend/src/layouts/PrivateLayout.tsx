@@ -62,7 +62,7 @@ export function PrivateLayout() {
 
   function handleLogout() {
     logout();
-    navigate("/auth", { replace: true });
+    navigate("/login", { replace: true });
   }
 
   return (

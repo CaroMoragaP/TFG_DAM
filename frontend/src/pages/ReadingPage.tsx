@@ -533,6 +533,12 @@ export function ReadingPage() {
     readingQuery.error instanceof Error
       ? readingQuery.error.message
       : "No se pudieron cargar tus lecturas.";
+  const saveReadingErrorMessage =
+    updateReadingMutation.isError
+      ? updateReadingMutation.error instanceof Error
+        ? updateReadingMutation.error.message
+        : "No se pudieron guardar los cambios de lectura."
+      : null;
 
   const updateSearchParam = useCallback(
     (key: "tab" | "library" | "copy" | "q", value: string | null) => {
@@ -580,6 +586,10 @@ export function ReadingPage() {
   }, [libraryValue, readingQuery.data, selectedCopyId, selectedItem, selectedLibraryId, updateSearchParam]);
 
   function handleOpenEditor(item: ReadingShelfItem) {
+    updateReadingMutation.reset();
+    reviewMutation.reset();
+    deleteReviewMutation.reset();
+
     if (editingCopyId === item.copy_id) {
       setEditingCopyId(null);
       setEditorState(null);
@@ -608,12 +618,16 @@ export function ReadingPage() {
   }
 
   async function handleSaveEditor(item: ReadingShelfItem) {
-    const didPersistChanges = await persistReadingChanges(item);
-    setEditingCopyId(null);
-    setEditorState(null);
+    try {
+      const didPersistChanges = await persistReadingChanges(item);
+      setEditingCopyId(null);
+      setEditorState(null);
 
-    if (didPersistChanges) {
-      notifySuccess("La lectura se ha guardado.");
+      if (didPersistChanges) {
+        notifySuccess("La lectura se ha guardado.");
+      }
+    } catch {
+      // The mutation already exposes the inline error state next to the save action.
     }
   }
 
@@ -622,11 +636,12 @@ export function ReadingPage() {
       return;
     }
 
-    const existingReview = item.my_public_review;
-    const nextBody = normalizeReviewBody(editorState.publicReviewBody);
-    const currentBody = normalizeReviewBody(existingReview?.body ?? "");
+    try {
+      const existingReview = item.my_public_review;
+      const nextBody = normalizeReviewBody(editorState.publicReviewBody);
+      const currentBody = normalizeReviewBody(existingReview?.body ?? "");
 
-    const didPersistReadingChanges = await persistReadingChanges(item);
+      const didPersistReadingChanges = await persistReadingChanges(item);
 
     if (existingReview && nextBody === currentBody) {
       if (didPersistReadingChanges) {
@@ -641,6 +656,9 @@ export function ReadingPage() {
       body: nextBody,
     });
     notifySuccess(existingReview ? "La publicación pública se ha actualizado." : "La valoración se ha publicado en el muro.");
+    } catch {
+      // The review mutation keeps its own inline error feedback inside the shared panel.
+    }
   }
 
   async function handleDeleteReview(item: ReadingShelfItem) {
@@ -659,8 +677,12 @@ export function ReadingPage() {
       return;
     }
 
+    try {
     await deleteReviewMutation.mutateAsync(item.my_public_review.id);
     notifySuccess("La publicación pública se ha retirado.");
+    } catch {
+      // The mutation surfaces its error inline in the publication block.
+    }
   }
 
   async function handleReadingStatusChange(nextStatus: ReadingStatus) {
@@ -1019,7 +1041,7 @@ export function ReadingPage() {
                         >
                           {isEditing ? "Cerrar editor" : "Gestionar lectura"}
                         </button>
-                        <Link className="ghost-link compact-action" to={`/libros/${item.copy_id}`}>
+                        <Link className="ghost-link compact-action" to={`/ejemplar/${item.copy_id}`}>
                           Abrir ficha
                         </Link>
                       </div>
@@ -1227,6 +1249,12 @@ export function ReadingPage() {
                       </div>
                     ) : null}
 
+                    {saveReadingErrorMessage ? (
+                      <p className="form-error reading-save-error" role="alert">
+                        {saveReadingErrorMessage}
+                      </p>
+                    ) : null}
+
                     <div className="inline-actions">
                       <button
                         className="submit-button compact-button"
@@ -1240,6 +1268,9 @@ export function ReadingPage() {
                         className="ghost-link compact-action"
                         type="button"
                         onClick={() => {
+                          updateReadingMutation.reset();
+                          reviewMutation.reset();
+                          deleteReviewMutation.reset();
                           setEditingCopyId(null);
                           setEditorState(null);
                         }}
@@ -1249,13 +1280,6 @@ export function ReadingPage() {
                       </button>
                     </div>
 
-                    {updateReadingMutation.isError ? (
-                      <p className="form-error">
-                        {updateReadingMutation.error instanceof Error
-                          ? updateReadingMutation.error.message
-                          : "No se pudieron guardar los cambios de lectura."}
-                      </p>
-                    ) : null}
                   </div>
                 ) : null}
               </article>

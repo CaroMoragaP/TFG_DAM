@@ -16,6 +16,7 @@ import {
   type RegisterPayload,
   type User,
 } from "../lib/api";
+import { markSessionExpired } from "./sessionExpiration";
 
 type AuthContextValue = {
   token: string | null;
@@ -135,7 +136,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let isHandlingUnauthorized = false;
+
     setUnauthorizedHandler(() => {
+      if (isHandlingUnauthorized) {
+        return;
+      }
+
+      isHandlingUnauthorized = true;
+      markSessionExpired();
       logout();
       window.location.replace("/login");
     });

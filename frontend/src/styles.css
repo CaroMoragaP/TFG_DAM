@@ -3136,6 +3136,13 @@ dd {
   border-top: 1px dashed rgba(239, 214, 209, 0.92);
 }
 
+.reading-save-error {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(182, 64, 50, 0.16);
+  border-radius: 1rem;
+  background: rgba(182, 64, 50, 0.08);
+}
+
 .reading-community-header {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;

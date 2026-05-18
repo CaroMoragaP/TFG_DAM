@@ -186,7 +186,7 @@ describe("ReadingPage", () => {
     expect(screen.queryByText("Meta de lectura 2026")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Buscar lecturas" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Pendiente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
 
     await screen.findByText("Kindred");
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
@@ -237,6 +237,25 @@ describe("ReadingPage", () => {
         personal_notes: "Terminado",
       });
     });
+  });
+
+  it("keeps the editor open and shows the save error next to the action buttons", async () => {
+    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
+    apiMocks.updateUserCopyDataRequest.mockRejectedValue(new Error("No se pudo guardar ahora."));
+
+    renderPage();
+
+    await screen.findByText("Dune");
+
+    openEditorForTitle("Dune");
+    fireEvent.change(screen.getByLabelText("Notas personales"), {
+      target: { value: "Intento fallido" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo guardar ahora.");
+    expect(screen.getByRole("button", { name: "Guardar lectura" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cerrar editor" })).toBeInTheDocument();
   });
 
   it("opens the shared item editor from copy query param and publishes from the same reading workflow", async () => {
@@ -301,7 +320,7 @@ describe("ReadingPage", () => {
     });
 
     expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith("token", { libraryId: 1 });
-    expect(screen.getByRole("button", { name: "Pendiente" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Pendientes" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "Cerrar editor" })).toBeInTheDocument();
   });
 
@@ -389,10 +408,12 @@ describe("ReadingPage", () => {
     fireEvent.change(screen.getByLabelText("Fecha de inicio"), {
       target: { value: "2026-05-01" },
     });
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Guardar lectura" }));
 
     await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalled();
       expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 13, {
         reading_status: "reading",
         start_date: "2026-05-01",

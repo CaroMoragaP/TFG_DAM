@@ -347,7 +347,7 @@ function RecentFinishesCard({ items }: { items: ReadingStats["recent_finishes"] 
       ) : (
         <div className="stats-recent-list">
           {items.map((item) => (
-            <Link key={item.copy_id} className="stats-recent-item" to={`/libros/${item.copy_id}`}>
+            <Link key={item.copy_id} className="stats-recent-item" to={`/ejemplar/${item.copy_id}`}>
               <div>
                 <strong>{item.title}</strong>
                 <span>{item.authors.join(", ") || "Autor sin registrar"}</span>
@@ -461,7 +461,7 @@ function StuckRemindersCard({ items }: { items: ReadingStats["stuck_reminders"] 
       ) : (
         <div className="stats-recent-list">
           {items.map((item) => (
-            <Link key={item.copy_id} className="stats-recent-item" to={`/libros/${item.copy_id}`}>
+            <Link key={item.copy_id} className="stats-recent-item" to={`/ejemplar/${item.copy_id}`}>
               <div>
                 <strong>{item.title}</strong>
                 <span>{item.authors.join(", ") || "Autor sin registrar"}</span>

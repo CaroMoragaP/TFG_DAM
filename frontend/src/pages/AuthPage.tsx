@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { consumeSessionExpiredNotice } from "../auth/sessionExpiration";
 import { ApiError } from "../lib/api";
 
 type AuthTab = "login" | "register";
@@ -73,6 +74,19 @@ export function AuthPage({
   useEffect(() => {
     setActiveTab(requestedTab);
   }, [requestedTab]);
+
+  useEffect(() => {
+    if (activeTab !== "login") {
+      return;
+    }
+
+    const sessionExpiredNotice = consumeSessionExpiredNotice();
+    if (!sessionExpiredNotice) {
+      return;
+    }
+
+    setLoginFormError(sessionExpiredNotice);
+  }, [activeTab]);
 
   if (!isBootstrapping && isAuthenticated) {
     return <Navigate to="/catalogo" replace />;

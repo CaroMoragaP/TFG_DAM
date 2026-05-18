@@ -63,7 +63,7 @@ describe("BookCard", () => {
     expect(screen.getByLabelText("Puntuacion personal 5 de 5")).toBeInTheDocument();
     expect(screen.getByText("Leyendo")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca personal")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dune" })).toHaveAttribute("href", "/libros/7");
+    expect(screen.getByRole("link", { name: "Dune" })).toHaveAttribute("href", "/ejemplar/7");
 
     fireEvent.click(screen.getByRole("button", { name: /lista/i }));
     expect(onAddToList).toHaveBeenCalledWith(book);

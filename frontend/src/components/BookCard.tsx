@@ -65,7 +65,7 @@ export function BookCard({
       <div className="dashboard-book-cover-shell">
         <Link
           className="dashboard-book-cover"
-          to={`/libros/${book.id}`}
+          to={`/ejemplar/${book.id}`}
           aria-label={`Ver detalle de ${book.title}`}
         >
           {book.cover_url ? (
@@ -97,7 +97,7 @@ export function BookCard({
       <div className="dashboard-book-body">
         <div className="dashboard-book-copy">
           <h3>
-            <Link to={`/libros/${book.id}`}>{book.title}</Link>
+            <Link to={`/ejemplar/${book.id}`}>{book.title}</Link>
           </h3>
           <p className="dashboard-book-author">{author}</p>
         </div>

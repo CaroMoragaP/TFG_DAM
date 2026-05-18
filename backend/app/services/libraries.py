@@ -238,6 +238,26 @@ def rename_library(
     return library, role
 
 
+def get_library_counts(
+    db: Session,
+    *,
+    library_id: int,
+) -> tuple[int, int]:
+    member_count = int(
+        db.scalar(
+            select(func.count(UserLibrary.user_id)).where(UserLibrary.library_id == library_id),
+        )
+        or 0,
+    )
+    copy_count = int(
+        db.scalar(
+            select(func.count(Copy.id)).where(Copy.library_id == library_id),
+        )
+        or 0,
+    )
+    return member_count, copy_count
+
+
 def list_library_members(
     db: Session,
     *,

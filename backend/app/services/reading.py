@@ -95,6 +95,7 @@ def _serialize_reading_row(
         library_id=copy.library_id,
         title=book.title,
         authors=_serialize_book_authors(book),
+        themes=_serialize_book_themes(book),
         cover_url=book.cover_url,
         genre=book.genre,
         collection=book.collection.name if book.collection is not None else None,
@@ -127,5 +128,15 @@ def _serialize_book_authors(book: Book) -> list[str]:
         for relation in sorted(
             book.book_authors,
             key=lambda item: item.author.display_name.casefold(),
+        )
+    ]
+
+
+def _serialize_book_themes(book: Book) -> list[str]:
+    return [
+        relation.theme.name
+        for relation in sorted(
+            book.book_themes,
+            key=lambda item: item.theme.name.casefold(),
         )
     ]

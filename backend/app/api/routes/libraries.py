@@ -28,6 +28,7 @@ from app.services.libraries import LibraryPermissionDeniedError
 from app.services.libraries import add_library_member
 from app.services.libraries import create_library as create_library_service
 from app.services.libraries import delete_library as delete_library_service
+from app.services.libraries import get_library_counts
 from app.services.libraries import list_library_members
 from app.services.libraries import list_user_libraries
 from app.services.libraries import leave_library
@@ -98,12 +99,8 @@ def update_library(
     except (LibraryPermissionDeniedError, LibraryOwnershipRequiredError) as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
-    return build_library_response(
-        library,
-        role,
-        member_count=len(library.user_libraries),
-        copy_count=len(library.copies),
-    )
+    member_count, copy_count = get_library_counts(db, library_id=library.id)
+    return build_library_response(library, role, member_count=member_count, copy_count=copy_count)
 
 
 @router.get(
@@ -283,12 +280,8 @@ def transfer_library_ownership_entry(
     except LibraryArchivedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    return build_library_response(
-        library,
-        role,
-        member_count=len(library.user_libraries),
-        copy_count=len(library.copies),
-    )
+    member_count, copy_count = get_library_counts(db, library_id=library.id)
+    return build_library_response(library, role, member_count=member_count, copy_count=copy_count)
 
 
 @router.delete(

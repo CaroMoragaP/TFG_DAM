@@ -208,7 +208,7 @@ def test_public_review_follows_canonical_user_rating_and_requires_unpublish_to_c
         headers=reviewer_headers,
         json={"body": "No deberia publicarse aun."},
     )
-    assert missing_rating_publish_response.status_code == 409
+    assert missing_rating_publish_response.status_code == 422
 
     initial_rating_response = client.put(
         f"/copies/{created['id']}/user-data",

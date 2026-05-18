@@ -33,6 +33,7 @@ from app.services.social import LoanValidationError
 from app.services.social import ReviewConflictError
 from app.services.social import ReviewNotFoundError
 from app.services.social import ReviewPermissionDeniedError
+from app.services.social import ReviewValidationError
 from app.services.social import create_copy_loan
 from app.services.social import create_review
 from app.services.social import delete_review
@@ -130,7 +131,7 @@ def read_copy_community(
 @router.get(
     "/copies/{copy_id}/reviews",
     response_model=list[ReviewOut],
-    summary="List public reviews for a shared copy",
+    summary="List public reviews for a shared copy (legacy fallback endpoint)",
 )
 def read_copy_reviews(
     copy_id: int,
@@ -151,7 +152,7 @@ def read_copy_reviews(
     "/copies/{copy_id}/reviews",
     response_model=ReviewOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Publish a public review for a shared copy",
+    summary="Publish a public review for a shared copy using the caller's saved rating",
 )
 def create_copy_review(
     copy_id: int,
@@ -174,6 +175,8 @@ def create_copy_review(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ReviewConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ReviewValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.patch(

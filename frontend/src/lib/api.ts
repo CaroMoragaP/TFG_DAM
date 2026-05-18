@@ -240,6 +240,7 @@ export type ReadingShelfItem = {
   library_id: number;
   title: string;
   authors: string[];
+  themes: string[];
   cover_url: string | null;
   genre: string | null;
   collection: string | null;
@@ -567,6 +568,8 @@ export type RegisterPayload = {
 export type AuthResponse = {
   access_token: string;
   token_type: "bearer";
+  // The app uses this user payload for immediate session hydration and later
+  // revalidates the token against /auth/me during bootstrap and refreshMe().
   user: User;
 };
 
@@ -1079,6 +1082,7 @@ export function fetchCopyCommunity(token: string, copyId: number): Promise<CopyC
   });
 }
 
+/** @deprecated The UI consumes latest reviews from fetchCopyCommunity instead. */
 export function fetchCopyReviews(token: string, copyId: number): Promise<PublicReview[]> {
   return apiFetch<PublicReview[]>(`/copies/${copyId}/reviews`, undefined, {
     token,

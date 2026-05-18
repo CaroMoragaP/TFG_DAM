@@ -15,6 +15,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicHomePage } from "./pages/PublicHomePage";
 import { ReadingPage } from "./pages/ReadingPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { ReviewsPage } from "./pages/ReviewsPage";
 import { StatsPage } from "./pages/StatsPage";
 
 const router = createBrowserRouter([
@@ -74,7 +75,7 @@ const router = createBrowserRouter([
       },
       {
         path: "resenas",
-        element: <Navigate to="/muro?tab=reviews" replace />,
+        element: <ReviewsPage />,
       },
       {
         path: "muro",

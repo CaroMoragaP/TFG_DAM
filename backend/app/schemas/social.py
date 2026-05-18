@@ -63,6 +63,12 @@ class CopyLoanOut(BaseModel):
 
 
 class ReviewCreate(BaseModel):
+    """Payload for publishing a public review.
+
+    The public review rating is inferred from the caller's UserCopy.rating for
+    the same copy and is never accepted from the client in this payload.
+    """
+
     body: str | None = None
 
     model_config = ConfigDict(extra="forbid")

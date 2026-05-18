@@ -14,6 +14,7 @@ class ReadingShelfItemOut(BaseModel):
     library_id: int
     title: str
     authors: list[str]
+    themes: list[str]
     cover_url: str | None
     genre: str | None
     collection: str | None

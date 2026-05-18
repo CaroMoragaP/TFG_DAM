@@ -379,7 +379,8 @@ function ReadingGoalCard({
 }) {
   const hasGoal = data.goal !== null;
   const parsedGoal = Number(goalDraft);
-  const isGoalValid = Number.isInteger(parsedGoal) && parsedGoal >= 1;
+  const isGoalValid =
+    Number.isInteger(parsedGoal) && parsedGoal >= 1 && parsedGoal <= 10_000;
 
   return (
     <article className="panel stats-panel stats-panel-wide stats-goal-panel">
@@ -416,6 +417,7 @@ function ReadingGoalCard({
               id="reading-goal-input"
               type="number"
               min={1}
+              max={10_000}
               step={1}
               value={goalDraft}
               onChange={(event) => onGoalDraftChange(event.target.value)}
@@ -430,10 +432,10 @@ function ReadingGoalCard({
             {isSaving ? "Guardando..." : hasGoal ? "Actualizar meta" : "Guardar meta"}
           </button>
           {!goalDraft.trim() ? (
-            <small>Introduce un numero entero mayor o igual que 1.</small>
+            <small>Introduce un numero entero entre 1 y 10000.</small>
           ) : null}
           {goalDraft.trim() && !isGoalValid ? (
-            <p className="field-error">La meta anual debe ser un numero entero positivo.</p>
+            <p className="field-error">La meta anual debe ser un numero entero entre 1 y 10000.</p>
           ) : null}
           {errorMessage ? <p className="field-error">{errorMessage}</p> : null}
         </form>
@@ -566,7 +568,7 @@ export function StatsPage() {
     event.preventDefault();
 
     const targetBooks = Number(goalDraft);
-    if (!Number.isInteger(targetBooks) || targetBooks < 1) {
+    if (!Number.isInteger(targetBooks) || targetBooks < 1 || targetBooks > 10_000) {
       return;
     }
 

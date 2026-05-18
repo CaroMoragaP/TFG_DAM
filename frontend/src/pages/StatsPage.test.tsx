@@ -349,4 +349,41 @@ describe("StatsPage", () => {
       expect(screen.getByDisplayValue("24")).toBeInTheDocument();
     });
   });
+
+  it("blocks annual goals outside the backend range before submitting", async () => {
+    apiMocks.fetchCatalogStats.mockResolvedValue({
+      totals: {
+        total: 0,
+        physical: 0,
+        digital: 0,
+        distinct_authors: 0,
+      },
+      author_sex_distribution: [],
+      author_country_distribution: [],
+      genre_distribution: [],
+      theme_distribution: [],
+      publisher_distribution: [],
+      publication_year_distribution: [],
+      top_authors: [],
+      top_genres: [],
+      top_themes: [],
+    });
+    apiMocks.fetchReadingStats.mockResolvedValue(buildReadingStats());
+
+    renderPage("/stats?tab=reading&library=all");
+
+    await screen.findByText("Meta de lectura 2026");
+    fireEvent.change(screen.getByLabelText("Libros objetivo en 2026"), {
+      target: { value: "10001" },
+    });
+
+    expect(
+      screen.getByText("La meta anual debe ser un numero entero entre 1 y 10000."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar meta" })).toBeDisabled();
+
+    fireEvent.submit(screen.getByRole("button", { name: "Guardar meta" }).closest("form")!);
+
+    expect(apiMocks.updateReadingGoal).not.toHaveBeenCalled();
+  });
 });

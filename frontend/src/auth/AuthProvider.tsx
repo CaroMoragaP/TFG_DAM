@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginPayload) => {
     const response = await loginRequest(payload);
+    // /auth/me remains the canonical server-side validation for the persisted session.
     setToken(response.access_token);
     setUser(response.user);
     persistSession(response.access_token, response.user);

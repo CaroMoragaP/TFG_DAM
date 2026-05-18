@@ -59,6 +59,10 @@ class ReviewConflictError(ValueError):
     """Raised when a public review would violate uniqueness rules."""
 
 
+class ReviewValidationError(ValueError):
+    """Raised when the requested review payload is semantically invalid."""
+
+
 class ReviewPermissionDeniedError(ValueError):
     """Raised when the user cannot edit or delete the requested review."""
 
@@ -303,7 +307,7 @@ def create_review(
 
     user_copy = get_or_create_user_copy(db, user_id=user_id, copy_id=copy.id)
     if user_copy.rating is None:
-        raise ReviewConflictError(
+        raise ReviewValidationError(
             "Debes guardar una valoracion antes de publicar una resena publica.",
         )
 

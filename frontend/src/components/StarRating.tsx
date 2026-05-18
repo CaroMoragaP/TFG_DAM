@@ -1,5 +1,6 @@
 type StarRatingProps = {
   rating: number | null;
+  className?: string;
   max?: number;
 };
 
@@ -11,10 +12,10 @@ function StarIcon() {
   );
 }
 
-export function StarRating({ rating, max = 5 }: StarRatingProps) {
+export function StarRating({ rating, className, max = 5 }: StarRatingProps) {
   return (
     <div
-      className="dashboard-star-rating"
+      className={className ?? "dashboard-star-rating"}
       aria-label={rating === null ? "Sin puntuacion" : `Puntuacion personal ${rating} de ${max}`}
     >
       {Array.from({ length: max }).map((_, index) => {

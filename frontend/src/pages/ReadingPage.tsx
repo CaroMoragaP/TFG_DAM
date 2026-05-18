@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { BookCover } from "../components/BookCover";
 import { DashboardHero } from "../components/DashboardHero";
+import { useConfirm, useToast } from "../components/FeedbackProvider";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   createCopyReviewRequest,
@@ -17,6 +19,7 @@ import {
   type ReadingStatus,
   type UserCopyUpdatePayload,
 } from "../lib/api";
+import { readingStatusSectionLabels, readingStatusValueLabels } from "../lib/labels";
 import { deriveReadingStatusFromDates } from "../lib/readingProgress";
 
 type ReadingTab = ReadingStatus;
@@ -36,12 +39,6 @@ type EditorState = {
   endDate: string;
   personalNotes: string;
   publicReviewBody: string;
-};
-
-const statusLabels: Record<ReadingStatus, string> = {
-  pending: "Pendiente",
-  reading: "Leyendo",
-  finished: "Leidos",
 };
 
 const statusDescriptions: Record<ReadingStatus, string> = {
@@ -298,20 +295,6 @@ function hasChanges(payload: UserCopyUpdatePayload) {
   return Object.keys(payload).length > 0;
 }
 
-function renderCover(item: ReadingShelfItem) {
-  const coverLetter = (item.title.trim().slice(0, 1) || "?").toUpperCase();
-
-  if (item.cover_url) {
-    return <img className="book-cover-image" src={item.cover_url} alt={`Portada de ${item.title}`} />;
-  }
-
-  return (
-    <div className="book-cover-placeholder" aria-hidden="true">
-      <span>{coverLetter}</span>
-    </div>
-  );
-}
-
 function SearchIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -363,7 +346,9 @@ function getLibraryForItem(libraries: Library[], item: ReadingShelfItem) {
 
 export function ReadingPage() {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
+  const { notifySuccess } = useToast();
   const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
@@ -623,9 +608,13 @@ export function ReadingPage() {
   }
 
   async function handleSaveEditor(item: ReadingShelfItem) {
-    await persistReadingChanges(item);
+    const didPersistChanges = await persistReadingChanges(item);
     setEditingCopyId(null);
     setEditorState(null);
+
+    if (didPersistChanges) {
+      notifySuccess("La lectura se ha guardado.");
+    }
   }
 
   async function handlePublishReview(item: ReadingShelfItem) {
@@ -637,9 +626,12 @@ export function ReadingPage() {
     const nextBody = normalizeReviewBody(editorState.publicReviewBody);
     const currentBody = normalizeReviewBody(existingReview?.body ?? "");
 
-    await persistReadingChanges(item);
+    const didPersistReadingChanges = await persistReadingChanges(item);
 
     if (existingReview && nextBody === currentBody) {
+      if (didPersistReadingChanges) {
+        notifySuccess("Tu valoración personal se ha actualizado.");
+      }
       return;
     }
 
@@ -648,6 +640,7 @@ export function ReadingPage() {
       existingReview,
       body: nextBody,
     });
+    notifySuccess(existingReview ? "La publicación pública se ha actualizado." : "La valoración se ha publicado en el muro.");
   }
 
   async function handleDeleteReview(item: ReadingShelfItem) {
@@ -655,14 +648,34 @@ export function ReadingPage() {
       return;
     }
 
-    if (!window.confirm("Se retirara tu publicacion publica de este libro. Quieres continuar?")) {
+    const isConfirmed = await confirm({
+      title: "Retirar publicación pública",
+      description: "Tu reseña dejará de aparecer en la comunidad para este ejemplar.",
+      confirmLabel: "Retirar publicación",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!isConfirmed) {
       return;
     }
 
     await deleteReviewMutation.mutateAsync(item.my_public_review.id);
+    notifySuccess("La publicación pública se ha retirado.");
   }
 
-  function handleReadingStatusChange(nextStatus: ReadingStatus) {
+  async function handleReadingStatusChange(nextStatus: ReadingStatus) {
+    if (nextStatus === "reading" && editorState?.endDate) {
+      const isConfirmed = await confirm({
+        title: "Iniciar una relectura",
+        description: "El libro ya figura como terminado. Se limpiará la fecha de fin actual para dejarlo de nuevo en curso.",
+        confirmLabel: "Marcar relectura",
+        cancelLabel: "Mantener como leído",
+      });
+      if (!isConfirmed) {
+        return;
+      }
+    }
+
     setEditorState((currentState) => {
       if (!currentState) {
         return currentState;
@@ -678,13 +691,6 @@ export function ReadingPage() {
       }
 
       if (nextStatus === "reading") {
-        if (
-          currentState.endDate &&
-          !window.confirm("Este libro ya figura como leído. ¿Quieres marcarlo como relectura?")
-        ) {
-          return currentState;
-        }
-
         return {
           ...currentState,
           readingStatus: "reading",
@@ -704,14 +710,6 @@ export function ReadingPage() {
   function handleStartDateChange(nextStartDate: string) {
     setEditorState((currentState) => {
       if (!currentState) {
-        return currentState;
-      }
-
-      if (
-        nextStartDate &&
-        currentState.endDate &&
-        !window.confirm("Este libro ya figura como leído. ¿Quieres iniciar una relectura?")
-      ) {
         return currentState;
       }
 
@@ -739,6 +737,62 @@ export function ReadingPage() {
     });
   }
 
+  async function handleReadingStatusSelect(nextStatus: ReadingStatus) {
+    if (nextStatus === "reading" && editorState?.endDate) {
+      const isConfirmed = await confirm({
+        title: "Iniciar una relectura",
+        description: "El libro ya figura como terminado. Se limpiará la fecha de fin actual para dejarlo de nuevo en curso.",
+        confirmLabel: "Marcar relectura",
+        cancelLabel: "Mantener como leído",
+      });
+      if (!isConfirmed) {
+        return;
+      }
+
+      setEditorState((currentState) =>
+        currentState
+          ? {
+              ...currentState,
+              readingStatus: "reading",
+              startDate: currentState.startDate || getTodayInputValue(),
+              endDate: "",
+            }
+          : currentState,
+      );
+      return;
+    }
+
+    handleReadingStatusChange(nextStatus);
+  }
+
+  async function handleStartDateInput(nextStartDate: string) {
+    if (nextStartDate && editorState?.endDate) {
+      const isConfirmed = await confirm({
+        title: "Iniciar una relectura",
+        description: "La fecha de fin actual se borrará para dejar este libro de nuevo en curso.",
+        confirmLabel: "Continuar",
+        cancelLabel: "Cancelar",
+      });
+      if (!isConfirmed) {
+        return;
+      }
+
+      setEditorState((currentState) =>
+        currentState
+          ? {
+              ...currentState,
+              startDate: nextStartDate,
+              endDate: "",
+              readingStatus: deriveReadingStatusFromDates(currentState.readingStatus, nextStartDate, ""),
+            }
+          : currentState,
+      );
+      return;
+    }
+
+    handleStartDateChange(nextStartDate);
+  }
+
   return (
     <section className="content-stack private-page-shell">
       <DashboardHero
@@ -753,7 +807,7 @@ export function ReadingPage() {
           <article key={status} className="panel reading-count-card">
             <p className="eyebrow">{statusEyebrows[status]}</p>
             <strong>{counts[status]}</strong>
-            <span>{statusLabels[status]}</span>
+            <span>{readingStatusSectionLabels[status]}</span>
           </article>
         ))}
       </div>
@@ -854,7 +908,7 @@ export function ReadingPage() {
                 updateSearchParam("tab", status);
               }}
             >
-              {statusLabels[status]}
+              {readingStatusSectionLabels[status]}
             </button>
           ))}
         </div>
@@ -901,7 +955,11 @@ export function ReadingPage() {
 
       {!readingQuery.isPending && !readingQuery.isError && visibleItems.length === 0 ? (
         <div className="panel empty-state">
-          <h3>{normalizedSearchQuery ? "No hay resultados para esa busqueda." : `No hay libros en ${statusLabels[tab].toLowerCase()}.`}</h3>
+          <h3>
+            {normalizedSearchQuery
+              ? "No hay resultados para esa busqueda."
+              : `No hay libros en ${readingStatusSectionLabels[tab].toLowerCase()}.`}
+          </h3>
           <p>
             {normalizedSearchQuery
               ? "Prueba con otro titulo, autor o coleccion, o limpia la busqueda actual."
@@ -942,7 +1000,9 @@ export function ReadingPage() {
             return (
               <article key={item.copy_id} className="panel reading-entry-card">
                 <div className="reading-entry-layout">
-                  <div className="reading-entry-cover">{renderCover(item)}</div>
+                  <div className="reading-entry-cover">
+                    <BookCover title={item.title} coverUrl={item.cover_url} />
+                  </div>
 
                   <div className="reading-entry-content">
                     <div className="reading-entry-head">
@@ -1002,7 +1062,7 @@ export function ReadingPage() {
                         <p className="eyebrow">Edicion principal</p>
                         <h4>Mi lectura</h4>
                       </div>
-                      <span className="status-chip">{statusLabels[editorState.readingStatus]}</span>
+                      <span className="status-chip">{readingStatusValueLabels[editorState.readingStatus]}</span>
                     </div>
 
                     <div className="modal-grid">
@@ -1010,11 +1070,13 @@ export function ReadingPage() {
                         Estado de lectura
                         <select
                           value={editorState.readingStatus}
-                          onChange={(event) => handleReadingStatusChange(event.target.value as ReadingStatus)}
+                          onChange={(event) => {
+                            void handleReadingStatusSelect(event.target.value as ReadingStatus);
+                          }}
                         >
                           <option value="pending">Pendiente</option>
                           <option value="reading">Leyendo</option>
-                          <option value="finished">Leido</option>
+                          <option value="finished">Leído</option>
                         </select>
                       </label>
 
@@ -1052,7 +1114,9 @@ export function ReadingPage() {
                         <input
                           type="date"
                           value={editorState.startDate}
-                          onChange={(event) => handleStartDateChange(event.target.value)}
+                          onChange={(event) => {
+                            void handleStartDateInput(event.target.value);
+                          }}
                         />
                       </label>
 

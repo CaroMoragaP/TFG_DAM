@@ -175,6 +175,6 @@ describe("DashboardPage", () => {
 
     await screen.findByText("Dune");
     expect(screen.getAllByText("Biblioteca personal")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: /anadir a lista/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /añadir a lista/i })).toBeInTheDocument();
   });
 });

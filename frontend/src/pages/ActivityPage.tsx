@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { BookCover } from "../components/BookCover";
+import { StarRating } from "../components/StarRating";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   fetchLibraryActivity,
@@ -14,6 +16,7 @@ import {
 type WallTab = "activity" | "reviews";
 type ReviewFilter = "all" | "missing_mine" | "mine";
 type ReviewSort = "recent" | "rating" | "count";
+const PAGE_SIZE = 50;
 
 function normalizeWallTab(value: string | null): WallTab {
   return value === "reviews" ? "reviews" : "activity";
@@ -221,58 +224,6 @@ function CommunityMark() {
   );
 }
 
-function StarMark({ filled }: { filled: boolean }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path
-        d="m12 3.75 2.55 5.17 5.7.83-4.13 4.03.98 5.67L12 16.78 6.9 19.45l.98-5.67-4.13-4.03 5.7-.83L12 3.75Z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function BookCover({
-  title,
-  coverUrl,
-  className,
-}: {
-  title: string;
-  coverUrl: string | null;
-  className?: string;
-}) {
-  return (
-    <div className={className ? `book-cover-shell ${className}` : "book-cover-shell"}>
-      {coverUrl ? (
-        <img className="book-cover-image" src={coverUrl} alt={`Portada de ${title}`} loading="lazy" />
-      ) : (
-        <div className="book-cover-placeholder" aria-hidden="true">
-          {title.slice(0, 1).toUpperCase()}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="community-stars" aria-label={`${rating} de 5 estrellas`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <span
-          key={star}
-          className={star <= rating ? "community-star is-filled" : "community-star"}
-          aria-hidden="true"
-        >
-          <StarMark filled={star <= rating} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function CommunityHero({
   title,
   description,
@@ -349,24 +300,40 @@ export function ActivityPage() {
     }, { replace: true });
   }, [defaultLibrary, isLibrariesLoading, selectedLibraryId, setSearchParams, sharedLibraries]);
 
-  const activityQuery = useQuery({
+  const activityQuery = useInfiniteQuery({
     queryKey: ["library-activity", activeLibrary?.id ?? null],
-    queryFn: () =>
-      fetchLibraryActivity(token ?? "", activeLibrary!.id, { limit: 50, offset: 0 }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      fetchLibraryActivity(token ?? "", activeLibrary!.id, {
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
     enabled: Boolean(token && activeLibrary && tab === "activity"),
   });
 
-  const reviewsQuery = useQuery({
+  const reviewsQuery = useInfiniteQuery({
     queryKey: ["library-reviews", activeLibrary?.id ?? null, reviewFilter, reviewSort],
-    queryFn: () =>
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       fetchLibraryReviews(token ?? "", activeLibrary!.id, {
         filter: reviewFilter,
         sort: reviewSort,
-        limit: 50,
-        offset: 0,
+        limit: PAGE_SIZE,
+        offset: pageParam,
       }),
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
     enabled: Boolean(token && activeLibrary && tab === "reviews"),
   });
+
+  const activityItems = activityQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const reviewsItems = reviewsQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
   const updateSearchParam = useCallback(
     (
@@ -440,6 +407,7 @@ export function ActivityPage() {
               onChange={(event) => updateSearchParam("library", event.target.value)}
               disabled={isLibrariesLoading}
             >
+              {isLibrariesLoading ? <option value="">Cargando bibliotecas...</option> : null}
               {sharedLibraries.map((library) => (
                 <option key={library.id} value={library.id}>
                   {library.name}
@@ -514,7 +482,7 @@ export function ActivityPage() {
             </div>
           ) : null}
 
-          {activityQuery.data && activityQuery.data.items.length === 0 ? (
+          {activityQuery.data && activityItems.length === 0 ? (
             <div className="panel community-empty-panel">
               <h3>El muro aun esta vacio.</h3>
               <p>Cuando alguien lea, resene, preste o anada libros, aparecera aqui.</p>
@@ -523,7 +491,7 @@ export function ActivityPage() {
 
           {activityQuery.data ? (
             <div className="community-feed">
-              {activityQuery.data.items.map((event) => {
+              {activityItems.map((event) => {
                 const tone = getEventTone(event.event_type);
                 const title =
                   getPayloadString(event.payload_json, "book_title") ?? "Movimiento del club";
@@ -560,7 +528,7 @@ export function ActivityPage() {
                         <p className="community-event-summary">{formatEventLabel(event)}</p>
                         <strong>{title}</strong>
                         {author ? <p>{author}</p> : null}
-                        {rating !== null ? <StarRating rating={rating} /> : null}
+                        {rating !== null ? <StarRating rating={rating} className="community-stars" /> : null}
                       </div>
                     </div>
 
@@ -580,6 +548,19 @@ export function ActivityPage() {
                   </article>
                 );
               })}
+
+              {activityQuery.hasNextPage ? (
+                <div className="community-card-actions">
+                  <button
+                    className="ghost-link compact-action"
+                    type="button"
+                    onClick={() => void activityQuery.fetchNextPage()}
+                    disabled={activityQuery.isFetchingNextPage}
+                  >
+                    {activityQuery.isFetchingNextPage ? "Cargando..." : "Ver más actividad"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </>
@@ -599,7 +580,7 @@ export function ActivityPage() {
             </div>
           ) : null}
 
-          {reviewsQuery.data && reviewsQuery.data.items.length === 0 ? (
+          {reviewsQuery.data && reviewsItems.length === 0 ? (
             <div className="panel community-empty-panel">
               <h3>Todavia no hay resenas para este filtro.</h3>
               <p>Publica tu valoracion desde Lectura para arrancar la conversacion compartida.</p>
@@ -608,7 +589,7 @@ export function ActivityPage() {
 
           {reviewsQuery.data ? (
             <div className="community-review-list">
-              {reviewsQuery.data.items.map((card: LibraryReviewCard) => (
+              {reviewsItems.map((card: LibraryReviewCard) => (
                 <article key={card.copy_id} className="panel community-review-card">
                   <div className="community-review-header">
                     <div className="community-review-heading">
@@ -640,7 +621,7 @@ export function ActivityPage() {
                               <strong>{card.my_review.user_name}</strong>
                               <p>Tu mirada sobre este ejemplar</p>
                             </div>
-                            <StarRating rating={card.my_review.rating} />
+                            <StarRating rating={card.my_review.rating} className="community-stars" />
                           </div>
                           <p>{card.my_review.body ?? "Solo has dejado una valoracion con estrellas."}</p>
                         </div>
@@ -666,9 +647,9 @@ export function ActivityPage() {
                               <div className="community-review-entry-head">
                                 <div>
                                   <strong>{review.user_name}</strong>
-                                  <p>Lectora compartida</p>
+                                  <p>Miembro del club</p>
                                 </div>
-                                <StarRating rating={review.rating} />
+                                <StarRating rating={review.rating} className="community-stars" />
                               </div>
                               <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
                             </div>
@@ -691,6 +672,19 @@ export function ActivityPage() {
                   </div>
                 </article>
               ))}
+
+              {reviewsQuery.hasNextPage ? (
+                <div className="community-card-actions">
+                  <button
+                    className="ghost-link compact-action"
+                    type="button"
+                    onClick={() => void reviewsQuery.fetchNextPage()}
+                    disabled={reviewsQuery.isFetchingNextPage}
+                  >
+                    {reviewsQuery.isFetchingNextPage ? "Cargando..." : "Ver más opiniones"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </>

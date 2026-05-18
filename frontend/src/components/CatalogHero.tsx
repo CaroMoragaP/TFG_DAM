@@ -47,7 +47,7 @@ export function CatalogHero({
             icon="plus"
             onClick={onAddBook}
           >
-            Anadir libro
+            Añadir libro
           </HeroActionButton>
         </>
       }

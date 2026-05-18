@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { BookCover } from "../components/BookCover";
 import { type BookMetadataValues } from "../components/BookMetadataModal";
 import { BookDetailEditModal, type BookDetailEditValues } from "../components/BookDetailEditModal";
 import { type CopyEditValues } from "../components/CopyEditModal";
+import { useConfirm, useToast } from "../components/FeedbackProvider";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   type CommunityLoan,
@@ -19,14 +21,8 @@ import {
   type BookMetadata,
   type CopyCommunity,
   type CopyDetail,
-  type ReadingStatus,
 } from "../lib/api";
-
-const statusLabels: Record<ReadingStatus, string> = {
-  pending: "Pendiente",
-  reading: "Leyendo",
-  finished: "Leido",
-};
+import { readingStatusValueLabels } from "../lib/labels";
 
 const authorSexLabels = {
   male: "Hombre",
@@ -79,10 +75,12 @@ function formatBorrowerName(loan: CommunityLoan) {
 }
 
 export function BookDetailPage() {
+  const confirm = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  const { notifySuccess } = useToast();
   const { libraries } = useLibraries();
 
   const copyId = Number(id);
@@ -172,6 +170,7 @@ export function BookDetailPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["books"] });
       setDeleteCopyErrorMessage(null);
+      notifySuccess("El ejemplar se ha eliminado del catálogo.");
       navigate("/catalogo", { replace: true });
     },
     onError: (error) => {
@@ -211,7 +210,6 @@ export function BookDetailPage() {
   const publisher = detail?.publisher ?? "-";
   const authorCountry = detail?.author_country ?? "-";
   const authorSex = detail?.author_sex ? authorSexLabels[detail.author_sex] : "-";
-  const coverLetter = (detail?.title.trim().slice(0, 1) || "?").toUpperCase();
   const hasDescription = Boolean(detail?.description?.trim());
   const hasPersonalNotes = Boolean(userData?.personal_notes?.trim());
   const community = (communityQuery.data ??
@@ -239,7 +237,14 @@ export function BookDetailPage() {
   );
 
   async function handleDelete() {
-    if (!window.confirm("Se eliminara este ejemplar del catalogo. Quieres continuar?")) {
+    const isConfirmed = await confirm({
+      title: "Eliminar ejemplar",
+      description: "Se borrará este ejemplar del catálogo y ya no estará disponible en la biblioteca.",
+      confirmLabel: "Eliminar ejemplar",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!isConfirmed) {
       return;
     }
     setDeleteCopyErrorMessage(null);
@@ -269,13 +274,7 @@ export function BookDetailPage() {
           <article className="panel detail-main-card">
             <div className="detail-hero">
               <div className="detail-cover-shell">
-                {detail.cover_url ? (
-                  <img className="book-cover-image" src={detail.cover_url} alt={`Portada de ${detail.title}`} />
-                ) : (
-                  <div className="book-cover-placeholder" aria-hidden="true">
-                    <span>{coverLetter}</span>
-                  </div>
-                )}
+                <BookCover title={detail.title} coverUrl={detail.cover_url} />
               </div>
 
               <div className="detail-copy">
@@ -367,7 +366,7 @@ export function BookDetailPage() {
             <dl className="reading-entry-meta">
               <div>
                 <dt>Estado</dt>
-                <dd>{statusLabels[userData.reading_status]}</dd>
+                <dd>{readingStatusValueLabels[userData.reading_status]}</dd>
               </div>
               <div>
                 <dt>Valoracion</dt>

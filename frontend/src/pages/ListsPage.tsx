@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { DashboardHero, HeroActionButton } from "../components/DashboardHero";
+import { useConfirm, useToast } from "../components/FeedbackProvider";
 import { ListFormModal } from "../components/ListFormModal";
 import {
   createListRequest,
@@ -13,11 +14,14 @@ import {
   type ListCreatePayload,
   type UserList,
 } from "../lib/api";
+import { listTypeLabels } from "../lib/labels";
 
 export function ListsPage() {
+  const confirm = useConfirm();
   const { token } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { notifySuccess } = useToast();
   const [editingList, setEditingList] = useState<UserList | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
@@ -36,6 +40,7 @@ export function ListsPage() {
       await queryClient.invalidateQueries({ queryKey: ["lists"] });
       setIsFormOpen(false);
       setEditingList(null);
+      notifySuccess("La lista se ha creado.");
     },
   });
 
@@ -46,6 +51,7 @@ export function ListsPage() {
       await queryClient.invalidateQueries({ queryKey: ["lists"] });
       setIsFormOpen(false);
       setEditingList(null);
+      notifySuccess("La lista se ha actualizado.");
     },
   });
 
@@ -54,6 +60,7 @@ export function ListsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["lists"] });
       setDeleteErrorMessage(null);
+      notifySuccess("La lista se ha eliminado.");
     },
     onError: (error) => {
       setDeleteErrorMessage(error instanceof Error ? error.message : "No se pudo eliminar la lista.");
@@ -92,13 +99,20 @@ export function ListsPage() {
     await createListMutation.mutateAsync(payload);
   }
 
-  function handleDeleteList(list: UserList) {
-    if (!window.confirm(`Se eliminara la lista "${list.name}" y su contenido guardado. Quieres continuar?`)) {
+  async function handleDeleteList(list: UserList) {
+    const isConfirmed = await confirm({
+      title: `Eliminar "${list.name}"`,
+      description: "Se borrará la lista y todo su contenido guardado.",
+      confirmLabel: "Eliminar lista",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!isConfirmed) {
       return;
     }
 
     setDeleteErrorMessage(null);
-    deleteListMutation.mutate(list.id);
+    await deleteListMutation.mutateAsync(list.id);
   }
 
   return (
@@ -158,7 +172,7 @@ export function ListsPage() {
                   <h3>{list.name}</h3>
                   <p>{list.book_count} libros guardados en esta lista.</p>
                 </div>
-                <span className="status-chip">{list.type}</span>
+                <span className="status-chip">{listTypeLabels[list.type]}</span>
               </div>
 
               <div className="list-card-actions">
@@ -187,7 +201,7 @@ export function ListsPage() {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    handleDeleteList(list);
+                    void handleDeleteList(list);
                   }}
                   disabled={deleteListMutation.isPending}
                 >

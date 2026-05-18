@@ -3,13 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
+import { BookCover } from "../components/BookCover";
 import { DashboardHero } from "../components/DashboardHero";
+import { useConfirm, useToast } from "../components/FeedbackProvider";
 import {
   fetchListBooks,
   fetchLists,
   removeBookFromListRequest,
   type ListBookSummary,
 } from "../lib/api";
+import { listTypeLabels } from "../lib/labels";
 
 type SortOption = "recent" | "oldest" | "title" | "author" | "year";
 
@@ -84,25 +87,13 @@ function formatAddedAt(value: string) {
   return addedAtFormatter.format(new Date(value));
 }
 
-function renderCover(book: ListBookSummary) {
-  const coverLetter = (book.title.trim().slice(0, 1) || "?").toUpperCase();
-
-  if (book.cover_url) {
-    return <img className="book-cover-image" src={book.cover_url} alt={`Portada de ${book.title}`} />;
-  }
-
-  return (
-    <div className="book-cover-placeholder" aria-hidden="true">
-      <span>{coverLetter}</span>
-    </div>
-  );
-}
-
 export function ListDetailPage() {
+  const confirm = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  const { notifySuccess } = useToast();
   const [sort, setSort] = useState<SortOption>("recent");
   const [removeBookErrorMessage, setRemoveBookErrorMessage] = useState<string | null>(null);
 
@@ -130,6 +121,7 @@ export function ListDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["books"] }),
       ]);
       setRemoveBookErrorMessage(null);
+      notifySuccess("El libro se ha quitado de la lista.");
     },
     onError: (error) => {
       setRemoveBookErrorMessage(error instanceof Error ? error.message : "No se pudo quitar el libro de la lista.");
@@ -158,7 +150,14 @@ export function ListDetailPage() {
   const isListUnavailable = listsQuery.isSuccess && activeList === null;
 
   async function handleRemoveBook(bookId: number) {
-    if (!window.confirm("Se quitara este libro de la lista. Quieres continuar?")) {
+    const isConfirmed = await confirm({
+      title: "Quitar libro de la lista",
+      description: "El libro dejará de estar asociado a esta lista personal.",
+      confirmLabel: "Quitar libro",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!isConfirmed) {
       return;
     }
 
@@ -213,7 +212,7 @@ export function ListDetailPage() {
             icon="list"
             actions={
               <div className="list-detail-hero-actions">
-                <span className="status-chip active">{activeList.type}</span>
+                <span className="status-chip active">{listTypeLabels[activeList.type]}</span>
                 <Link className="dashboard-hero-action dashboard-hero-action-secondary" to={`/catalogo?listId=${activeList.id}`}>
                   Ver esta lista en catalogo
                 </Link>
@@ -245,7 +244,7 @@ export function ListDetailPage() {
           {sortedBooks.length === 0 ? (
             <div className="panel empty-state">
               <h3>Esta lista esta vacia.</h3>
-              <p>Anade libros desde el catalogo usando la accion "Anadir a lista".</p>
+              <p>Añade libros desde el catálogo usando la acción "Añadir a lista".</p>
               <div className="inline-actions">
                 <Link className="ghost-link compact-action" to="/catalogo">
                   Ir al catalogo
@@ -256,7 +255,9 @@ export function ListDetailPage() {
             <div className="content-stack">
               {sortedBooks.map((book) => (
                 <article key={book.book_id} className="panel list-book-card list-book-card-detailed">
-                  <div className="list-book-cover">{renderCover(book)}</div>
+                  <div className="list-book-cover">
+                    <BookCover title={book.title} coverUrl={book.cover_url} />
+                  </div>
 
                   <div className="list-book-content">
                     <div>

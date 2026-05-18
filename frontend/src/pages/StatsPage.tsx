@@ -26,6 +26,7 @@ import {
   type StatsBreakdownItem,
   type StatsRankingItem,
 } from "../lib/api";
+import { readingStatusSectionLabels } from "../lib/labels";
 
 type StatsTab = "catalog" | "reading";
 
@@ -50,9 +51,9 @@ const CHART_PALETTE = [
 ];
 
 const readingStatusCards = [
-  { key: "finished", label: "Leidos" },
-  { key: "reading", label: "Leyendo" },
-  { key: "pending", label: "Pendientes" },
+  { key: "finished", label: readingStatusSectionLabels.finished },
+  { key: "reading", label: readingStatusSectionLabels.reading },
+  { key: "pending", label: readingStatusSectionLabels.pending },
 ] as const;
 
 const activityCards = [

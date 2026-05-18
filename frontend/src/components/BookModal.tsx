@@ -288,7 +288,7 @@ export function BookModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">{isCreateMode ? "Nuevo libro" : "Editar libro"}</p>
-            <h2 id="book-modal-title">{isCreateMode ? "Anadir libro" : "Guardar cambios"}</h2>
+            <h2 id="book-modal-title">{isCreateMode ? "Añadir libro" : "Guardar cambios"}</h2>
             {isCreateMode ? (
               <p className="detail-inline-copy modal-subtitle">
                 Busca por ISBN o por titulo, nombre y editorial.

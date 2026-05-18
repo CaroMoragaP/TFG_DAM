@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import type { ListCreatePayload, ListType, UserList } from "../lib/api";
+import { listTypeLabels } from "../lib/labels";
 
 type ListFormModalProps = {
   isOpen: boolean;
@@ -8,12 +9,6 @@ type ListFormModalProps = {
   list: UserList | null;
   onClose: () => void;
   onSubmit: (payload: ListCreatePayload) => Promise<void>;
-};
-
-const typeLabels: Record<ListType, string> = {
-  wishlist: "Favoritos",
-  pending: "Pendientes",
-  custom: "Personalizada",
 };
 
 export function ListFormModal({
@@ -90,7 +85,7 @@ export function ListFormModal({
           <label className="field-group">
             Tipo
             <select value={type} onChange={(event) => setType(event.target.value as ListType)}>
-              {Object.entries(typeLabels).map(([value, label]) => (
+              {Object.entries(listTypeLabels).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>

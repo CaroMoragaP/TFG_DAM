@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
 import { DashboardHero, HeroActionButton } from "../components/DashboardHero";
+import { useConfirm, useToast } from "../components/FeedbackProvider";
 import { LibraryFormModal } from "../components/LibraryFormModal";
 import {
   addLibraryMemberRequest,
@@ -37,8 +38,10 @@ function formatMembersLabel(memberCount: number) {
 }
 
 export function LibrariesPage() {
+  const confirm = useConfirm();
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { notifySuccess } = useToast();
   const [selectedLibraryId, setSelectedLibraryId] = useState<number | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
@@ -92,6 +95,7 @@ export function LibrariesPage() {
       await invalidateLibraries();
       setSelectedLibraryId(library.id);
       setIsCreateModalOpen(false);
+      notifySuccess("La biblioteca se ha creado.");
     },
   });
 
@@ -102,6 +106,7 @@ export function LibrariesPage() {
       }),
     onSuccess: async () => {
       await invalidateLibraries();
+      notifySuccess("La biblioteca se ha actualizado.");
     },
   });
 
@@ -118,6 +123,7 @@ export function LibrariesPage() {
       ]);
       setInviteEmail("");
       setInviteRole("editor");
+      notifySuccess("El miembro se ha añadido a la biblioteca.");
     },
   });
 
@@ -129,6 +135,7 @@ export function LibrariesPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["library-members", selectedLibrary?.id] });
       setMemberActionErrorMessage(null);
+      notifySuccess("El rol del miembro se ha actualizado.");
     },
     onError: (error) => {
       setMemberActionErrorMessage(error instanceof Error ? error.message : "No se pudo actualizar el rol.");
@@ -144,6 +151,7 @@ export function LibrariesPage() {
         queryClient.invalidateQueries({ queryKey: ["library-members", selectedLibrary?.id] }),
       ]);
       setMemberActionErrorMessage(null);
+      notifySuccess("El miembro se ha expulsado de la biblioteca.");
     },
     onError: (error) => {
       setMemberActionErrorMessage(error instanceof Error ? error.message : "No se pudo expulsar al miembro.");
@@ -214,7 +222,7 @@ export function LibrariesPage() {
             icon="plus"
             onClick={() => setIsCreateModalOpen(true)}
           >
-            Anadir biblioteca
+            Añadir biblioteca
           </HeroActionButton>
         }
       />
@@ -361,7 +369,7 @@ export function LibrariesPage() {
                           <p className="form-error">
                             {addMemberMutation.error instanceof Error
                               ? addMemberMutation.error.message
-                              : "No se pudo anadir el miembro."}
+                              : "No se pudo añadir el miembro."}
                           </p>
                         ) : null}
                         <button
@@ -369,7 +377,7 @@ export function LibrariesPage() {
                           type="submit"
                           disabled={addMemberMutation.isPending || !inviteEmail.trim()}
                         >
-                          {addMemberMutation.isPending ? "Anadiendo..." : "Anadir miembro"}
+                          {addMemberMutation.isPending ? "Añadiendo..." : "Añadir miembro"}
                         </button>
                       </form>
                     </div>
@@ -474,12 +482,15 @@ export function LibrariesPage() {
                               <button
                                 className="ghost-link compact-action danger-action"
                                 type="button"
-                                onClick={() => {
-                                  if (
-                                    !window.confirm(
-                                      `Se expulsara a ${member.name} de la biblioteca. Quieres continuar?`,
-                                    )
-                                  ) {
+                                onClick={async () => {
+                                  const isConfirmed = await confirm({
+                                    title: `Expulsar a ${member.name}`,
+                                    description: "Perderá el acceso a esta biblioteca compartida.",
+                                    confirmLabel: "Expulsar miembro",
+                                    cancelLabel: "Cancelar",
+                                    tone: "danger",
+                                  });
+                                  if (!isConfirmed) {
                                     return;
                                   }
                                   setMemberActionErrorMessage(null);

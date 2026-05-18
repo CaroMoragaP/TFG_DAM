@@ -112,7 +112,7 @@ export function BookCard({
           <span className="dashboard-card-button-icon">
             <PlusIcon />
           </span>
-          <span>Anadir a lista</span>
+          <span>Añadir a lista</span>
         </button>
       </div>
     </article>

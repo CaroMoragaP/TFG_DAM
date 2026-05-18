@@ -10,6 +10,7 @@ import { CatalogHero } from "../components/CatalogHero";
 import { CatalogImportModal } from "../components/CatalogImportModal";
 import { CatalogToolbar } from "../components/CatalogToolbar";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
+import { useToast } from "../components/FeedbackProvider";
 import { useLibraries } from "../libraries/useLibraries";
 import { LITERARY_GENRE_OPTIONS } from "../lib/bookMetadata";
 import {
@@ -35,6 +36,7 @@ function buildAuthorDisplayName(firstName: string, lastName: string) {
 
 export function DashboardPage() {
   const { token } = useAuth();
+  const { notifySuccess } = useToast();
   const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
@@ -141,6 +143,7 @@ export function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ["themes"] }),
       ]);
       setIsCreateModalOpen(false);
+      notifySuccess("El libro se ha añadido al catálogo.");
     },
   });
 
@@ -158,6 +161,7 @@ export function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ["copy"] }),
       ]);
       setSelectedBook(null);
+      notifySuccess("El ejemplar se ha actualizado.");
     },
   });
 
@@ -171,6 +175,7 @@ export function DashboardPage() {
       ]);
       setBookForListModal(null);
       setAddToListError(null);
+      notifySuccess("El libro se ha guardado en la lista.");
     },
     onError: (error) => {
       setAddToListError(error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.");
@@ -200,6 +205,7 @@ export function DashboardPage() {
       setImportError(null);
       setImportPreview(null);
       setIsImportModalOpen(false);
+      notifySuccess("La importación del catálogo se ha completado.");
     },
     onError: (error) => {
       setImportError(error instanceof Error ? error.message : "No se pudo completar la importacion.");
@@ -454,7 +460,7 @@ export function DashboardPage() {
           <h3>{selectedListId ? "La lista seleccionada esta vacia." : "No hay libros con esos filtros."}</h3>
           <p>
             {selectedListId
-              ? 'Anade libros a esta lista desde el catalogo usando la accion "Anadir a lista".'
+              ? 'Añade libros a esta lista desde el catálogo usando la acción "Añadir a lista".'
               : "Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo."}
           </p>
           {!selectedListId ? (
@@ -464,7 +470,7 @@ export function DashboardPage() {
               onClick={() => setIsCreateModalOpen(true)}
               disabled={isLibrariesLoading || isLibrariesError || editableLibraries.length === 0}
             >
-              Anadir primer libro
+              Añadir primer libro
             </button>
           ) : null}
         </div>

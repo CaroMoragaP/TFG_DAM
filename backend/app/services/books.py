@@ -701,10 +701,10 @@ def _assign_primary_author_metadata(
     country: Country | None | object = _UNSET,
     sex: str | None | object = _UNSET,
 ) -> None:
-    if not book_authors:
+    primary_relation = _get_primary_book_author_relations(book_authors)
+    if primary_relation is None:
         return
 
-    primary_relation = min(book_authors, key=lambda item: item.author.display_name.casefold())
     if country is not _UNSET:
         primary_relation.author.country = country
     if sex is not _UNSET:
@@ -712,20 +712,20 @@ def _assign_primary_author_metadata(
 
 
 def _serialize_primary_author_country(book: Book) -> str | None:
-    if not book.book_authors:
+    primary_relation = _get_primary_book_author(book)
+    if primary_relation is None:
         return None
 
-    primary_relation = min(book.book_authors, key=lambda item: item.author.display_name.casefold())
     if primary_relation.author.country is None:
         return None
     return primary_relation.author.country.name
 
 
 def _serialize_primary_author_sex(book: Book) -> str | None:
-    if not book.book_authors:
+    primary_relation = _get_primary_book_author(book)
+    if primary_relation is None:
         return None
 
-    primary_relation = min(book.book_authors, key=lambda item: item.author.display_name.casefold())
     return normalize_author_sex(primary_relation.author.sex, invalid_fallback="unknown")
 
 
@@ -757,14 +757,23 @@ def _serialize_book_themes(book: Book) -> list[str]:
     ]
 
 
-def _get_primary_author(book: Book) -> Author | None:
-    if not book.book_authors:
+def _get_primary_book_author_relations(book_authors: list[BookAuthor]) -> BookAuthor | None:
+    if not book_authors:
         return None
 
-    return min(
-        (relation.author for relation in book.book_authors),
-        key=lambda author: author.display_name.casefold(),
-    )
+    return min(book_authors, key=lambda item: item.author.display_name.casefold())
+
+
+def _get_primary_book_author(book: Book) -> BookAuthor | None:
+    return _get_primary_book_author_relations(book.book_authors)
+
+
+def _get_primary_author(book: Book) -> Author | None:
+    primary_relation = _get_primary_book_author(book)
+    if primary_relation is None:
+        return None
+
+    return primary_relation.author
 
 
 def _author_fields_present(data: BookMetadataUpdate) -> bool:

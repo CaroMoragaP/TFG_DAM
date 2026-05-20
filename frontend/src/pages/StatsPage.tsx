@@ -27,6 +27,7 @@ import {
   type StatsRankingItem,
 } from "../lib/api";
 import { readingStatusSectionLabels } from "../lib/labels";
+import { normalizeLibraryFilterParam } from "../lib/urlParams";
 
 type StatsTab = "catalog" | "reading";
 
@@ -75,19 +76,6 @@ function formatPercentage(value: number) {
 
 function normalizeTab(value: string | null): StatsTab {
   return value === "reading" ? "reading" : "catalog";
-}
-
-function normalizeLibraryValue(value: string | null) {
-  if (!value || value === "all") {
-    return "all";
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return "all";
-  }
-
-  return String(parsed);
 }
 
 function hasData(items: StatsBreakdownItem[]) {
@@ -487,7 +475,7 @@ export function StatsPage() {
   const [goalDraft, setGoalDraft] = useState("");
 
   const tab = normalizeTab(searchParams.get("tab"));
-  const libraryValue = normalizeLibraryValue(searchParams.get("library"));
+  const libraryValue = normalizeLibraryFilterParam(searchParams.get("library"));
   const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
   const availableLibraries = libraries.filter((library) => !library.is_archived);
 

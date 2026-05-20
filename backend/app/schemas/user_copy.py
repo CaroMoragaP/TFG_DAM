@@ -8,14 +8,7 @@ from pydantic import Field
 from pydantic import model_validator
 
 from app.models.enums import ReadingStatus
-
-
-def _normalize_optional_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-
-    normalized = value.strip()
-    return normalized or None
+from app.schemas._helpers import normalize_optional_text
 
 
 class UserCopyOut(BaseModel):
@@ -41,7 +34,7 @@ class UserCopyUpdate(BaseModel):
     @model_validator(mode="after")
     def normalize_and_validate(self) -> "UserCopyUpdate":
         if "personal_notes" in self.model_fields_set:
-            self.personal_notes = _normalize_optional_text(self.personal_notes)
+            self.personal_notes = normalize_optional_text(self.personal_notes)
 
         if (
             self.start_date is not None

@@ -11,14 +11,7 @@ from pydantic import model_validator
 from pydantic import field_validator
 
 from app.models.enums import LibraryEventType
-
-
-def _normalize_optional_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-
-    normalized = value.strip()
-    return normalized or None
+from app.schemas._helpers import normalize_optional_text
 
 
 class ReaderPreviewOut(BaseModel):
@@ -37,7 +30,7 @@ class CopyLoanCreate(BaseModel):
     @field_validator("borrower_name", "notes")
     @classmethod
     def normalize_optional_fields(cls, value: str | None) -> str | None:
-        return _normalize_optional_text(value)
+        return normalize_optional_text(value)
 
     @model_validator(mode="after")
     def validate_borrower(self) -> "CopyLoanCreate":
@@ -76,7 +69,7 @@ class ReviewCreate(BaseModel):
     @field_validator("body")
     @classmethod
     def normalize_body(cls, value: str | None) -> str | None:
-        return _normalize_optional_text(value)
+        return normalize_optional_text(value)
 
 
 class ReviewUpdate(BaseModel):
@@ -87,7 +80,7 @@ class ReviewUpdate(BaseModel):
     @field_validator("body")
     @classmethod
     def normalize_body(cls, value: str | None) -> str | None:
-        return _normalize_optional_text(value)
+        return normalize_optional_text(value)
 
     @model_validator(mode="after")
     def validate_update(self) -> "ReviewUpdate":

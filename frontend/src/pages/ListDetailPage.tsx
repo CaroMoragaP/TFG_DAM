@@ -13,6 +13,7 @@ import {
   type ListBookSummary,
 } from "../lib/api";
 import { listTypeLabels } from "../lib/labels";
+import { compareText } from "../lib/sorting";
 
 type SortOption = "recent" | "oldest" | "title" | "author" | "year";
 
@@ -21,10 +22,6 @@ const addedAtFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "short",
   year: "numeric",
 });
-
-function compareText(left: string, right: string) {
-  return left.localeCompare(right, "es", { sensitivity: "base" });
-}
 
 function compareYearDescending(left: number | null, right: number | null) {
   if (left === null && right === null) {

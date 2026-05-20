@@ -12,6 +12,7 @@ import {
   type LibraryActivityEvent,
   type LibraryReviewCard,
 } from "../lib/api";
+import { normalizePositiveIntegerParam } from "../lib/urlParams";
 
 type WallTab = "activity" | "reviews";
 type ReviewFilter = "all" | "missing_mine" | "mine";
@@ -34,19 +35,6 @@ function normalizeReviewSort(value: string | null): ReviewSort {
     return value;
   }
   return "recent";
-}
-
-function normalizeLibraryValue(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return parsed;
 }
 
 function getInitials(name: string) {
@@ -272,7 +260,7 @@ export function ActivityPage() {
   const tab = normalizeWallTab(searchParams.get("tab"));
   const reviewFilter = normalizeReviewFilter(searchParams.get("filter"));
   const reviewSort = normalizeReviewSort(searchParams.get("sort"));
-  const selectedLibraryId = normalizeLibraryValue(searchParams.get("library"));
+  const selectedLibraryId = normalizePositiveIntegerParam(searchParams.get("library"));
   const sharedLibraries = libraries.filter(
     (library) => !library.is_archived && library.type === "shared",
   );

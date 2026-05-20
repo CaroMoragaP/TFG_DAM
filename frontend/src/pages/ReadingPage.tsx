@@ -21,6 +21,8 @@ import {
 } from "../lib/api";
 import { readingStatusSectionLabels, readingStatusValueLabels } from "../lib/labels";
 import { deriveReadingStatusFromDates } from "../lib/readingProgress";
+import { compareText } from "../lib/sorting";
+import { normalizeLibraryFilterParam, normalizePositiveIntegerParam } from "../lib/urlParams";
 
 type ReadingTab = ReadingStatus;
 type ReadingSort =
@@ -96,30 +98,8 @@ function normalizeTab(value: string | null): ReadingTab {
   return "reading";
 }
 
-function normalizeLibraryValue(value: string | null) {
-  if (!value || value === "all") {
-    return "all";
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return "all";
-  }
-
-  return String(parsed);
-}
-
 function normalizeCopyValue(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return parsed;
+  return normalizePositiveIntegerParam(value);
 }
 
 function getDefaultSort(tab: ReadingTab): ReadingSort {
@@ -130,10 +110,6 @@ function getDefaultSort(tab: ReadingTab): ReadingSort {
     return "recent-finish";
   }
   return "recent-start";
-}
-
-function compareText(left: string, right: string) {
-  return left.localeCompare(right, "es", { sensitivity: "base" });
 }
 
 function normalizeSearchText(value: string) {
@@ -359,7 +335,7 @@ export function ReadingPage() {
 
   const q = searchParams.get("q") ?? "";
   const tab = normalizeTab(searchParams.get("tab"));
-  const libraryValue = normalizeLibraryValue(searchParams.get("library"));
+  const libraryValue = normalizeLibraryFilterParam(searchParams.get("library"));
   const selectedCopyId = normalizeCopyValue(searchParams.get("copy"));
   const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
   const availableLibraries = libraries.filter((library) => !library.is_archived);

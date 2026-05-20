@@ -30,10 +30,6 @@ import {
   type UserList,
 } from "../lib/api";
 
-function buildAuthorDisplayName(firstName: string, lastName: string) {
-  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
-}
-
 export function DashboardPage() {
   const { token } = useAuth();
   const { notifySuccess } = useToast();
@@ -256,16 +252,15 @@ export function DashboardPage() {
       throw new Error("Selecciona una biblioteca valida para guardar el libro.");
     }
 
+    const primaryAuthorFirstName = values.authorFirstName.trim() || null;
+    const primaryAuthorLastName = values.authorLastName.trim() || null;
+
     const payload: BookCreatePayload = {
       library_id: libraryId,
       title: values.title.trim(),
-      primary_author_first_name: values.authorFirstName.trim() || null,
-      primary_author_last_name: values.authorLastName.trim() || null,
-      primary_author_display_name:
-        buildAuthorDisplayName(values.authorFirstName, values.authorLastName) || null,
-      authors: buildAuthorDisplayName(values.authorFirstName, values.authorLastName)
-        ? [buildAuthorDisplayName(values.authorFirstName, values.authorLastName)]
-        : [],
+      primary_author_first_name: primaryAuthorFirstName,
+      primary_author_last_name: primaryAuthorLastName,
+      authors: [],
       author_sex: values.authorSex || null,
       author_country_name: values.authorCountry.trim() || null,
       publication_year: values.publicationYear.trim() ? Number(values.publicationYear) : null,

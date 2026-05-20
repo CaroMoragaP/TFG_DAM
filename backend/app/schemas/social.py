@@ -42,7 +42,7 @@ class CopyLoanCreate(BaseModel):
 class CopyLoanOut(BaseModel):
     id: int
     copy_id: int
-    lender_user_id: int
+    lender_user_id: int | None
     lender_name: str
     borrower_user_id: int | None
     borrower_name: str | None
@@ -139,7 +139,7 @@ LibraryReviewSort = Literal["recent", "rating", "count"]
 class LibraryEventOut(BaseModel):
     id: int
     library_id: int
-    actor_user_id: int
+    actor_user_id: int | None
     actor_name: str
     copy_id: int | None
     review_id: int | None

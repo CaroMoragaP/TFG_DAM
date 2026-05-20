@@ -51,10 +51,11 @@ class CopyLoan(Base):
         ForeignKey("copies.id", ondelete="CASCADE"),
         nullable=False,
     )
-    lender_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+    lender_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
+    lender_name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
     borrower_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -70,7 +71,7 @@ class CopyLoan(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     copy: Mapped["Copy"] = relationship(back_populates="loans")
-    lender_user: Mapped["User"] = relationship(
+    lender_user: Mapped["User | None"] = relationship(
         back_populates="given_loans",
         foreign_keys=[lender_user_id],
     )
@@ -128,9 +129,9 @@ class LibraryEvent(Base):
         nullable=False,
         index=True,
     )
-    actor_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+    actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     copy_id: Mapped[int | None] = mapped_column(
         ForeignKey("copies.id", ondelete="SET NULL"),
@@ -153,10 +154,11 @@ class LibraryEvent(Base):
         nullable=False,
         server_default=func.now(),
     )
+    # `default=dict` is intentional here so each event gets its own payload object.
     payload_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
     library: Mapped["Library"] = relationship(back_populates="events")
-    actor_user: Mapped["User"] = relationship(back_populates="library_events")
+    actor_user: Mapped["User | None"] = relationship(back_populates="library_events")
     copy: Mapped["Copy | None"] = relationship(back_populates="library_events")
     review: Mapped["Review | None"] = relationship(back_populates="library_events")
     loan: Mapped["CopyLoan | None"] = relationship(back_populates="library_events")

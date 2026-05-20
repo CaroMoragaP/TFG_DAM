@@ -438,6 +438,7 @@ def create_copy_loan(
     loan = CopyLoan(
         copy_id=copy.id,
         lender_user_id=user_id,
+        lender_name_snapshot=_get_user_name_snapshot(db, user_id=user_id),
         borrower_user_id=borrower_user.id if borrower_user is not None else None,
         borrower_name=borrower_name,
         due_date=data.due_date,
@@ -678,7 +679,7 @@ def serialize_copy_loan(loan: CopyLoan) -> CopyLoanOut:
         id=loan.id,
         copy_id=loan.copy_id,
         lender_user_id=loan.lender_user_id,
-        lender_name=loan.lender_user.name,
+        lender_name=_resolve_lender_name(loan),
         borrower_user_id=loan.borrower_user_id,
         borrower_name=borrower_name,
         is_internal=loan.borrower_user_id is not None,
@@ -707,7 +708,7 @@ def serialize_library_event(event: LibraryEvent) -> LibraryEventOut:
         id=event.id,
         library_id=event.library_id,
         actor_user_id=event.actor_user_id,
-        actor_name=event.actor_user.name,
+        actor_name=_resolve_event_actor_name(event),
         copy_id=event.copy_id,
         review_id=event.review_id,
         loan_id=event.loan_id,
@@ -926,6 +927,8 @@ def _create_library_event(
     event_type: LibraryEventType,
     payload_json: dict[str, object],
 ) -> None:
+    payload_snapshot = dict(payload_json)
+    payload_snapshot.setdefault("actor_name", _get_user_name_snapshot(db, user_id=actor_user_id))
     db.add(
         LibraryEvent(
             library_id=library_id,
@@ -934,7 +937,7 @@ def _create_library_event(
             review_id=review_id,
             loan_id=loan_id,
             event_type=event_type,
-            payload_json=payload_json,
+            payload_json=payload_snapshot,
         ),
     )
 
@@ -945,6 +948,30 @@ def _resolve_borrower_name(loan: CopyLoan) -> str:
     if loan.borrower_name is not None:
         return loan.borrower_name
     return "Prestatario desconocido"
+
+
+def _resolve_lender_name(loan: CopyLoan) -> str:
+    if loan.lender_user is not None:
+        return loan.lender_user.name
+    if loan.lender_name_snapshot:
+        return loan.lender_name_snapshot
+    return "Prestador desconocido"
+
+
+def _resolve_event_actor_name(event: LibraryEvent) -> str:
+    if event.actor_user is not None:
+        return event.actor_user.name
+    actor_name = event.payload_json.get("actor_name")
+    if isinstance(actor_name, str) and actor_name.strip():
+        return actor_name
+    return "Usuario desconocido"
+
+
+def _get_user_name_snapshot(db: Session, *, user_id: int) -> str:
+    user_name = db.scalar(select(User.name).where(User.id == user_id))
+    if user_name is None:
+        raise ValueError("No se pudo resolver el usuario del evento social.")
+    return user_name
 
 
 def _round_rating(value: object) -> float | None:

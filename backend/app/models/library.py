@@ -40,6 +40,7 @@ class Library(Base):
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+        index=True,
     )
 
     user_libraries: Mapped[list["UserLibrary"]] = relationship(

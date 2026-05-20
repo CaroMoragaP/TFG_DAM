@@ -112,7 +112,7 @@ class Book(Base):
         ForeignKey("collections.id", ondelete="SET NULL"),
         nullable=True,
     )
-    genre: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    genre: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
     publisher: Mapped["Publisher | None"] = relationship(back_populates="books")
     collection: Mapped["Collection | None"] = relationship(back_populates="books")
@@ -179,10 +179,12 @@ class Copy(Base):
     book_id: Mapped[int] = mapped_column(
         ForeignKey("books.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     library_id: Mapped[int] = mapped_column(
         ForeignKey("libraries.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     format: Mapped[CopyFormat] = mapped_column(
         EnumValueType(CopyFormat),

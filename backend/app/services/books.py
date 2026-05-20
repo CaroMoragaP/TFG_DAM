@@ -187,13 +187,6 @@ def list_books(
             user_copy_alias,
             (user_copy_alias.copy_id == Copy.id) & (user_copy_alias.user_id == user_id),
         )
-        .outerjoin(Publisher, Publisher.id == Book.publisher_id)
-        .outerjoin(Collection, Collection.id == Book.collection_id)
-        .outerjoin(BookAuthor, BookAuthor.book_id == Book.id)
-        .outerjoin(Author, Author.id == BookAuthor.author_id)
-        .outerjoin(Country, Country.id == Author.country_id)
-        .outerjoin(BookTheme, BookTheme.book_id == Book.id)
-        .outerjoin(Theme, Theme.id == BookTheme.theme_id)
         .options(*COPY_LOAD_OPTIONS)
         .where(
             UserLibrary.user_id == user_id,
@@ -214,9 +207,13 @@ def list_books(
             or_(
                 func.lower(Book.title).like(like_pattern),
                 func.lower(func.coalesce(Book.isbn, "")).like(like_pattern),
-                func.lower(func.coalesce(Publisher.name, "")).like(like_pattern),
-                func.lower(func.coalesce(Author.display_name, "")).like(like_pattern),
-                func.lower(func.coalesce(Theme.name, "")).like(like_pattern),
+                Book.publisher.has(func.lower(Publisher.name).like(like_pattern)),
+                Book.book_authors.any(
+                    BookAuthor.author.has(func.lower(Author.display_name).like(like_pattern)),
+                ),
+                Book.book_themes.any(
+                    BookTheme.theme.has(func.lower(Theme.name).like(like_pattern)),
+                ),
             ),
         )
 
@@ -230,20 +227,30 @@ def list_books(
     if normalized_theme == "__invalid__":
         return []
     if normalized_theme:
-        stmt = stmt.where(Theme.name == normalized_theme)
+        stmt = stmt.where(
+            Book.book_themes.any(
+                BookTheme.theme.has(Theme.name == normalized_theme),
+            ),
+        )
 
     normalized_collection = collection.strip().lower() if collection else None
     if normalized_collection:
         collection_like_pattern = f"%{normalized_collection}%"
         stmt = stmt.where(
-            func.lower(func.coalesce(Collection.name, "")).like(collection_like_pattern),
+            Book.collection.has(func.lower(Collection.name).like(collection_like_pattern)),
         )
 
     normalized_author_country = author_country.strip().lower() if author_country else None
     if normalized_author_country:
         author_country_like_pattern = f"%{normalized_author_country}%"
         stmt = stmt.where(
-            func.lower(func.coalesce(Country.name, "")).like(author_country_like_pattern),
+            Book.book_authors.any(
+                BookAuthor.author.has(
+                    Author.country.has(
+                        func.lower(Country.name).like(author_country_like_pattern),
+                    ),
+                ),
+            ),
         )
 
     if reading_status is not None:

@@ -113,6 +113,11 @@ def create_book(
     return response.json()
 
 
+def get_catalog_items(response) -> list[dict[str, object]]:
+    payload = response.json()
+    return payload["items"]
+
+
 def add_book_to_list(
     client: TestClient,
     headers: dict[str, str],
@@ -179,46 +184,46 @@ def test_books_catalog_filters_and_defaults(client: TestClient) -> None:
 
     reading_response = client.get("/books?reading_status=reading", headers=headers)
     assert reading_response.status_code == 200
-    assert [book["title"] for book in reading_response.json()] == ["Dune"]
+    assert [book["title"] for book in get_catalog_items(reading_response)] == ["Dune"]
 
     rating_response = client.get("/books?min_rating=4", headers=headers)
     assert rating_response.status_code == 200
-    assert {book["title"] for book in rating_response.json()} == {"Dune", "Hyperion"}
+    assert {book["title"] for book in get_catalog_items(rating_response)} == {"Dune", "Hyperion"}
 
     genre_response = client.get("/books?genre=narrativo", headers=headers)
     assert genre_response.status_code == 200
-    assert {book["title"] for book in genre_response.json()} == {"Dune", "Hyperion"}
+    assert {book["title"] for book in get_catalog_items(genre_response)} == {"Dune", "Hyperion"}
 
     theme_response = client.get("/books?theme=sci-fi", headers=headers)
     assert theme_response.status_code == 200
-    assert {book["title"] for book in theme_response.json()} == {"Dune", "Hyperion"}
+    assert {book["title"] for book in get_catalog_items(theme_response)} == {"Dune", "Hyperion"}
 
     collection_response = client.get("/books?collection=arrakis", headers=headers)
     assert collection_response.status_code == 200
-    assert [book["title"] for book in collection_response.json()] == ["Dune"]
+    assert [book["title"] for book in get_catalog_items(collection_response)] == ["Dune"]
 
     author_country_response = client.get("/books?author_country=unidos", headers=headers)
     assert author_country_response.status_code == 200
-    assert [book["title"] for book in author_country_response.json()] == ["Dune"]
+    assert [book["title"] for book in get_catalog_items(author_country_response)] == ["Dune"]
 
     search_response = client.get("/books?q=frank", headers=headers)
     assert search_response.status_code == 200
-    assert [book["title"] for book in search_response.json()] == ["Dune"]
+    assert [book["title"] for book in get_catalog_items(search_response)] == ["Dune"]
 
     all_books_response = client.get("/books", headers=headers)
     assert all_books_response.status_code == 200
-    assert {book["title"] for book in all_books_response.json()} == {"Dune", "Hyperion", "Emma"}
+    assert {book["title"] for book in get_catalog_items(all_books_response)} == {"Dune", "Hyperion", "Emma"}
 
     scoped_response = client.get(f"/books?library_id={shared_library_id}", headers=headers)
     assert scoped_response.status_code == 200
-    assert [book["title"] for book in scoped_response.json()] == ["Emma"]
+    assert [book["title"] for book in get_catalog_items(scoped_response)] == ["Emma"]
 
     combined_response = client.get(
         "/books?q=dune&genre=narrativo&theme=sci-fi&reading_status=reading&min_rating=5",
         headers=headers,
     )
     assert combined_response.status_code == 200
-    assert [book["title"] for book in combined_response.json()] == ["Dune"]
+    assert [book["title"] for book in get_catalog_items(combined_response)] == ["Dune"]
 
 
 def test_copy_detail_user_data_and_list_themes(
@@ -318,7 +323,7 @@ def test_copy_detail_user_data_and_list_themes(
 
     books_response = client.get("/books?reading_status=finished&min_rating=4", headers=headers)
     assert books_response.status_code == 200
-    assert [book["title"] for book in books_response.json()] == ["Neuromancer"]
+    assert [book["title"] for book in get_catalog_items(books_response)] == ["Neuromancer"]
 
     themes_response = client.get("/themes", headers=headers)
     assert themes_response.status_code == 200
@@ -624,7 +629,7 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
 
     filtered_response = client.get(f"/books?list_id={list_id}", headers=headers)
     assert filtered_response.status_code == 200
-    filtered_payload = filtered_response.json()
+    filtered_payload = get_catalog_items(filtered_response)
     assert {(item["id"], item["title"]) for item in filtered_payload} == {
         (dune_personal["id"], "Dune"),
         (dune_shared_payload["id"], "Dune"),
@@ -635,14 +640,14 @@ def test_books_catalog_can_filter_by_list(client: TestClient) -> None:
         headers=headers,
     )
     assert combined_response.status_code == 200
-    assert [book["id"] for book in combined_response.json()] == [dune_shared_payload["id"]]
+    assert [book["id"] for book in get_catalog_items(combined_response)] == [dune_shared_payload["id"]]
 
     non_matching_response = client.get(
         f"/books?list_id={list_id}&q=hyperion",
         headers=headers,
     )
     assert non_matching_response.status_code == 200
-    assert non_matching_response.json() == []
+    assert get_catalog_items(non_matching_response) == []
 
     missing_list_response = client.get("/books?list_id=9999", headers=headers)
     assert missing_list_response.status_code == 404

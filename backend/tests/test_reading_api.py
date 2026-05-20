@@ -68,6 +68,11 @@ def create_book(
     return response.json()
 
 
+def get_reading_items(response) -> list[dict[str, object]]:
+    payload = response.json()
+    return payload["items"]
+
+
 def test_reading_endpoint_lists_user_reading_data(client: TestClient) -> None:
     headers = register_user(client, name="Reader", email="reader@example.com")
     library_id = get_personal_library_id(client, headers)
@@ -101,10 +106,12 @@ def test_reading_endpoint_lists_user_reading_data(client: TestClient) -> None:
     response = client.get("/reading", headers=headers)
     assert response.status_code == 200
     payload = response.json()
+    items = payload["items"]
 
-    assert [item["title"] for item in payload] == ["Kindred", "Parable of the Sower"]
+    assert [item["title"] for item in items] == ["Kindred", "Parable of the Sower"]
+    assert payload["total"] == 2
 
-    pending_item = next(item for item in payload if item["title"] == "Kindred")
+    pending_item = next(item for item in items if item["title"] == "Kindred")
     assert pending_item["copy_id"] == pending_book["id"]
     assert pending_item["reading_status"] == "pending"
     assert pending_item["rating"] is None
@@ -112,7 +119,7 @@ def test_reading_endpoint_lists_user_reading_data(client: TestClient) -> None:
     assert pending_item["end_date"] is None
     assert pending_item["personal_notes"] is None
 
-    reading_item = next(item for item in payload if item["title"] == "Parable of the Sower")
+    reading_item = next(item for item in items if item["title"] == "Parable of the Sower")
     assert reading_item["reading_status"] == "reading"
     assert reading_item["rating"] == 5
     assert reading_item["personal_notes"] == "Lectura principal"
@@ -135,7 +142,7 @@ def test_reading_endpoint_treats_missing_user_copy_as_pending(client: TestClient
 
     reading_response = client.get("/reading", headers=owner_headers)
     assert reading_response.status_code == 200
-    item = next(entry for entry in reading_response.json() if entry["copy_id"] == created["id"])
+    item = next(entry for entry in get_reading_items(reading_response) if entry["copy_id"] == created["id"])
     assert item["reading_status"] == "pending"
 
 
@@ -161,7 +168,7 @@ def test_reading_endpoint_supports_library_filter(client: TestClient) -> None:
 
     scoped_response = client.get(f"/reading?library_id={shared_library_id}", headers=headers)
     assert scoped_response.status_code == 200
-    assert [item["title"] for item in scoped_response.json()] == ["Patternmaster"]
+    assert [item["title"] for item in get_reading_items(scoped_response)] == ["Patternmaster"]
 
 
 def test_reading_endpoint_blocks_inaccessible_libraries(client: TestClient) -> None:

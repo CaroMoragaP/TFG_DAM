@@ -29,6 +29,7 @@ from app.schemas.catalog_io import CatalogImportResultRowOut
 from app.schemas.catalog_io import CatalogImportRowPayload
 from app.services.books import COPY_LOAD_OPTIONS
 from app.services.books import DuplicateBookCopyError
+from app.services.books import ImportResolverCache
 from app.services.books import create_book_in_transaction
 from app.services.books import list_books
 from app.services.external_books import ExternalBookLookupNotFoundError
@@ -267,11 +268,13 @@ def commit_catalog_import(
     failed = 0
     imported_titles: list[str] = []
     warnings: list[str] = []
+    resolver_cache = ImportResolverCache()
 
     for row in payload.rows:
         if row.status != "ready" or row.normalized_payload is None:
             continue
 
+        row_cache = resolver_cache.clone()
         try:
             # Re-validate preview payloads on commit because they round-trip via HTTP
             # and can be edited/tampered with between preview and persistence.
@@ -282,7 +285,12 @@ def commit_catalog_import(
                 },
             )
             with db.begin_nested():
-                copy = create_book_in_transaction(db, user_id=user_id, data=book_create)
+                copy = create_book_in_transaction(
+                    db,
+                    user_id=user_id,
+                    data=book_create,
+                    resolver_cache=row_cache,
+                )
                 get_or_create_user_copy(
                     db,
                     user_id=user_id,
@@ -299,6 +307,7 @@ def commit_catalog_import(
                     book_id=copy.book_id,
                 ),
             )
+            resolver_cache = row_cache
             imported += 1
             imported_titles.append(book_create.title)
         except DuplicateBookCopyError as exc:

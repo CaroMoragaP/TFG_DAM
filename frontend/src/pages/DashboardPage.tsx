@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
@@ -29,6 +29,8 @@ import {
   type CatalogImportPreviewRow,
   type UserList,
 } from "../lib/api";
+
+const BOOKS_PAGE_SIZE = 24;
 
 export function DashboardPage() {
   const { token } = useAuth();
@@ -99,7 +101,7 @@ export function DashboardPage() {
     enabled: Boolean(token),
   });
 
-  const booksQuery = useQuery({
+  const booksQuery = useInfiniteQuery({
     queryKey: [
       "books",
       {
@@ -112,7 +114,8 @@ export function DashboardPage() {
         authorCountry,
       },
     ],
-    queryFn: () =>
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       fetchBooks(token ?? "", {
         libraryId: selectedLibraryId,
         listId: selectedListId,
@@ -121,7 +124,13 @@ export function DashboardPage() {
         theme: theme || undefined,
         collection: collection || undefined,
         authorCountry: authorCountry || undefined,
+        limit: BOOKS_PAGE_SIZE,
+        offset: pageParam,
       }),
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
     enabled: Boolean(token),
   });
 
@@ -209,6 +218,8 @@ export function DashboardPage() {
   });
 
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
+  const books = booksQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const totalBooks = booksQuery.data?.pages[0]?.total ?? 0;
   const visibleLists = listsQuery.data ?? [];
   const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
   const showLibraryBadge = libraries.length > 1;
@@ -413,8 +424,8 @@ export function DashboardPage() {
       {booksQuery.data ? (
         <div className="dashboard-results-row">
           <p>
-            <strong>{booksQuery.data.length}</strong>{" "}
-            {booksQuery.data.length === 1 ? "libro encontrado" : "libros encontrados"}
+            <strong>{totalBooks}</strong> {totalBooks === 1 ? "libro encontrado" : "libros encontrados"}
+            {books.length < totalBooks ? ` · ${books.length} cargados` : ""}
           </p>
         </div>
       ) : null}
@@ -447,7 +458,7 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      {booksQuery.data && booksQuery.data.length === 0 ? (
+      {booksQuery.data && totalBooks === 0 ? (
         <div className="panel dashboard-empty-state">
           <div className="dashboard-empty-state-mark" aria-hidden="true">
             <span />
@@ -471,24 +482,38 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      {booksQuery.data && booksQuery.data.length > 0 ? (
-        <div className="catalog-grid dashboard-catalog-grid">
-          {booksQuery.data.map((book) => {
-            const library = libraryMap.get(book.library_id);
-            const canEdit = library ? !library.is_archived && library.role !== "viewer" : false;
+      {booksQuery.data && books.length > 0 ? (
+        <div className="content-stack">
+          <div className="catalog-grid dashboard-catalog-grid">
+            {books.map((book) => {
+              const library = libraryMap.get(book.library_id);
+              const canEdit = library ? !library.is_archived && library.role !== "viewer" : false;
 
-            return (
-              <BookCard
-                key={book.id}
-                book={book}
-                library={library}
-                showLibraryBadge={showLibraryBadge}
-                canEdit={canEdit}
-                onAddToList={handleOpenAddToListModal}
-                onEdit={handleOpenEditModal}
-              />
-            );
-          })}
+              return (
+                <BookCard
+                  key={book.id}
+                  book={book}
+                  library={library}
+                  showLibraryBadge={showLibraryBadge}
+                  canEdit={canEdit}
+                  onAddToList={handleOpenAddToListModal}
+                  onEdit={handleOpenEditModal}
+                />
+              );
+            })}
+          </div>
+          {booksQuery.hasNextPage ? (
+            <div className="inline-actions">
+              <button
+                className="ghost-link compact-action"
+                type="button"
+                onClick={() => void booksQuery.fetchNextPage()}
+                disabled={booksQuery.isFetchingNextPage}
+              >
+                {booksQuery.isFetchingNextPage ? "Cargando..." : "Cargar más libros"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

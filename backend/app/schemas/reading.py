@@ -27,3 +27,17 @@ class ReadingShelfItemOut(BaseModel):
     public_review_count: int = 0
     public_average_rating: float | None = None
     my_public_review: ReviewOut | None = None
+
+
+class ReadingShelfStatusCountsOut(BaseModel):
+    pending: int
+    reading: int
+    finished: int
+
+
+class ReadingShelfPageOut(BaseModel):
+    items: list[ReadingShelfItemOut]
+    total: int
+    limit: int
+    offset: int
+    status_counts: ReadingShelfStatusCountsOut

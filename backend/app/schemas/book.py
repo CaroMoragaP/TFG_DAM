@@ -217,6 +217,13 @@ class BookOut(CopyBaseOut):
     user_rating: int | None
 
 
+class BooksPageOut(BaseModel):
+    items: list[BookOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class CopyDetailOut(CopyBaseOut):
     pass
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
+from dataclasses import field
 
 from sqlalchemy import func
 from sqlalchemy import or_
@@ -71,14 +73,45 @@ class DuplicateBookIsbnError(ValueError):
     """Raised when trying to reuse an ISBN already assigned elsewhere."""
 
 
+@dataclass(slots=True)
+class BooksPage:
+    items: list[Copy]
+    total: int
+    limit: int
+    offset: int
+
+
+@dataclass
+class ImportResolverCache:
+    publishers: dict[str, Publisher] = field(default_factory=dict)
+    collections: dict[str, Collection] = field(default_factory=dict)
+    authors: dict[str, Author] = field(default_factory=dict)
+    countries: dict[str, Country] = field(default_factory=dict)
+    themes: dict[str, Theme] = field(default_factory=dict)
+    books_by_isbn: dict[str, Book] = field(default_factory=dict)
+    books_by_identity: dict[str, Book] = field(default_factory=dict)
+
+    def clone(self) -> ImportResolverCache:
+        return ImportResolverCache(
+            publishers=self.publishers.copy(),
+            collections=self.collections.copy(),
+            authors=self.authors.copy(),
+            countries=self.countries.copy(),
+            themes=self.themes.copy(),
+            books_by_isbn=self.books_by_isbn.copy(),
+            books_by_identity=self.books_by_identity.copy(),
+        )
+
+
 def create_book_in_transaction(
     db: Session,
     *,
     user_id: int,
     data: BookCreate,
+    resolver_cache: ImportResolverCache | None = None,
 ) -> Copy:
     del user_id
-    book = _get_or_create_book(db, data)
+    book = _get_or_create_book(db, data, resolver_cache=resolver_cache)
     existing_copy = db.scalar(
         select(Copy).where(
             Copy.book_id == book.id,
@@ -167,6 +200,90 @@ def list_books(
     reading_status: ReadingStatus | None = None,
     min_rating: int | None = None,
 ) -> Sequence[Copy]:
+    stmt = _build_list_books_stmt(
+        db,
+        user_id=user_id,
+        library_id=library_id,
+        list_id=list_id,
+        q=q,
+        genre=genre,
+        theme=theme,
+        collection=collection,
+        author_country=author_country,
+        reading_status=reading_status,
+        min_rating=min_rating,
+    )
+    if stmt is None:
+        return []
+
+    rows = db.execute(
+        stmt.options(*COPY_LOAD_OPTIONS).order_by(Book.title.asc(), Copy.id.asc()),
+    ).unique().all()
+    copies = _hydrate_copy_personal_fields(rows)
+    attach_copy_social_summaries(db, copies)
+    return copies
+
+
+def list_books_page(
+    db: Session,
+    *,
+    user_id: int,
+    library_id: int | None = None,
+    list_id: int | None = None,
+    q: str | None = None,
+    genre: str | None = None,
+    theme: str | None = None,
+    collection: str | None = None,
+    author_country: str | None = None,
+    reading_status: ReadingStatus | None = None,
+    min_rating: int | None = None,
+    limit: int,
+    offset: int,
+) -> BooksPage:
+    stmt = _build_list_books_stmt(
+        db,
+        user_id=user_id,
+        library_id=library_id,
+        list_id=list_id,
+        q=q,
+        genre=genre,
+        theme=theme,
+        collection=collection,
+        author_country=author_country,
+        reading_status=reading_status,
+        min_rating=min_rating,
+    )
+    if stmt is None:
+        return BooksPage(items=[], total=0, limit=limit, offset=offset)
+
+    total = db.scalar(
+        select(func.count()).select_from(stmt.order_by(None).subquery()),
+    ) or 0
+    rows = db.execute(
+        stmt.options(*COPY_LOAD_OPTIONS)
+        .order_by(Book.title.asc(), Copy.id.asc())
+        .offset(offset)
+        .limit(limit),
+    ).unique().all()
+    copies = _hydrate_copy_personal_fields(rows)
+    attach_copy_social_summaries(db, copies)
+    return BooksPage(items=copies, total=total, limit=limit, offset=offset)
+
+
+def _build_list_books_stmt(
+    db: Session,
+    *,
+    user_id: int,
+    library_id: int | None = None,
+    list_id: int | None = None,
+    q: str | None = None,
+    genre: str | None = None,
+    theme: str | None = None,
+    collection: str | None = None,
+    author_country: str | None = None,
+    reading_status: ReadingStatus | None = None,
+    min_rating: int | None = None,
+):
     if library_id is not None:
         get_accessible_library(
             db,
@@ -192,7 +309,6 @@ def list_books(
             UserLibrary.user_id == user_id,
             Library.archived_at.is_(None),
         )
-        .order_by(Book.title.asc(), Copy.id.asc())
     )
 
     if library_id is not None:
@@ -219,13 +335,13 @@ def list_books(
 
     normalized_genre = normalize_literary_genre(genre, invalid_fallback="__invalid__")
     if normalized_genre == "__invalid__":
-        return []
+        return None
     if normalized_genre:
         stmt = stmt.where(Book.genre == normalized_genre)
 
     normalized_theme = normalize_theme(theme, invalid_fallback="__invalid__")
     if normalized_theme == "__invalid__":
-        return []
+        return None
     if normalized_theme:
         stmt = stmt.where(
             Book.book_themes.any(
@@ -267,10 +383,7 @@ def list_books(
     if min_rating is not None:
         stmt = stmt.where(user_copy_alias.rating.is_not(None), user_copy_alias.rating >= min_rating)
 
-    rows = db.execute(stmt).unique().all()
-    copies = _hydrate_copy_personal_fields(rows)
-    attach_copy_social_summaries(db, copies)
-    return copies
+    return stmt
 
 
 def list_themes(db: Session) -> list[str]:
@@ -504,20 +617,33 @@ def serialize_book_metadata(book: Book) -> BookMetadataOut:
     )
 
 
-def _get_or_create_book(db: Session, data: BookCreate) -> Book:
+def _get_or_create_book(
+    db: Session,
+    data: BookCreate,
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> Book:
     if data.isbn is not None:
+        normalized_isbn = _normalize_text_lookup_key(data.isbn)
+        if resolver_cache is not None and normalized_isbn is not None:
+            cached_book = resolver_cache.books_by_isbn.get(normalized_isbn)
+            if cached_book is not None:
+                return cached_book
+
         existing_book = db.scalar(select(Book).where(Book.isbn == data.isbn))
         if existing_book is not None:
+            if resolver_cache is not None and normalized_isbn is not None:
+                resolver_cache.books_by_isbn[normalized_isbn] = existing_book
             return existing_book
 
-    existing_book = _find_existing_book_by_identity(db, data)
+    existing_book = _find_existing_book_by_identity(db, data, resolver_cache=resolver_cache)
     if existing_book is not None:
         return existing_book
 
-    publisher = _resolve_publisher(db, data.publisher_name)
-    collection = _resolve_collection(db, data.collection_name)
-    authors = _resolve_authors(db, _build_author_inputs(data))
-    themes = _resolve_themes(db, data.themes)
+    publisher = _resolve_publisher(db, data.publisher_name, resolver_cache=resolver_cache)
+    collection = _resolve_collection(db, data.collection_name, resolver_cache=resolver_cache)
+    authors = _resolve_authors(db, _build_author_inputs(data), resolver_cache=resolver_cache)
+    themes = _resolve_themes(db, data.themes, resolver_cache=resolver_cache)
     book_authors = [BookAuthor(author=author) for author in authors]
 
     book = Book(
@@ -538,10 +664,16 @@ def _get_or_create_book(db: Session, data: BookCreate) -> Book:
     ]
     _assign_primary_author_metadata(
         book.book_authors,
-        country=_resolve_country(db, data.author_country_name),
+        country=_resolve_country(db, data.author_country_name, resolver_cache=resolver_cache),
         sex=data.author_sex,
     )
     db.flush()
+    if resolver_cache is not None:
+        if data.isbn is not None and normalized_isbn is not None:
+            resolver_cache.books_by_isbn[normalized_isbn] = book
+        identity_key = _build_book_identity_cache_key(data)
+        if identity_key is not None:
+            resolver_cache.books_by_identity[identity_key] = book
     return book
 
 
@@ -598,42 +730,84 @@ def _get_editable_book_for_owner(
     )
 
 
-def _resolve_publisher(db: Session, name: str | None) -> Publisher | None:
+def _resolve_publisher(
+    db: Session,
+    name: str | None,
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> Publisher | None:
     if name is None:
         return None
+
+    cache_key = _normalize_text_lookup_key(name)
+    if resolver_cache is not None and cache_key is not None:
+        cached_publisher = resolver_cache.publishers.get(cache_key)
+        if cached_publisher is not None:
+            return cached_publisher
 
     stmt = select(Publisher).where(func.lower(Publisher.name) == name.lower())
     publisher = db.scalar(stmt)
     if publisher is not None:
+        if resolver_cache is not None and cache_key is not None:
+            resolver_cache.publishers[cache_key] = publisher
         return publisher
 
     publisher = Publisher(name=name)
     db.add(publisher)
     db.flush()
+    if resolver_cache is not None and cache_key is not None:
+        resolver_cache.publishers[cache_key] = publisher
     return publisher
 
 
-def _resolve_collection(db: Session, name: str | None) -> Collection | None:
+def _resolve_collection(
+    db: Session,
+    name: str | None,
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> Collection | None:
     if name is None:
         return None
+
+    cache_key = _normalize_text_lookup_key(name)
+    if resolver_cache is not None and cache_key is not None:
+        cached_collection = resolver_cache.collections.get(cache_key)
+        if cached_collection is not None:
+            return cached_collection
 
     stmt = select(Collection).where(func.lower(Collection.name) == name.lower())
     collection = db.scalar(stmt)
     if collection is not None:
+        if resolver_cache is not None and cache_key is not None:
+            resolver_cache.collections[cache_key] = collection
         return collection
 
     collection = Collection(name=name)
     db.add(collection)
     db.flush()
+    if resolver_cache is not None and cache_key is not None:
+        resolver_cache.collections[cache_key] = collection
     return collection
 
 
-def _resolve_authors(db: Session, names: list[StructuredAuthorName]) -> list[Author]:
+def _resolve_authors(
+    db: Session,
+    names: list[StructuredAuthorName],
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> list[Author]:
     authors: list[Author] = []
 
     for name in names:
         if name.display_name is None:
             continue
+        cache_key = _normalize_text_lookup_key(name.display_name)
+        if resolver_cache is not None and cache_key is not None:
+            cached_author = resolver_cache.authors.get(cache_key)
+            if cached_author is not None:
+                authors.append(cached_author)
+                continue
+
         stmt = select(Author).where(func.lower(Author.display_name) == name.display_name.lower())
         author = db.scalar(stmt)
         if author is None:
@@ -644,27 +818,49 @@ def _resolve_authors(db: Session, names: list[StructuredAuthorName]) -> list[Aut
             )
             db.add(author)
             db.flush()
+        if resolver_cache is not None and cache_key is not None:
+            resolver_cache.authors[cache_key] = author
         authors.append(author)
 
     return authors
 
 
-def _resolve_country(db: Session, name: str | None) -> Country | None:
+def _resolve_country(
+    db: Session,
+    name: str | None,
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> Country | None:
     if name is None:
         return None
+
+    cache_key = _normalize_text_lookup_key(name)
+    if resolver_cache is not None and cache_key is not None:
+        cached_country = resolver_cache.countries.get(cache_key)
+        if cached_country is not None:
+            return cached_country
 
     stmt = select(Country).where(func.lower(Country.name) == name.lower())
     country = db.scalar(stmt)
     if country is not None:
+        if resolver_cache is not None and cache_key is not None:
+            resolver_cache.countries[cache_key] = country
         return country
 
     country = Country(name=name)
     db.add(country)
     db.flush()
+    if resolver_cache is not None and cache_key is not None:
+        resolver_cache.countries[cache_key] = country
     return country
 
 
-def _resolve_themes(db: Session, names: list[str]) -> list[Theme]:
+def _resolve_themes(
+    db: Session,
+    names: list[str],
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> list[Theme]:
     themes: list[Theme] = []
 
     for name in names:
@@ -672,12 +868,20 @@ def _resolve_themes(db: Session, names: list[str]) -> list[Theme]:
         if canonical_name is None:
             continue
 
+        if resolver_cache is not None:
+            cached_theme = resolver_cache.themes.get(canonical_name)
+            if cached_theme is not None:
+                themes.append(cached_theme)
+                continue
+
         stmt = select(Theme).where(Theme.name == canonical_name)
         theme = db.scalar(stmt)
         if theme is None:
             theme = Theme(name=canonical_name)
             db.add(theme)
             db.flush()
+        if resolver_cache is not None:
+            resolver_cache.themes[canonical_name] = theme
         themes.append(theme)
 
     return themes
@@ -805,10 +1009,21 @@ def _build_author_inputs(data: BookCreate | BookMetadataUpdate) -> list[Structur
     ]
 
 
-def _find_existing_book_by_identity(db: Session, data: BookCreate) -> Book | None:
+def _find_existing_book_by_identity(
+    db: Session,
+    data: BookCreate,
+    *,
+    resolver_cache: ImportResolverCache | None = None,
+) -> Book | None:
     author_inputs = _build_author_inputs(data)
     if not author_inputs or author_inputs[0].display_name is None:
         return None
+
+    identity_key = _build_book_identity_cache_key(data)
+    if resolver_cache is not None and identity_key is not None:
+        cached_book = resolver_cache.books_by_identity.get(identity_key)
+        if cached_book is not None:
+            return cached_book
 
     normalized_author_name = normalize_author_lookup_key(author_inputs[0].display_name)
     if normalized_author_name is None:
@@ -827,9 +1042,32 @@ def _find_existing_book_by_identity(db: Session, data: BookCreate) -> Book | Non
         if primary_author is None:
             continue
         if normalize_author_lookup_key(primary_author.display_name) == normalized_author_name:
+            if resolver_cache is not None and identity_key is not None:
+                resolver_cache.books_by_identity[identity_key] = candidate
             return candidate
 
     return None
+
+
+def _normalize_text_lookup_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    normalized = value.strip().casefold()
+    return normalized or None
+
+
+def _build_book_identity_cache_key(data: BookCreate) -> str | None:
+    author_inputs = _build_author_inputs(data)
+    if not author_inputs or author_inputs[0].display_name is None:
+        return None
+
+    normalized_title = normalize_author_lookup_key(data.title)
+    normalized_author = normalize_author_lookup_key(author_inputs[0].display_name)
+    if normalized_title is None or normalized_author is None:
+        return None
+
+    return f"{normalized_title}::{normalized_author}"
 
 
 def _assert_copy_access(

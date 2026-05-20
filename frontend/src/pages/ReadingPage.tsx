@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
@@ -21,7 +21,6 @@ import {
 } from "../lib/api";
 import { readingStatusSectionLabels, readingStatusValueLabels } from "../lib/labels";
 import { deriveReadingStatusFromDates } from "../lib/readingProgress";
-import { compareText } from "../lib/sorting";
 import { normalizeLibraryFilterParam, normalizePositiveIntegerParam } from "../lib/urlParams";
 
 type ReadingTab = ReadingStatus;
@@ -77,6 +76,7 @@ const sortOptionsByTab: Record<ReadingTab, Array<{ value: ReadingSort; label: st
 };
 
 const readingTabSequence: ReadingTab[] = ["pending", "reading", "finished"];
+const READING_PAGE_SIZE = 20;
 const longDateFormatter = new Intl.DateTimeFormat("es-ES", {
   day: "2-digit",
   month: "short",
@@ -110,111 +110,6 @@ function getDefaultSort(tab: ReadingTab): ReadingSort {
     return "recent-finish";
   }
   return "recent-start";
-}
-
-function normalizeSearchText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function matchesSearchQuery(item: ReadingShelfItem, query: string) {
-  if (!query) {
-    return true;
-  }
-
-  const normalizedQuery = normalizeSearchText(query);
-  const searchableFields = [
-    item.title,
-    ...item.authors,
-    item.collection ?? "",
-    item.genre ?? "",
-    item.author_country ?? "",
-  ];
-
-  return searchableFields.some((field) => normalizeSearchText(field).includes(normalizedQuery));
-}
-
-function compareNullableDates(left: string | null, right: string | null, descending: boolean) {
-  if (left === null && right === null) {
-    return 0;
-  }
-  if (left === null) {
-    return 1;
-  }
-  if (right === null) {
-    return -1;
-  }
-
-  const timeDifference = new Date(left).getTime() - new Date(right).getTime();
-  return descending ? -timeDifference : timeDifference;
-}
-
-function compareNullableRatings(left: number | null, right: number | null) {
-  if (left === null && right === null) {
-    return 0;
-  }
-  if (left === null) {
-    return 1;
-  }
-  if (right === null) {
-    return -1;
-  }
-  return right - left;
-}
-
-function sortReadingItems(items: ReadingShelfItem[], sort: ReadingSort) {
-  const sorted = [...items];
-  sorted.sort((left, right) => {
-    if (sort === "title") {
-      return compareText(left.title, right.title);
-    }
-    if (sort === "author") {
-      const authorDifference = compareText(left.authors[0] ?? "", right.authors[0] ?? "");
-      if (authorDifference !== 0) {
-        return authorDifference;
-      }
-      return compareText(left.title, right.title);
-    }
-    if (sort === "recent-start") {
-      const dateDifference = compareNullableDates(left.start_date, right.start_date, true);
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
-      return compareText(left.title, right.title);
-    }
-    if (sort === "oldest-start") {
-      const dateDifference = compareNullableDates(left.start_date, right.start_date, false);
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
-      return compareText(left.title, right.title);
-    }
-    if (sort === "recent-finish") {
-      const dateDifference = compareNullableDates(left.end_date, right.end_date, true);
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
-      return compareText(left.title, right.title);
-    }
-    if (sort === "oldest-finish") {
-      const dateDifference = compareNullableDates(left.end_date, right.end_date, false);
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
-      return compareText(left.title, right.title);
-    }
-
-    const ratingDifference = compareNullableRatings(left.rating, right.rating);
-    if (ratingDifference !== 0) {
-      return ratingDifference;
-    }
-    return compareText(left.title, right.title);
-  });
-
-  return sorted;
 }
 
 function buildEditorState(item: ReadingShelfItem): EditorState {
@@ -411,10 +306,33 @@ export function ReadingPage() {
     };
   }, [q, searchDraft, searchParams, setSearchParams]);
 
-  const readingQuery = useQuery({
-    queryKey: ["reading-shelf", selectedLibraryId ?? "all"],
-    queryFn: () => fetchReadingShelf(token ?? "", { libraryId: selectedLibraryId }),
+  const readingQuery = useInfiniteQuery({
+    queryKey: ["reading-shelf", selectedLibraryId ?? "all", tab, q, sort],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      fetchReadingShelf(token ?? "", {
+        libraryId: selectedLibraryId,
+        q,
+        readingStatus: tab,
+        sort,
+        limit: READING_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
     enabled: Boolean(token),
+  });
+  const selectedItemQuery = useQuery({
+    queryKey: ["reading-shelf", "selected", selectedCopyId ?? null],
+    queryFn: () =>
+      fetchReadingShelf(token ?? "", {
+        copyId: selectedCopyId ?? undefined,
+        limit: 1,
+        offset: 0,
+      }),
+    enabled: Boolean(token && selectedCopyId !== null),
   });
 
   const updateReadingMutation = useMutation({
@@ -478,37 +396,20 @@ export function ReadingPage() {
     },
   });
 
-  const counts = useMemo(() => {
-    return readingTabSequence.reduce(
-      (accumulator, status) => {
-        accumulator[status] = (readingQuery.data ?? []).filter((item) => item.reading_status === status).length;
-        return accumulator;
-      },
-      {
-        pending: 0,
-        reading: 0,
-        finished: 0,
-      },
-    );
-  }, [readingQuery.data]);
-
-  const filteredItems = useMemo(() => {
-    const items = (readingQuery.data ?? []).filter(
-      (item) => item.reading_status === tab && matchesSearchQuery(item, normalizedSearchQuery),
-    );
-    return sortReadingItems(items, sort);
-  }, [normalizedSearchQuery, readingQuery.data, sort, tab]);
-  const selectedItem = useMemo(
-    () => (readingQuery.data ?? []).find((item) => item.copy_id === selectedCopyId) ?? null,
-    [readingQuery.data, selectedCopyId],
-  );
-  const visibleItems = selectedItem ? [selectedItem] : filteredItems;
+  const shelfItems = readingQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const counts = readingQuery.data?.pages[0]?.status_counts ?? {
+    pending: 0,
+    reading: 0,
+    finished: 0,
+  };
+  const totalShelfItems = readingQuery.data?.pages[0]?.total ?? 0;
+  const selectedItem = selectedItemQuery.data?.items[0] ?? null;
+  const visibleItems = selectedItem ? [selectedItem] : shelfItems;
 
   const showLibraryBadge = availableLibraries.length > 1;
+  const readingError = selectedCopyId !== null && selectedItemQuery.isError ? selectedItemQuery.error : readingQuery.error;
   const errorMessage =
-    readingQuery.error instanceof Error
-      ? readingQuery.error.message
-      : "No se pudieron cargar tus lecturas.";
+    readingError instanceof Error ? readingError.message : "No se pudieron cargar tus lecturas.";
   const saveReadingErrorMessage =
     updateReadingMutation.isError
       ? updateReadingMutation.error instanceof Error
@@ -537,7 +438,7 @@ export function ReadingPage() {
       return;
     }
 
-    if (!selectedCopyId || !readingQuery.data) {
+    if (!selectedCopyId || selectedItemQuery.isPending) {
       return;
     }
 
@@ -559,7 +460,7 @@ export function ReadingPage() {
     autoOpenedCopyIdRef.current = targetItem.copy_id;
     setEditingCopyId(targetItem.copy_id);
     setEditorState(buildEditorState(targetItem));
-  }, [libraryValue, readingQuery.data, selectedCopyId, selectedItem, selectedLibraryId, updateSearchParam]);
+  }, [libraryValue, selectedCopyId, selectedItem, selectedItemQuery.isPending, selectedLibraryId, updateSearchParam]);
 
   function handleOpenEditor(item: ReadingShelfItem) {
     updateReadingMutation.reset();
@@ -937,7 +838,16 @@ export function ReadingPage() {
         </div>
       ) : null}
 
-      {readingQuery.isPending ? (
+      {readingQuery.data && selectedCopyId === null ? (
+        <div className="dashboard-results-row">
+          <p>
+            <strong>{totalShelfItems}</strong> {totalShelfItems === 1 ? "libro en esta vista" : "libros en esta vista"}
+            {visibleItems.length < totalShelfItems ? ` · ${visibleItems.length} cargados` : ""}
+          </p>
+        </div>
+      ) : null}
+
+      {readingQuery.isPending && selectedItem === null ? (
         <div className="content-stack">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="book-skeleton panel" aria-hidden="true" />
@@ -945,13 +855,17 @@ export function ReadingPage() {
         </div>
       ) : null}
 
-      {readingQuery.isError ? (
+      {(readingQuery.isError || selectedItemQuery.isError) ? (
         <div className="panel">
           <p>{errorMessage}</p>
         </div>
       ) : null}
 
-      {!readingQuery.isPending && !readingQuery.isError && visibleItems.length === 0 ? (
+      {!readingQuery.isPending &&
+      !readingQuery.isError &&
+      !selectedItemQuery.isError &&
+      selectedCopyId === null &&
+      visibleItems.length === 0 ? (
         <div className="panel empty-state">
           <h3>
             {normalizedSearchQuery
@@ -988,7 +902,7 @@ export function ReadingPage() {
         </div>
       ) : null}
 
-      {!readingQuery.isPending && !readingQuery.isError && visibleItems.length > 0 ? (
+      {!readingQuery.isPending && !readingQuery.isError && !selectedItemQuery.isError && visibleItems.length > 0 ? (
         <div className="content-stack">
           {visibleItems.map((item) => {
             const library = getLibraryForItem(libraries, item);
@@ -1261,6 +1175,18 @@ export function ReadingPage() {
               </article>
             );
           })}
+          {selectedItem === null && readingQuery.hasNextPage ? (
+            <div className="inline-actions">
+              <button
+                className="ghost-link compact-action"
+                type="button"
+                onClick={() => void readingQuery.fetchNextPage()}
+                disabled={readingQuery.isFetchingNextPage}
+              >
+                {readingQuery.isFetchingNextPage ? "Cargando..." : "Cargar más lecturas"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

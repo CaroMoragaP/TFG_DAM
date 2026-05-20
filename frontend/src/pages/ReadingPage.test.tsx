@@ -139,6 +139,66 @@ function buildShelf() {
   ];
 }
 
+function countStatuses(items: ReturnType<typeof buildShelf>) {
+  return items.reduce(
+    (accumulator, item) => {
+      accumulator[item.reading_status] += 1;
+      return accumulator;
+    },
+    {
+      pending: 0,
+      reading: 0,
+      finished: 0,
+    },
+  );
+}
+
+function mockReadingShelfApi(items = buildShelf()) {
+  apiMocks.fetchReadingShelf.mockImplementation(async (_token: string, params?: {
+    libraryId?: number;
+    copyId?: number;
+    q?: string;
+    readingStatus?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const libraryScoped = items.filter((item) =>
+      params?.libraryId === undefined ? true : item.library_id === params.libraryId,
+    );
+    const counts = countStatuses(libraryScoped);
+    let filtered = libraryScoped;
+
+    if (params?.copyId !== undefined) {
+      filtered = filtered.filter((item) => item.copy_id === params.copyId);
+    }
+    if (params?.readingStatus) {
+      filtered = filtered.filter((item) => item.reading_status === params.readingStatus);
+    }
+    if (params?.q) {
+      const normalizedQuery = params.q.toLowerCase();
+      filtered = filtered.filter((item) =>
+        [
+          item.title,
+          ...item.authors,
+          item.collection ?? "",
+          item.genre ?? "",
+          item.author_country ?? "",
+        ].some((field) => field.toLowerCase().includes(normalizedQuery)),
+      );
+    }
+
+    const offset = params?.offset ?? 0;
+    const limit = params?.limit ?? filtered.length;
+    return {
+      items: filtered.slice(offset, offset + limit),
+      total: filtered.length,
+      limit,
+      offset,
+      status_counts: counts,
+    };
+  });
+}
+
 function renderPage(initialEntry = "/lectura?tab=reading&library=all") {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -169,15 +229,22 @@ function openEditorForTitle(title: string) {
 describe("ReadingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockReadingShelfApi();
   });
 
   it("loads the reading shelf, separates tabs, and avoids catalog-only actions", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
-
     renderPage();
 
     await waitFor(() => {
-      expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith("token", { libraryId: undefined });
+      expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith(
+        "token",
+        expect.objectContaining({
+          libraryId: undefined,
+          readingStatus: "reading",
+          limit: 20,
+          offset: 0,
+        }),
+      );
     });
 
     await screen.findByText("Dune");
@@ -194,7 +261,6 @@ describe("ReadingPage", () => {
   });
 
   it("filters by library and saves reading changes from the main workflow", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 11,
       reading_status: "finished",
@@ -214,7 +280,10 @@ describe("ReadingPage", () => {
     });
 
     await waitFor(() => {
-      expect(apiMocks.fetchReadingShelf).toHaveBeenLastCalledWith("token", { libraryId: 1 });
+      expect(apiMocks.fetchReadingShelf).toHaveBeenLastCalledWith(
+        "token",
+        expect.objectContaining({ libraryId: 1, readingStatus: "reading" }),
+      );
     });
 
     await screen.findByText("Dune");
@@ -240,7 +309,6 @@ describe("ReadingPage", () => {
   });
 
   it("keeps the editor open and shows the save error next to the action buttons", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockRejectedValue(new Error("No se pudo guardar ahora."));
 
     renderPage();
@@ -259,7 +327,6 @@ describe("ReadingPage", () => {
   });
 
   it("opens the shared item editor from copy query param and publishes from the same reading workflow", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 12,
       reading_status: "pending",
@@ -309,8 +376,6 @@ describe("ReadingPage", () => {
   });
 
   it("keeps the pending tab active when opening a non-pending copy from the query string", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
-
     renderPage("/lectura?tab=pending&library=1&copy=11");
 
     await screen.findByText("Dune");
@@ -319,14 +384,15 @@ describe("ReadingPage", () => {
       expect(screen.getByText("Mi lectura")).toBeInTheDocument();
     });
 
-    expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith("token", { libraryId: 1 });
+    expect(apiMocks.fetchReadingShelf).toHaveBeenCalledWith(
+      "token",
+      expect.objectContaining({ libraryId: 1, readingStatus: "pending" }),
+    );
     expect(screen.getByRole("button", { name: "Pendientes" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "Cerrar editor" })).toBeInTheDocument();
   });
 
   it("removes the selected-book filter and restores the active tab listing", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
-
     renderPage("/lectura?tab=reading&library=all&copy=11");
 
     await screen.findByText("Dune");
@@ -341,8 +407,6 @@ describe("ReadingPage", () => {
   });
 
   it("filters the shelf with the search box and only shows personal notes when available", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
-
     renderPage("/lectura?tab=pending&library=all");
 
     await screen.findByText("Kindred");
@@ -360,7 +424,6 @@ describe("ReadingPage", () => {
   });
 
   it("cancels an active reading by moving it back to pending and clearing both dates", async () => {
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 11,
       reading_status: "pending",
@@ -390,7 +453,6 @@ describe("ReadingPage", () => {
 
   it("asks for confirmation before reopening a finished book as a reread", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    apiMocks.fetchReadingShelf.mockResolvedValue(buildShelf());
     apiMocks.updateUserCopyDataRequest.mockResolvedValue({
       copy_id: 13,
       reading_status: "reading",
@@ -441,7 +503,7 @@ describe("ReadingPage", () => {
         updated_at: "2026-05-01T10:00:00Z",
       },
     };
-    apiMocks.fetchReadingShelf.mockResolvedValue(shelf);
+    mockReadingShelfApi(shelf);
     apiMocks.deleteReviewRequest.mockResolvedValue(undefined);
 
     renderPage("/lectura?tab=pending&library=2&copy=12");

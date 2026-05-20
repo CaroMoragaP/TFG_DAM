@@ -160,8 +160,8 @@ def test_shared_library_community_reviews_reading_events_and_summary(client: Tes
     catalog_response = client.get(f"/books?library_id={library_id}", headers=owner_headers)
     assert catalog_response.status_code == 200
     catalog_payload = catalog_response.json()
-    assert catalog_payload[0]["public_review_count"] == 1
-    assert catalog_payload[0]["public_average_rating"] == 5.0
+    assert catalog_payload["items"][0]["public_review_count"] == 1
+    assert catalog_payload["items"][0]["public_average_rating"] == 5.0
 
     activity_response = client.get(f"/libraries/{library_id}/activity", headers=owner_headers)
     assert activity_response.status_code == 200

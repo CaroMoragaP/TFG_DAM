@@ -17,6 +17,14 @@ export type ListType = "wishlist" | "pending" | "custom";
 export type CopyFormat = "physical" | "digital";
 export type CopyStatus = "available" | "loaned" | "reserved";
 export type ReadingStatus = "pending" | "reading" | "finished";
+export type ReadingShelfSort =
+  | "title"
+  | "author"
+  | "recent-start"
+  | "oldest-start"
+  | "recent-finish"
+  | "oldest-finish"
+  | "rating";
 export type LibraryEventType =
   | "reading_started"
   | "reading_finished"
@@ -142,6 +150,13 @@ export type Book = {
   public_average_rating: number | null;
 };
 
+export type BooksPage = {
+  items: Book[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type CopyDetail = {
   id: number;
   book_id: number;
@@ -253,6 +268,18 @@ export type ReadingShelfItem = {
   public_review_count: number;
   public_average_rating: number | null;
   my_public_review: PublicReview | null;
+};
+
+export type ReadingShelfPage = {
+  items: ReadingShelfItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  status_counts: {
+    pending: number;
+    reading: number;
+    finished: number;
+  };
 };
 
 export type LibraryReviewCard = {
@@ -421,6 +448,8 @@ export type BooksQueryParams = {
   authorCountry?: string;
   readingStatus?: ReadingStatus;
   minRating?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export type StatsBreakdownItem = {
@@ -922,7 +951,7 @@ export function fetchThemes(token: string): Promise<string[]> {
 export function fetchBooks(
   token: string,
   params: BooksQueryParams,
-): Promise<Book[]> {
+): Promise<BooksPage> {
   const queryString = buildQueryString({
     library_id: params.libraryId,
     list_id: params.listId,
@@ -933,9 +962,11 @@ export function fetchBooks(
     author_country: params.authorCountry?.trim() || undefined,
     reading_status: params.readingStatus,
     min_rating: params.minRating,
+    limit: params.limit,
+    offset: params.offset,
   });
 
-  return apiFetch<Book[]>(`/books${queryString}`, undefined, {
+  return apiFetch<BooksPage>(`/books${queryString}`, undefined, {
     token,
   });
 }
@@ -1259,13 +1290,27 @@ export function fetchReadingStats(
 
 export function fetchReadingShelf(
   token: string,
-  params?: { libraryId?: number },
-): Promise<ReadingShelfItem[]> {
+  params?: {
+    libraryId?: number;
+    copyId?: number;
+    q?: string;
+    readingStatus?: ReadingStatus;
+    sort?: ReadingShelfSort;
+    limit?: number;
+    offset?: number;
+  },
+): Promise<ReadingShelfPage> {
   const queryString = buildQueryString({
     library_id: params?.libraryId,
+    copy_id: params?.copyId,
+    q: params?.q?.trim() || undefined,
+    reading_status: params?.readingStatus,
+    sort: params?.sort,
+    limit: params?.limit,
+    offset: params?.offset,
   });
 
-  return apiFetch<ReadingShelfItem[]>(`/reading${queryString}`, undefined, {
+  return apiFetch<ReadingShelfPage>(`/reading${queryString}`, undefined, {
     token,
   });
 }

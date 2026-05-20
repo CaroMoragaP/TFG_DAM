@@ -118,36 +118,43 @@ describe("DashboardPage", () => {
       },
     ]);
     apiMocks.fetchBooks.mockImplementation(async (_token: string, params: { listId?: number }) => {
-      return params.listId ? [] : [
-        {
-          id: 7,
-          book_id: 3,
-          library_id: 1,
-          title: "Dune",
-          isbn: null,
-          publication_year: 1965,
-          description: null,
-          cover_url: null,
-          publisher: null,
-          collection: "Cronicas de Arrakis",
-          author_country: "Estados Unidos",
-          author_sex: "male",
-          primary_author: {
-            first_name: "Frank",
-            last_name: "Herbert",
-            display_name: "Frank Herbert",
+      return params.listId
+        ? { items: [], total: 0, limit: 24, offset: 0 }
+        : {
+            items: [
+              {
+                id: 7,
+                book_id: 3,
+                library_id: 1,
+                title: "Dune",
+                isbn: null,
+                publication_year: 1965,
+                description: null,
+                cover_url: null,
+                publisher: null,
+                collection: "Cronicas de Arrakis",
+                author_country: "Estados Unidos",
+                author_sex: "male",
+                primary_author: {
+                  first_name: "Frank",
+                  last_name: "Herbert",
+                  display_name: "Frank Herbert",
+                },
+                authors: ["Frank Herbert"],
+                genre: "narrativo",
+                themes: ["Sci-Fi"],
+                format: "physical",
+                physical_location: null,
+                digital_location: null,
+                status: "available",
+                reading_status: "reading",
+                user_rating: 5,
+              },
+            ],
+            total: 1,
+            limit: 24,
+            offset: 0,
           },
-          authors: ["Frank Herbert"],
-          genre: "narrativo",
-          themes: ["Sci-Fi"],
-          format: "physical",
-          physical_location: null,
-          digital_location: null,
-          status: "available",
-          reading_status: "reading",
-          user_rating: 5,
-        },
-      ];
     });
 
     renderPage();

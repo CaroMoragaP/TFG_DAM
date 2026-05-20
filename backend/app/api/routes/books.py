@@ -19,13 +19,14 @@ from app.schemas.book import BookCreate
 from app.schemas.book import BookMetadataOut
 from app.schemas.book import BookMetadataUpdate
 from app.schemas.book import BookOut
+from app.schemas.book import BooksPageOut
 from app.schemas.catalog_io import CatalogImportCommitIn
 from app.schemas.catalog_io import CatalogImportCommitOut
 from app.schemas.catalog_io import CatalogImportPreviewOut
 from app.services.books import DuplicateBookCopyError
 from app.services.books import DuplicateBookIsbnError
 from app.services.books import create_book
-from app.services.books import list_books
+from app.services.books import list_books_page
 from app.services.books import list_themes
 from app.services.books import serialize_book_metadata
 from app.services.books import serialize_book_copy
@@ -47,7 +48,7 @@ router = APIRouter()
 
 @router.get(
     "/books",
-    response_model=list[BookOut],
+    response_model=BooksPageOut,
     summary="List catalog books for the authenticated user",
 )
 def read_books(
@@ -60,11 +61,13 @@ def read_books(
     collection: str | None = Query(default=None),
     author_country: str | None = Query(default=None),
     min_rating: int | None = Query(default=None, ge=1, le=5),
+    limit: int = Query(default=24, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[BookOut]:
+) -> BooksPageOut:
     try:
-        copies = list_books(
+        page = list_books_page(
             db,
             user_id=current_user.id,
             library_id=library_id,
@@ -76,6 +79,8 @@ def read_books(
             collection=collection,
             author_country=author_country,
             min_rating=min_rating,
+            limit=limit,
+            offset=offset,
         )
     except ListNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -86,7 +91,12 @@ def read_books(
     except LibraryArchivedError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    return [serialize_book_copy(copy) for copy in copies]
+    return BooksPageOut(
+        items=[serialize_book_copy(copy) for copy in page.items],
+        total=page.total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.get(

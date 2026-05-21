@@ -3,8 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 
 import { ApiError, fetchOpenLibraryBook, type AuthorSex, type BookMetadata, type ExternalBookLookup, type Library } from "../lib/api";
 import {
-  LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
+  type LiteraryGenreOption,
   normalizeThemeSelection,
   validateSharedBookFields,
 } from "../lib/bookMetadata";
@@ -31,6 +31,7 @@ type BookMetadataModalProps = {
   isOpen: boolean;
   isSaving: boolean;
   library?: Library | null;
+  genreOptions: LiteraryGenreOption[];
   themeOptions: string[];
   onClose: () => void;
   onSubmit: (values: BookMetadataValues) => Promise<void>;
@@ -105,6 +106,7 @@ export function BookMetadataModal({
   isOpen,
   isSaving,
   library,
+  genreOptions,
   themeOptions,
   onClose,
   onSubmit,
@@ -339,7 +341,7 @@ export function BookMetadataModal({
               Genero literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
                 <option value="">Sin genero</option>
-                {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                {genreOptions.map((genreOption) => (
                   <option key={genreOption.value} value={genreOption.value}>
                     {genreOption.label}
                   </option>

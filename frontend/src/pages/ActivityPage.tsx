@@ -4,6 +4,8 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { BookCover } from "../components/BookCover";
+import { CommunityHero } from "../components/CommunityHero";
+import { CommunityTagMark } from "../components/CommunityTagMark";
 import { StarRating } from "../components/StarRating";
 import { useLibraries } from "../libraries/useLibraries";
 import {
@@ -12,7 +14,7 @@ import {
   type LibraryActivityEvent,
   type LibraryReviewCard,
 } from "../lib/api";
-import { normalizePositiveIntegerParam } from "../lib/urlParams";
+import { parsePositiveInt } from "../lib/urlParams";
 
 type WallTab = "activity" | "reviews";
 type ReviewFilter = "all" | "missing_mine" | "mine";
@@ -196,62 +198,6 @@ function getEventBadgeMark(eventType: LibraryActivityEvent["event_type"]) {
   }
 }
 
-function CommunityMark() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path
-        d="M8.5 11a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm7 1.5a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M3.5 18.25A4.75 4.75 0 0 1 8.25 13.5h.5A4.75 4.75 0 0 1 13.5 18.25a.75.75 0 0 1-.75.75h-8.5a.75.75 0 0 1-.75-.75Zm10.25.75a.75.75 0 0 1-.75-.75 4.7 4.7 0 0 0-1.11-3.02 4.12 4.12 0 0 1 2.36-.73h.5a4.75 4.75 0 0 1 4.75 4.75.75.75 0 0 1-.75.75h-5Z"
-        fill="currentColor"
-        opacity="0.72"
-      />
-    </svg>
-  );
-}
-
-function CommunityHero({
-  title,
-  description,
-  isLibrarySelected,
-  memberCount,
-  copyCount,
-}: {
-  title: string;
-  description: string;
-  isLibrarySelected: boolean;
-  memberCount?: number;
-  copyCount?: number;
-}) {
-  return (
-    <div className="community-hero-shell">
-      <div className="community-hero-copy">
-        <span className="community-hero-kicker">
-          <span className="community-hero-mark">
-            <CommunityMark />
-          </span>
-          Comunidad
-        </span>
-        <h1>{title}</h1>
-        <p>{description}</p>
-        <div className="community-hero-pills">
-          <span className="community-hero-pill community-hero-pill-soft">
-            {isLibrarySelected ? "Club de lectura activo" : "Selecciona una biblioteca compartida"}
-          </span>
-          {typeof memberCount === "number" ? (
-            <span className="community-hero-pill">{memberCount} miembros</span>
-          ) : null}
-          {typeof copyCount === "number" ? (
-            <span className="community-hero-pill">{copyCount} ejemplares</span>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ActivityPage() {
   const { token } = useAuth();
   const { isLibrariesError, isLibrariesLoading, libraries } = useLibraries();
@@ -260,14 +206,14 @@ export function ActivityPage() {
   const tab = normalizeWallTab(searchParams.get("tab"));
   const reviewFilter = normalizeReviewFilter(searchParams.get("filter"));
   const reviewSort = normalizeReviewSort(searchParams.get("sort"));
-  const selectedLibraryId = normalizePositiveIntegerParam(searchParams.get("library"));
+  const selectedLibraryId = parsePositiveInt(searchParams.get("library"));
   const sharedLibraries = libraries.filter(
     (library) => !library.is_archived && library.type === "shared",
   );
   const defaultLibrary = sharedLibraries[0] ?? null;
   const activeLibrary =
     sharedLibraries.find((library) => library.id === selectedLibraryId) ??
-    (selectedLibraryId === null ? defaultLibrary : null);
+    (selectedLibraryId === undefined ? defaultLibrary : null);
 
   useEffect(() => {
     if (isLibrariesLoading || !defaultLibrary) {
@@ -275,7 +221,7 @@ export function ActivityPage() {
     }
 
     const hasValidSelectedLibrary =
-      selectedLibraryId !== null &&
+      selectedLibraryId !== undefined &&
       sharedLibraries.some((library) => library.id === selectedLibraryId);
     if (hasValidSelectedLibrary) {
       return;
@@ -416,7 +362,7 @@ export function ActivityPage() {
               onClick={() => updateSearchParam("tab", "activity")}
               aria-selected={tab === "activity"}
             >
-              <span className="community-tab-mark">AC</span>
+              <CommunityTagMark className="community-tab-mark" label="AC" />
               Actividad
             </button>
             <button
@@ -425,7 +371,7 @@ export function ActivityPage() {
               onClick={() => updateSearchParam("tab", "reviews")}
               aria-selected={tab === "reviews"}
             >
-              <span className="community-tab-mark">OP</span>
+              <CommunityTagMark className="community-tab-mark" label="OP" />
               Opiniones
             </button>
           </div>
@@ -507,7 +453,10 @@ export function ActivityPage() {
                       </div>
 
                       <span className={`community-event-badge tone-${tone}`}>
-                        <span className="community-event-badge-mark">{getEventBadgeMark(event.event_type)}</span>
+                        <CommunityTagMark
+                          className="community-event-badge-mark"
+                          label={getEventBadgeMark(event.event_type)}
+                        />
                         {getEventBadgeLabel(event.event_type)}
                       </span>
                     </div>

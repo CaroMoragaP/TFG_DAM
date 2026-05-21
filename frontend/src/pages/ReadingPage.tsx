@@ -3,9 +3,10 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { BookCover } from "../components/BookCover";
 import { DashboardHero } from "../components/DashboardHero";
 import { useConfirm, useToast } from "../components/FeedbackProvider";
+import { ReadingItemCard } from "../components/ReadingItemCard";
+import { type ReadingEditorState } from "../components/ReadingEditor";
 import { useLibraries } from "../libraries/useLibraries";
 import {
   createCopyReviewRequest,
@@ -19,9 +20,9 @@ import {
   type ReadingStatus,
   type UserCopyUpdatePayload,
 } from "../lib/api";
-import { readingStatusSectionLabels, readingStatusValueLabels } from "../lib/labels";
+import { readingStatusSectionLabels } from "../lib/labels";
 import { deriveReadingStatusFromDates } from "../lib/readingProgress";
-import { normalizeLibraryFilterParam, normalizePositiveIntegerParam } from "../lib/urlParams";
+import { parsePositiveInt } from "../lib/urlParams";
 
 type ReadingTab = ReadingStatus;
 type ReadingSort =
@@ -32,15 +33,6 @@ type ReadingSort =
   | "recent-finish"
   | "oldest-finish"
   | "rating";
-
-type EditorState = {
-  readingStatus: ReadingStatus;
-  rating: number | null;
-  startDate: string;
-  endDate: string;
-  personalNotes: string;
-  publicReviewBody: string;
-};
 
 const statusDescriptions: Record<ReadingStatus, string> = {
   pending: "Libros guardados para mas adelante, sin empezar todavia.",
@@ -77,11 +69,6 @@ const sortOptionsByTab: Record<ReadingTab, Array<{ value: ReadingSort; label: st
 
 const readingTabSequence: ReadingTab[] = ["pending", "reading", "finished"];
 const READING_PAGE_SIZE = 20;
-const longDateFormatter = new Intl.DateTimeFormat("es-ES", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
 
 function getTodayInputValue() {
   const today = new Date();
@@ -98,10 +85,6 @@ function normalizeTab(value: string | null): ReadingTab {
   return "reading";
 }
 
-function normalizeCopyValue(value: string | null) {
-  return normalizePositiveIntegerParam(value);
-}
-
 function getDefaultSort(tab: ReadingTab): ReadingSort {
   if (tab === "pending") {
     return "title";
@@ -112,7 +95,7 @@ function getDefaultSort(tab: ReadingTab): ReadingSort {
   return "recent-start";
 }
 
-function buildEditorState(item: ReadingShelfItem): EditorState {
+function buildEditorState(item: ReadingShelfItem): ReadingEditorState {
   return {
     readingStatus: item.reading_status,
     rating: item.rating,
@@ -123,24 +106,12 @@ function buildEditorState(item: ReadingShelfItem): EditorState {
   };
 }
 
-function formatDateLabel(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return longDateFormatter.format(new Date(value));
-}
-
-function formatCommunityRating(value: number | null) {
-  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
-}
-
 function normalizeReviewBody(value: string) {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
 }
 
-function buildUpdatePayload(originalItem: ReadingShelfItem, editorState: EditorState): UserCopyUpdatePayload {
+function buildUpdatePayload(originalItem: ReadingShelfItem, editorState: ReadingEditorState): UserCopyUpdatePayload {
   const payload: UserCopyUpdatePayload = {};
 
   if (editorState.readingStatus !== originalItem.reading_status) {
@@ -225,14 +196,14 @@ export function ReadingPage() {
   const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
   const [sort, setSort] = useState<ReadingSort>(() => getDefaultSort(normalizeTab(searchParams.get("tab"))));
   const [editingCopyId, setEditingCopyId] = useState<number | null>(null);
-  const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const [editorState, setEditorState] = useState<ReadingEditorState | null>(null);
   const autoOpenedCopyIdRef = useRef<number | null>(null);
 
   const q = searchParams.get("q") ?? "";
   const tab = normalizeTab(searchParams.get("tab"));
-  const libraryValue = normalizeLibraryFilterParam(searchParams.get("library"));
-  const selectedCopyId = normalizeCopyValue(searchParams.get("copy"));
-  const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
+  const selectedLibraryId = parsePositiveInt(searchParams.get("library"));
+  const libraryValue = selectedLibraryId ? String(selectedLibraryId) : "all";
+  const selectedCopyId = parsePositiveInt(searchParams.get("copy")) ?? null;
   const availableLibraries = libraries.filter((library) => !library.is_archived);
   const normalizedSearchQuery = searchDraft.trim();
   const defaultSort = getDefaultSort(tab);
@@ -415,6 +386,18 @@ export function ReadingPage() {
       ? updateReadingMutation.error instanceof Error
         ? updateReadingMutation.error.message
         : "No se pudieron guardar los cambios de lectura."
+      : null;
+  const reviewErrorMessage =
+    reviewMutation.isError
+      ? reviewMutation.error instanceof Error
+        ? reviewMutation.error.message
+        : "No se pudo publicar la valoracion."
+      : null;
+  const deleteReviewErrorMessage =
+    deleteReviewMutation.isError
+      ? deleteReviewMutation.error instanceof Error
+        ? deleteReviewMutation.error.message
+        : "No se pudo retirar la publicacion."
       : null;
 
   const updateSearchParam = useCallback(
@@ -906,273 +889,68 @@ export function ReadingPage() {
         <div className="content-stack">
           {visibleItems.map((item) => {
             const library = getLibraryForItem(libraries, item);
-            const isEditing = editingCopyId === item.copy_id && editorState !== null;
-            const isSharedItem = library?.type === "shared";
+            const isEditing = editingCopyId === item.copy_id;
 
             return (
-              <article key={item.copy_id} className="panel reading-entry-card">
-                <div className="reading-entry-layout">
-                  <div className="reading-entry-cover">
-                    <BookCover title={item.title} coverUrl={item.cover_url} />
-                  </div>
-
-                  <div className="reading-entry-content">
-                    <div className="reading-entry-head">
-                      <div>
-                        <h3>{item.title}</h3>
-                        <p className="book-card-author">{item.authors[0] ?? "Autor sin registrar"}</p>
-                      </div>
-
-                      <div className="card-actions">
-                        <button
-                          className="ghost-link compact-action"
-                          type="button"
-                          onClick={() => handleOpenEditor(item)}
-                        >
-                          {isEditing ? "Cerrar editor" : "Gestionar lectura"}
-                        </button>
-                        <Link className="ghost-link compact-action" to={`/ejemplar/${item.copy_id}`}>
-                          Abrir ficha
-                        </Link>
-                      </div>
-                    </div>
-
-                    <dl className="reading-entry-meta">
-                      <div>
-                        <dt>Valoracion</dt>
-                        <dd>{item.rating ? `${item.rating}/5` : "-"}</dd>
-                      </div>
-                      <div>
-                        <dt>{tab === "finished" ? "Fecha fin" : "Fecha inicio"}</dt>
-                        <dd>{formatDateLabel(tab === "finished" ? item.end_date : item.start_date)}</dd>
-                      </div>
-                      <div>
-                        <dt>Coleccion</dt>
-                        <dd>{item.collection ?? "-"}</dd>
-                      </div>
-                    </dl>
-
-                    <div className={item.personal_notes ? "reading-entry-footer has-notes" : "reading-entry-footer"}>
-                      <div className="reading-entry-badges">
-                        {showLibraryBadge && library ? <span className="library-badge">{library.name}</span> : null}
-                        {item.my_public_review ? <span className="status-chip active">Publicada</span> : null}
-                        {isSharedItem && item.public_review_count > 0 ? (
-                          <span className="status-chip">
-                            {item.public_review_count} resenas · {formatCommunityRating(item.public_average_rating)}
-                          </span>
-                        ) : null}
-                      </div>
-                      {item.personal_notes ? <p className="reading-notes-preview">{item.personal_notes}</p> : null}
-                    </div>
-                  </div>
-                </div>
-
-                {isEditing ? (
-                  <div className="reading-editor-panel">
-                    <div className="reading-editor-header">
-                      <div>
-                        <p className="eyebrow">Edicion principal</p>
-                        <h4>Mi lectura</h4>
-                      </div>
-                      <span className="status-chip">{readingStatusValueLabels[editorState.readingStatus]}</span>
-                    </div>
-
-                    <div className="modal-grid">
-                      <label className="field-group">
-                        Estado de lectura
-                        <select
-                          value={editorState.readingStatus}
-                          onChange={(event) => {
-                            void handleReadingStatusSelect(event.target.value as ReadingStatus);
-                          }}
-                        >
-                          <option value="pending">Pendiente</option>
-                          <option value="reading">Leyendo</option>
-                          <option value="finished">Leído</option>
-                        </select>
-                      </label>
-
-                      <div className="rating-block">
-                        <span className="eyebrow">Valoracion</span>
-                        <div className="star-row" role="group" aria-label={`Valorar ${item.title}`}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              className={star <= (editorState.rating ?? 0) ? "star-button active" : "star-button"}
-                              type="button"
-                              aria-label={`Valorar ${item.title} con ${star} estrellas`}
-                              onClick={() =>
-                                setEditorState((currentState) =>
-                                  currentState
-                                    ? {
-                                        ...currentState,
-                                        rating: currentState.rating === star ? null : star,
-                                      }
-                                    : currentState,
-                                )
-                              }
-                            >
-                              *
-                            </button>
-                          ))}
-                        </div>
-                        <p className="detail-inline-copy">
-                          {editorState.rating ? `${editorState.rating}/5` : "Sin valoracion"}
-                        </p>
-                      </div>
-
-                      <label className="field-group">
-                        Fecha de inicio
-                        <input
-                          type="date"
-                          value={editorState.startDate}
-                          onChange={(event) => {
-                            void handleStartDateInput(event.target.value);
-                          }}
-                        />
-                      </label>
-
-                      <label className="field-group">
-                        Fecha de fin
-                        <input
-                          type="date"
-                          value={editorState.endDate}
-                          onChange={(event) => handleEndDateChange(event.target.value)}
-                        />
-                      </label>
-
-                      <label className="field-group field-span-full">
-                        Notas personales
-                        <textarea
-                          className="notes-textarea"
-                          rows={5}
-                          value={editorState.personalNotes}
-                          onChange={(event) =>
-                            setEditorState((currentState) =>
-                              currentState
-                                ? { ...currentState, personalNotes: event.target.value }
-                                : currentState,
-                            )
-                          }
-                        />
-                      </label>
-                    </div>
-
-                    {isSharedItem ? (
-                      <div className="reading-community-panel">
-                        <div className="reading-community-header">
-                          <div>
-                            <p className="eyebrow">Mi valoracion y publicacion</p>
-                            <h4>Publica la misma nota que usas para tu seguimiento</h4>
-                          </div>
-                          <div className="community-stat-row">
-                            <span className="status-chip active">{item.public_review_count} resenas</span>
-                            <span className="status-chip">{formatCommunityRating(item.public_average_rating)}</span>
-                          </div>
-                        </div>
-
-                        <p className="detail-inline-copy">
-                          Tu valoracion personal es la nota canonica. Si la publicas, la comunidad vera esa misma
-                          puntuacion junto con tu comentario opcional.
-                        </p>
-
-                        <label className="field-group">
-                          Comentario publico
-                          <textarea
-                            className="notes-textarea"
-                            rows={4}
-                            value={editorState.publicReviewBody}
-                            onChange={(event) =>
-                              setEditorState((currentState) =>
-                                currentState
-                                  ? { ...currentState, publicReviewBody: event.target.value }
-                                  : currentState,
-                              )
-                            }
-                            placeholder="Comparte por que merece la pena leerlo..."
-                          />
-                        </label>
-
-                        <div className="inline-actions">
-                          <button
-                            className="submit-button compact-button"
-                            type="button"
-                            onClick={() => void handlePublishReview(item)}
-                            disabled={
-                              reviewMutation.isPending || updateReadingMutation.isPending || editorState.rating === null
-                            }
-                          >
-                            {item.my_public_review ? "Actualizar publicacion" : "Publicar mi valoracion"}
-                          </button>
-                          {item.my_public_review ? (
-                            <button
-                              className="ghost-link compact-action"
-                              type="button"
-                              onClick={() => void handleDeleteReview(item)}
-                              disabled={deleteReviewMutation.isPending}
-                            >
-                              Retirar publicacion
-                            </button>
-                          ) : null}
-                          <Link className="ghost-link compact-action" to={`/muro?tab=reviews&library=${item.library_id}`}>
-                            Ver en el muro
-                          </Link>
-                        </div>
-
-                        {editorState.rating === null ? (
-                          <p className="detail-inline-copy">Guarda una nota para poder publicar esta valoracion.</p>
-                        ) : null}
-                        {reviewMutation.isError ? (
-                          <p className="form-error">
-                            {reviewMutation.error instanceof Error
-                              ? reviewMutation.error.message
-                              : "No se pudo publicar la valoracion."}
-                          </p>
-                        ) : null}
-                        {deleteReviewMutation.isError ? (
-                          <p className="form-error">
-                            {deleteReviewMutation.error instanceof Error
-                              ? deleteReviewMutation.error.message
-                              : "No se pudo retirar la publicacion."}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {saveReadingErrorMessage ? (
-                      <p className="form-error reading-save-error" role="alert">
-                        {saveReadingErrorMessage}
-                      </p>
-                    ) : null}
-
-                    <div className="inline-actions">
-                      <button
-                        className="submit-button compact-button"
-                        type="button"
-                        onClick={() => void handleSaveEditor(item)}
-                        disabled={updateReadingMutation.isPending}
-                      >
-                        {updateReadingMutation.isPending ? "Guardando..." : "Guardar lectura"}
-                      </button>
-                      <button
-                        className="ghost-link compact-action"
-                        type="button"
-                        onClick={() => {
-                          updateReadingMutation.reset();
-                          reviewMutation.reset();
-                          deleteReviewMutation.reset();
-                          setEditingCopyId(null);
-                          setEditorState(null);
-                        }}
-                        disabled={updateReadingMutation.isPending}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-
-                  </div>
-                ) : null}
-              </article>
+              <ReadingItemCard
+                key={item.copy_id}
+                item={item}
+                library={library}
+                tab={tab}
+                showLibraryBadge={showLibraryBadge}
+                isEditing={isEditing}
+                editorState={isEditing ? editorState : null}
+                saveReadingErrorMessage={saveReadingErrorMessage}
+                reviewErrorMessage={reviewErrorMessage}
+                deleteReviewErrorMessage={deleteReviewErrorMessage}
+                isSaving={updateReadingMutation.isPending}
+                isReviewSaving={reviewMutation.isPending}
+                isReviewDeleting={deleteReviewMutation.isPending}
+                onToggleEditor={() => handleOpenEditor(item)}
+                onReadingStatusChange={(nextStatus) => {
+                  void handleReadingStatusSelect(nextStatus);
+                }}
+                onRatingChange={(nextRating) =>
+                  setEditorState((currentState) =>
+                    currentState
+                      ? {
+                          ...currentState,
+                          rating: currentState.rating === nextRating ? null : nextRating,
+                        }
+                      : currentState,
+                  )
+                }
+                onStartDateChange={(nextStartDate) => {
+                  void handleStartDateInput(nextStartDate);
+                }}
+                onEndDateChange={handleEndDateChange}
+                onPersonalNotesChange={(nextNotes) =>
+                  setEditorState((currentState) =>
+                    currentState ? { ...currentState, personalNotes: nextNotes } : currentState,
+                  )
+                }
+                onPublicReviewBodyChange={(nextBody) =>
+                  setEditorState((currentState) =>
+                    currentState ? { ...currentState, publicReviewBody: nextBody } : currentState,
+                  )
+                }
+                onPublishReview={() => {
+                  void handlePublishReview(item);
+                }}
+                onDeleteReview={() => {
+                  void handleDeleteReview(item);
+                }}
+                onSave={() => {
+                  void handleSaveEditor(item);
+                }}
+                onCancel={() => {
+                  updateReadingMutation.reset();
+                  reviewMutation.reset();
+                  deleteReviewMutation.reset();
+                  setEditingCopyId(null);
+                  setEditorState(null);
+                }}
+              />
             );
           })}
           {selectedItem === null && readingQuery.hasNextPage ? (
@@ -1192,3 +970,5 @@ export function ReadingPage() {
     </section>
   );
 }
+
+

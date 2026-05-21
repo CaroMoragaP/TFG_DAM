@@ -27,7 +27,7 @@ import {
   type StatsRankingItem,
 } from "../lib/api";
 import { readingStatusSectionLabels } from "../lib/labels";
-import { normalizeLibraryFilterParam } from "../lib/urlParams";
+import { parsePositiveInt } from "../lib/urlParams";
 
 type StatsTab = "catalog" | "reading";
 
@@ -475,8 +475,8 @@ export function StatsPage() {
   const [goalDraft, setGoalDraft] = useState("");
 
   const tab = normalizeTab(searchParams.get("tab"));
-  const libraryValue = normalizeLibraryFilterParam(searchParams.get("library"));
-  const selectedLibraryId = libraryValue === "all" ? undefined : Number(libraryValue);
+  const selectedLibraryId = parsePositiveInt(searchParams.get("library"));
+  const libraryValue = selectedLibraryId ? String(selectedLibraryId) : "all";
   const availableLibraries = libraries.filter((library) => !library.is_archived);
 
   useEffect(() => {

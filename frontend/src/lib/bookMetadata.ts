@@ -1,11 +1,24 @@
-export const LITERARY_GENRE_OPTIONS = [
-  { value: "narrativo", label: "Narrativo" },
-  { value: "l\u00edrico", label: "L\u00edrico" },
-  { value: "dram\u00e1tico", label: "Dram\u00e1tico" },
-  { value: "did\u00e1ctico", label: "Did\u00e1ctico" },
-] as const;
+export type LiteraryGenreOption = {
+  value: string;
+  label: string;
+};
 
 export const MAX_BOOK_THEMES = 3;
+
+export function formatLiteraryGenreLabel(value: string) {
+  if (!value) {
+    return value;
+  }
+
+  return value.charAt(0).toLocaleUpperCase("es-ES") + value.slice(1);
+}
+
+export function buildLiteraryGenreOptions(values: string[]): LiteraryGenreOption[] {
+  return values.map((value) => ({
+    value,
+    label: formatLiteraryGenreLabel(value),
+  }));
+}
 
 export type SharedBookFormValues = {
   title: string;

@@ -40,6 +40,25 @@ from app.services.libraries import update_library_member_role
 router = APIRouter()
 
 
+def build_library_response(
+    library,
+    role,
+    member_count: int,
+    copy_count: int,
+) -> LibraryOut:
+    return LibraryOut(
+        id=library.id,
+        name=library.name,
+        type=library.type,
+        created_at=library.created_at,
+        role=role,
+        is_archived=library.archived_at is not None,
+        archived_at=library.archived_at,
+        member_count=member_count,
+        copy_count=copy_count,
+    )
+
+
 @router.get(
     "/libraries",
     response_model=list[LibraryOut],
@@ -342,22 +361,3 @@ def delete_library(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-def build_library_response(
-    library,
-    role,
-    member_count: int,
-    copy_count: int,
-) -> LibraryOut:
-    return LibraryOut(
-        id=library.id,
-        name=library.name,
-        type=library.type,
-        created_at=library.created_at,
-        role=role,
-        is_archived=library.archived_at is not None,
-        archived_at=library.archived_at,
-        member_count=member_count,
-        copy_count=copy_count,
-    )

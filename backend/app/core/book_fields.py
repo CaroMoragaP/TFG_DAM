@@ -97,3 +97,7 @@ def normalize_literary_genre(
     raise ValueError(
         f"Género literario no válido. Usa uno de: {valid_values}.",
     )
+
+
+def list_literary_genres() -> list[str]:
+    return list(LITERARY_GENRE_VALUES)

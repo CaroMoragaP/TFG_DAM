@@ -12,8 +12,8 @@ import {
   type Library,
 } from "../lib/api";
 import {
-  LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
+  type LiteraryGenreOption,
   normalizeThemeSelection,
   validateSharedBookFields,
 } from "../lib/bookMetadata";
@@ -34,6 +34,7 @@ type BookDetailEditModalProps = {
   canEditCopy: boolean;
   isOpen: boolean;
   isSaving: boolean;
+  genreOptions: LiteraryGenreOption[];
   themeOptions: string[];
   token: string;
   onClose: () => void;
@@ -129,6 +130,7 @@ export function BookDetailEditModal({
   canEditCopy,
   isOpen,
   isSaving,
+  genreOptions,
   themeOptions,
   token,
   onClose,
@@ -433,7 +435,7 @@ export function BookDetailEditModal({
                       onChange={(event) => handleBookFieldChange("genre", event.target.value)}
                     >
                       <option value="">Sin genero</option>
-                      {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                      {genreOptions.map((genreOption) => (
                         <option key={genreOption.value} value={genreOption.value}>
                           {genreOption.label}
                         </option>

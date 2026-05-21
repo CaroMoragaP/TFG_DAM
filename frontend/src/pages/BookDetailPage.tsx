@@ -9,11 +9,13 @@ import { BookDetailEditModal, type BookDetailEditValues } from "../components/Bo
 import { type CopyEditValues } from "../components/CopyEditModal";
 import { useConfirm, useToast } from "../components/FeedbackProvider";
 import { useLibraries } from "../libraries/useLibraries";
+import { buildLiteraryGenreOptions } from "../lib/bookMetadata";
 import {
   type CommunityLoan,
   deleteCopyRequest,
   fetchCopyById,
   fetchCopyCommunity,
+  fetchGenres,
   fetchThemes,
   fetchUserCopyData,
   updateBookMetadataRequest,
@@ -101,6 +103,12 @@ export function BookDetailPage() {
   const themesQuery = useQuery({
     queryKey: ["themes"],
     queryFn: () => fetchThemes(token ?? ""),
+    enabled: Boolean(token),
+  });
+
+  const genresQuery = useQuery({
+    queryKey: ["genres"],
+    queryFn: () => fetchGenres(token ?? ""),
     enabled: Boolean(token),
   });
 
@@ -205,6 +213,7 @@ export function BookDetailPage() {
   const canEditDetail = canEditBook || canEditCopy;
   const author = detail?.primary_author?.display_name ?? detail?.authors[0] ?? "Autor sin registrar";
   const genre = detail?.genre ?? "-";
+  const genreOptions = buildLiteraryGenreOptions(genresQuery.data ?? []);
   const themes = detail?.themes ?? [];
   const collection = detail?.collection ?? "-";
   const publisher = detail?.publisher ?? "-";
@@ -451,6 +460,7 @@ export function BookDetailPage() {
           library={library}
           canEditBook={canEditBook}
           canEditCopy={canEditCopy}
+          genreOptions={genreOptions}
           themeOptions={themesQuery.data ?? []}
           isSaving={updateBookMutation.isPending || updateCopyMutation.isPending}
           onClose={() => setIsEditModalOpen(false)}

@@ -948,6 +948,12 @@ export function fetchThemes(token: string): Promise<string[]> {
   });
 }
 
+export function fetchGenres(token: string): Promise<string[]> {
+  return apiFetch<string[]>("/genres", undefined, {
+    token,
+  });
+}
+
 export function fetchBooks(
   token: string,
   params: BooksQueryParams,

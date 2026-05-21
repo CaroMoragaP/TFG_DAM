@@ -7,6 +7,7 @@ import { DashboardPage } from "./DashboardPage";
 
 const apiMocks = vi.hoisted(() => ({
   fetchBooks: vi.fn(),
+  fetchGenres: vi.fn(),
   fetchThemes: vi.fn(),
   fetchLists: vi.fn(),
   createBookRequest: vi.fn(),
@@ -57,6 +58,7 @@ vi.mock("../libraries/useLibraries", () => ({
 vi.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
   fetchBooks: apiMocks.fetchBooks,
+  fetchGenres: apiMocks.fetchGenres,
   fetchThemes: apiMocks.fetchThemes,
   fetchLists: apiMocks.fetchLists,
   createBookRequest: apiMocks.createBookRequest,
@@ -105,6 +107,7 @@ function renderPage(initialEntry = "/catalogo?listId=2") {
 
 describe("DashboardPage", () => {
   it("reads listId from the URL, hides the default library panel, and allows clearing the filter", async () => {
+    apiMocks.fetchGenres.mockResolvedValue(["narrativo", "lírico"]);
     apiMocks.fetchThemes.mockResolvedValue([]);
     apiMocks.fetchLists.mockResolvedValue([
       {

@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildLiteraryGenreOptions } from "../lib/bookMetadata";
+
 const apiMocks = vi.hoisted(() => ({
   fetchOpenLibraryBook: vi.fn(),
 }));
@@ -75,6 +77,7 @@ function renderModal(mode: "create" | "edit", themeOptions = ["Ciencia ficcion",
       <BookModal
         book={mode === "edit" ? book : null}
         defaultLibraryId={mode === "create" ? null : 1}
+        genreOptions={buildLiteraryGenreOptions(["narrativo", "lírico", "dramático", "didáctico"])}
         themeOptions={themeOptions}
         isOpen={true}
         isSaving={false}

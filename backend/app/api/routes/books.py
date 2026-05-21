@@ -26,6 +26,7 @@ from app.schemas.catalog_io import CatalogImportPreviewOut
 from app.services.books import DuplicateBookCopyError
 from app.services.books import DuplicateBookIsbnError
 from app.services.books import create_book
+from app.services.books import list_genres
 from app.services.books import list_books_page
 from app.services.books import list_themes
 from app.services.books import serialize_book_metadata
@@ -97,6 +98,19 @@ def read_books(
         limit=page.limit,
         offset=page.offset,
     )
+
+
+@router.get(
+    "/genres",
+    response_model=list[str],
+    summary="List catalog literary genres",
+)
+def read_genres(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[str]:
+    del current_user
+    return list_genres(db)
 
 
 @router.get(

@@ -12,13 +12,14 @@ import { CatalogToolbar } from "../components/CatalogToolbar";
 import { CopyEditModal, type CopyEditValues } from "../components/CopyEditModal";
 import { useToast } from "../components/FeedbackProvider";
 import { useLibraries } from "../libraries/useLibraries";
-import { LITERARY_GENRE_OPTIONS } from "../lib/bookMetadata";
+import { buildLiteraryGenreOptions } from "../lib/bookMetadata";
 import {
   addBookToListRequest,
   commitCatalogImportRequest,
   createBookRequest,
   exportCatalogRequest,
   fetchBooks,
+  fetchGenres,
   fetchLists,
   fetchThemes,
   previewCatalogImportRequest,
@@ -29,6 +30,7 @@ import {
   type CatalogImportPreviewRow,
   type UserList,
 } from "../lib/api";
+import { parsePositiveInt } from "../lib/urlParams";
 
 const BOOKS_PAGE_SIZE = 24;
 
@@ -50,20 +52,14 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
 
   const q = searchParams.get("q") ?? "";
-  const libraryParam = searchParams.get("library") ?? "";
-  const listIdParam = searchParams.get("listId") ?? "";
   const genre = searchParams.get("genre") ?? "";
   const theme = searchParams.get("theme") ?? "";
   const collection = searchParams.get("collection") ?? "";
   const authorCountry = searchParams.get("authorCountry") ?? "";
-  const parsedLibraryId = Number(libraryParam);
-  const parsedListId = Number(listIdParam);
-  const selectedLibraryId =
-    libraryParam && Number.isInteger(parsedLibraryId) && parsedLibraryId > 0
-      ? parsedLibraryId
-      : undefined;
-  const selectedListId =
-    listIdParam && Number.isInteger(parsedListId) && parsedListId > 0 ? parsedListId : undefined;
+  const selectedLibraryId = parsePositiveInt(searchParams.get("library"));
+  const selectedListId = parsePositiveInt(searchParams.get("listId"));
+  const libraryParam = selectedLibraryId ? String(selectedLibraryId) : "";
+  const listIdParam = selectedListId ? String(selectedListId) : "";
 
   const editableLibraries = useMemo(
     () => libraries.filter((library) => !library.is_archived && library.role !== "viewer"),
@@ -98,6 +94,12 @@ export function DashboardPage() {
   const themesQuery = useQuery({
     queryKey: ["themes"],
     queryFn: () => fetchThemes(token ?? ""),
+    enabled: Boolean(token),
+  });
+
+  const genresQuery = useQuery({
+    queryKey: ["genres"],
+    queryFn: () => fetchGenres(token ?? ""),
     enabled: Boolean(token),
   });
 
@@ -223,7 +225,7 @@ export function DashboardPage() {
   const visibleLists = listsQuery.data ?? [];
   const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
   const showLibraryBadge = libraries.length > 1;
-  const defaultCreateLibraryId = null;
+  const genreOptions = buildLiteraryGenreOptions(genresQuery.data ?? []);
   const booksErrorMessage =
     booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
 
@@ -376,7 +378,7 @@ export function DashboardPage() {
         activeList={activeList}
         onListChange={(value) => updateFilter("listId", value)}
         genre={genre}
-        genreOptions={LITERARY_GENRE_OPTIONS}
+        genreOptions={genreOptions}
         onGenreChange={(value) => updateFilter("genre", value)}
         theme={theme}
         themeOptions={themesQuery.data ?? []}
@@ -519,7 +521,8 @@ export function DashboardPage() {
 
       <BookModal
         book={null}
-        defaultLibraryId={defaultCreateLibraryId}
+        defaultLibraryId={null}
+        genreOptions={genreOptions}
         themeOptions={themesQuery.data ?? []}
         isOpen={isCreateModalOpen}
         isSaving={createBookMutation.isPending}
@@ -537,7 +540,7 @@ export function DashboardPage() {
       />
 
       <CatalogImportModal
-        defaultLibraryId={defaultCreateLibraryId}
+        defaultLibraryId={null}
         errorMessage={importError}
         isImporting={commitImportMutation.isPending}
         isOpen={isImportModalOpen}

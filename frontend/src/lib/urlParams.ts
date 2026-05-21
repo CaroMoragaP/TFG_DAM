@@ -1,25 +1,25 @@
-function normalizePositiveInteger(value: string | null): number | null {
+export function parsePositiveInt(value: string | null): number | undefined {
   if (!value) {
-    return null;
+    return undefined;
   }
 
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
+    return undefined;
   }
 
   return parsed;
 }
 
 export function normalizePositiveIntegerParam(value: string | null): number | null {
-  return normalizePositiveInteger(value);
+  return parsePositiveInt(value) ?? null;
 }
 
 export function normalizeLibraryFilterParam(value: string | null): string {
-  if (!value || value === "all") {
+  const parsed = parsePositiveInt(value);
+  if (!value || value === "all" || parsed === undefined) {
     return "all";
   }
 
-  const parsed = normalizePositiveInteger(value);
-  return parsed === null ? "all" : String(parsed);
+  return String(parsed);
 }

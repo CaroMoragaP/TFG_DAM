@@ -8,6 +8,7 @@ import { BookDetailPage } from "./BookDetailPage";
 const apiMocks = vi.hoisted(() => ({
   fetchCopyById: vi.fn(),
   fetchCopyCommunity: vi.fn(),
+  fetchGenres: vi.fn(),
   fetchThemes: vi.fn(),
   fetchUserCopyData: vi.fn(),
   updateCopyRequest: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock("../libraries/useLibraries", () => ({
 vi.mock("../lib/api", () => ({
   fetchCopyById: apiMocks.fetchCopyById,
   fetchCopyCommunity: apiMocks.fetchCopyCommunity,
+  fetchGenres: apiMocks.fetchGenres,
   fetchThemes: apiMocks.fetchThemes,
   fetchUserCopyData: apiMocks.fetchUserCopyData,
   updateCopyRequest: apiMocks.updateCopyRequest,
@@ -105,6 +107,7 @@ describe("BookDetailPage", () => {
       public_review_count: 2,
       public_average_rating: 4.5,
     });
+    apiMocks.fetchGenres.mockResolvedValue(["narrativo", "lírico"]);
     apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion", "Fantasia"]);
     apiMocks.fetchUserCopyData.mockResolvedValue({
       copy_id: 7,
@@ -200,6 +203,7 @@ describe("BookDetailPage", () => {
       public_review_count: 0,
       public_average_rating: null,
     });
+    apiMocks.fetchGenres.mockResolvedValue(["narrativo", "lírico"]);
     apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion", "Fantasia"]);
     apiMocks.fetchUserCopyData.mockResolvedValue({
       copy_id: 7,
@@ -276,6 +280,7 @@ describe("BookDetailPage", () => {
       public_review_count: 0,
       public_average_rating: null,
     });
+    apiMocks.fetchGenres.mockResolvedValue(["narrativo"]);
     apiMocks.fetchThemes.mockResolvedValue(["Ciencia ficcion"]);
     apiMocks.fetchUserCopyData.mockResolvedValue({
       copy_id: 7,

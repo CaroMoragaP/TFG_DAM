@@ -79,11 +79,14 @@ class LoanValidationError(ValueError):
     """Raised when the requested loan payload is invalid."""
 
 
+SHARED_READERS_PREVIEW_LIMIT = 3
+
+
 def attach_copy_social_summaries(
     db: Session,
     copies: Sequence[Copy],
     *,
-    preview_limit: int = 3,
+    preview_limit: int = SHARED_READERS_PREVIEW_LIMIT,
 ) -> None:
     if not copies:
         return

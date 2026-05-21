@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildLiteraryGenreOptions } from "../lib/bookMetadata";
+
 const apiMocks = vi.hoisted(() => ({
   fetchOpenLibraryBook: vi.fn(),
 }));
@@ -65,6 +67,7 @@ function renderModal(themeOptions = ["Ciencia ficcion", "Fantasia"]) {
         isOpen={true}
         isSaving={false}
         library={library}
+        genreOptions={buildLiteraryGenreOptions(["narrativo", "lírico", "dramático", "didáctico"])}
         themeOptions={themeOptions}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue(undefined)}

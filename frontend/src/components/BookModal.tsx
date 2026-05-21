@@ -11,8 +11,8 @@ import {
   type ReadingStatus,
 } from "../lib/api";
 import {
-  LITERARY_GENRE_OPTIONS,
   MAX_BOOK_THEMES,
+  type LiteraryGenreOption,
   normalizeThemeSelection,
   validateSharedBookFields,
 } from "../lib/bookMetadata";
@@ -39,6 +39,7 @@ export type BookFormValues = {
 type BookModalProps = {
   book: Book | null;
   defaultLibraryId: number | null;
+  genreOptions: LiteraryGenreOption[];
   themeOptions: string[];
   isOpen: boolean;
   isSaving: boolean;
@@ -149,6 +150,7 @@ function buildAuthorDisplayName(firstName: string, lastName: string) {
 export function BookModal({
   book,
   defaultLibraryId,
+  genreOptions,
   themeOptions,
   isOpen,
   isSaving,
@@ -413,7 +415,7 @@ export function BookModal({
               Genero literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
                 <option value="">Sin genero</option>
-                {LITERARY_GENRE_OPTIONS.map((genreOption) => (
+                {genreOptions.map((genreOption) => (
                   <option key={genreOption.value} value={genreOption.value}>
                     {genreOption.label}
                   </option>

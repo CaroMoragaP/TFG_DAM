@@ -105,6 +105,37 @@ function renderPage(initialEntry = "/catalogo?listId=2") {
   );
 }
 
+function buildBook(id: number) {
+  return {
+    id,
+    book_id: id,
+    library_id: 1,
+    title: `Libro ${id}`,
+    isbn: null,
+    publication_year: 1965,
+    description: null,
+    cover_url: null,
+    publisher: null,
+    collection: null,
+    author_country: "Estados Unidos",
+    author_sex: "male",
+    primary_author: {
+      first_name: "Autor",
+      last_name: `${id}`,
+      display_name: `Autor ${id}`,
+    },
+    authors: [`Autor ${id}`],
+    genre: "narrativo",
+    themes: ["Sci-Fi"],
+    format: "physical",
+    physical_location: null,
+    digital_location: null,
+    status: "available",
+    reading_status: "reading",
+    user_rating: 5,
+  };
+}
+
 describe("DashboardPage", () => {
   it("reads listId from the URL, hides the default library panel, and allows clearing the filter", async () => {
     apiMocks.fetchGenres.mockResolvedValue(["narrativo", "lírico"]);
@@ -157,7 +188,7 @@ describe("DashboardPage", () => {
             total: 1,
             limit: 24,
             offset: 0,
-          },
+          };
     });
 
     renderPage();
@@ -186,5 +217,41 @@ describe("DashboardPage", () => {
     await screen.findByText("Dune");
     expect(screen.getAllByText("Biblioteca personal")).toHaveLength(2);
     expect(screen.getByRole("button", { name: /añadir a lista/i })).toBeInTheDocument();
+  });
+  it("applies the compact catalog layout when only one or two books are visible", async () => {
+    apiMocks.fetchGenres.mockResolvedValue([]);
+    apiMocks.fetchThemes.mockResolvedValue([]);
+    apiMocks.fetchLists.mockResolvedValue([]);
+    apiMocks.fetchBooks.mockResolvedValue({
+      items: [buildBook(1), buildBook(2)],
+      total: 2,
+      limit: 24,
+      offset: 0,
+    });
+
+    renderPage("/catalogo");
+
+    await screen.findByText("Libro 1");
+
+    expect(document.querySelector(".dashboard-catalog-grid-compact")).not.toBeNull();
+  });
+
+  it("keeps the default catalog layout when four or more books are visible", async () => {
+    apiMocks.fetchGenres.mockResolvedValue([]);
+    apiMocks.fetchThemes.mockResolvedValue([]);
+    apiMocks.fetchLists.mockResolvedValue([]);
+    apiMocks.fetchBooks.mockResolvedValue({
+      items: [buildBook(1), buildBook(2), buildBook(3), buildBook(4)],
+      total: 4,
+      limit: 24,
+      offset: 0,
+    });
+
+    renderPage("/catalogo");
+
+    await screen.findByText("Libro 4");
+
+    expect(document.querySelector(".dashboard-catalog-grid-compact")).toBeNull();
+    expect(document.querySelector(".dashboard-catalog-grid")).not.toBeNull();
   });
 });

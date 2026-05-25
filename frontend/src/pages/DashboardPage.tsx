@@ -222,6 +222,13 @@ export function DashboardPage() {
   const libraryMap = new Map(libraries.map((library) => [library.id, library]));
   const books = booksQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const totalBooks = booksQuery.data?.pages[0]?.total ?? 0;
+  const catalogGridClassName = [
+    "catalog-grid",
+    "dashboard-catalog-grid",
+    books.length > 0 && books.length < 3 ? "dashboard-catalog-grid-compact" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const visibleLists = listsQuery.data ?? [];
   const activeList = visibleLists.find((list) => list.id === selectedListId) ?? null;
   const showLibraryBadge = libraries.length > 1;
@@ -486,7 +493,7 @@ export function DashboardPage() {
 
       {booksQuery.data && books.length > 0 ? (
         <div className="content-stack">
-          <div className="catalog-grid dashboard-catalog-grid">
+          <div className={catalogGridClassName}>
             {books.map((book) => {
               const library = libraryMap.get(book.library_id);
               const canEdit = library ? !library.is_archived && library.role !== "viewer" : false;

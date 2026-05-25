@@ -290,11 +290,7 @@ export function ActivityPage() {
   if (isLibrariesError) {
     return (
       <section className="content-stack private-page-shell community-page">
-        <CommunityHero
-          title="Comunidad"
-          description="No se pudieron cargar las bibliotecas disponibles para el muro."
-          isLibrarySelected={false}
-        />
+        <CommunityHero />
         <div className="panel community-message-panel">
           <p>No se pudieron cargar las bibliotecas disponibles para el muro.</p>
         </div>
@@ -305,11 +301,7 @@ export function ActivityPage() {
   if (!isLibrariesLoading && sharedLibraries.length === 0) {
     return (
       <section className="content-stack private-page-shell community-page">
-        <CommunityHero
-          title="Comunidad"
-          description="Aun no formas parte de una biblioteca compartida dentro del muro."
-          isLibrarySelected={false}
-        />
+        <CommunityHero />
         <div className="panel community-empty-panel">
           <h3>Comunidad</h3>
           <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
@@ -325,17 +317,7 @@ export function ActivityPage() {
 
   return (
     <section className="content-stack private-page-shell community-page">
-      <CommunityHero
-        title={activeLibrary ? activeLibrary.name : "Comunidad"}
-        description={
-          activeLibrary
-            ? `Sigue el pulso de ${activeLibrary.name} y descubre tanto la actividad del club como las valoraciones publicadas por sus miembros.`
-            : "Elige una biblioteca compartida para consultar su actividad y sus opiniones."
-        }
-        isLibrarySelected={Boolean(activeLibrary)}
-        memberCount={activeLibrary?.member_count}
-        copyCount={activeLibrary?.copy_count}
-      />
+      <CommunityHero />
 
       <div className="panel community-toolbar-panel">
         <div className="community-toolbar-main">

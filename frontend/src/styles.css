@@ -2190,6 +2190,14 @@ dd {
   gap: 1.55rem;
 }
 
+.dashboard-catalog-grid-compact {
+  justify-items: center;
+}
+
+.dashboard-catalog-grid-compact .dashboard-book-card {
+  width: min(100%, 360px);
+}
+
 .dashboard-book-card {
   overflow: hidden;
   background: #ffffff;

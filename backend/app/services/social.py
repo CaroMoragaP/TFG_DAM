@@ -304,14 +304,14 @@ def create_review(
         ),
     )
     if existing_review is not None:
-        raise ReviewConflictError("Ya has publicado una resena publica para este ejemplar.")
+        raise ReviewConflictError("Ya has publicado una reseña pública para este ejemplar.")
 
     from app.services.user_copies import get_or_create_user_copy
 
     user_copy = get_or_create_user_copy(db, user_id=user_id, copy_id=copy.id)
     if user_copy.rating is None:
         raise ReviewValidationError(
-            "Debes guardar una valoracion antes de publicar una resena publica.",
+            "Debes guardar una valoración antes de publicar una reseña pública.",
         )
 
     review = Review(
@@ -354,7 +354,7 @@ def update_review(
 ) -> ReviewOut:
     review = _get_shared_review(db, user_id=user_id, review_id=review_id)
     if review.user_id != user_id:
-        raise ReviewPermissionDeniedError("Solo puedes editar tu propia resena publica.")
+        raise ReviewPermissionDeniedError("Solo puedes editar tu propia reseña pública.")
 
     if "body" in data.model_fields_set:
         review.body = data.body
@@ -388,7 +388,7 @@ def delete_review(
 ) -> None:
     review = _get_shared_review(db, user_id=user_id, review_id=review_id)
     if review.user_id != user_id:
-        raise ReviewPermissionDeniedError("Solo puedes borrar tu propia resena publica.")
+        raise ReviewPermissionDeniedError("Solo puedes borrar tu propia reseña pública.")
 
     db.delete(review)
     db.commit()
@@ -487,7 +487,7 @@ def return_copy_loan(
         allowed_roles=CATALOG_MANAGEMENT_ROLES,
     )
     if loan.returned_at is not None:
-        raise LoanConflictError("Este prestamo ya fue devuelto.")
+        raise LoanConflictError("Este préstamo ya fue devuelto.")
 
     loan.returned_at = datetime.now(timezone.utc)
     loan.copy.status = CopyStatus.AVAILABLE
@@ -518,7 +518,7 @@ def validate_copy_status_update(db: Session, *, copy_id: int, status: CopyStatus
         return
     if status == CopyStatus.LOANED:
         raise LoanConflictError(
-            "El estado prestado queda reservado para la futura gestion de prestamos y no puede asignarse manualmente.",
+            "El estado prestado queda reservado para la futura gestión de préstamos y no puede asignarse manualmente.",
         )
 
     active_loan = db.scalar(
@@ -529,7 +529,7 @@ def validate_copy_status_update(db: Session, *, copy_id: int, status: CopyStatus
     )
     if active_loan is not None:
         raise LoanConflictError(
-            "No puedes cambiar el estado compartido mientras exista un prestamo activo.",
+            "No puedes cambiar el estado compartido mientras exista un préstamo activo.",
         )
 
 
@@ -601,7 +601,7 @@ def sync_public_review_rating(
         return
     if rating is None:
         raise ReviewConflictError(
-            "No puedes quitar la valoracion mientras tu resena publica siga publicada.",
+            "No puedes quitar la valoración mientras tu reseña pública siga publicada.",
         )
     if review.rating == rating:
         return
@@ -792,7 +792,7 @@ def _get_shared_review(
         .where(Review.id == review_id),
     ).scalar_one_or_none()
     if review is None:
-        raise ReviewNotFoundError("La resena solicitada no existe.")
+        raise ReviewNotFoundError("La reseña solicitada no existe.")
 
     get_user_library_membership(
         db,
@@ -822,7 +822,7 @@ def _get_shared_loan(
         .where(CopyLoan.id == loan_id),
     ).scalar_one_or_none()
     if loan is None:
-        raise LoanNotFoundError("El prestamo solicitado no existe.")
+        raise LoanNotFoundError("El préstamo solicitado no existe.")
 
     get_user_library_membership(
         db,
@@ -849,7 +849,7 @@ def _assert_no_active_loan(db: Session, *, copy_id: int) -> None:
         ),
     )
     if active_loan is not None:
-        raise LoanConflictError("Ya existe un prestamo activo para este ejemplar.")
+        raise LoanConflictError("Ya existe un préstamo activo para este ejemplar.")
 
 
 def _get_internal_borrower(

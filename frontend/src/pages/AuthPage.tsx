@@ -113,7 +113,7 @@ export function AuthPage({
     }
 
     if (!values.password) {
-      errors.password = "La contrasena es obligatoria.";
+      errors.password = "La contraseña es obligatoria.";
     }
 
     return errors;
@@ -133,17 +133,17 @@ export function AuthPage({
     }
 
     if (!values.password) {
-      errors.password = "La contrasena es obligatoria.";
+      errors.password = "La contraseña es obligatoria.";
     } else if (values.password.length < 8) {
       errors.password = "Usa al menos 8 caracteres.";
     } else if (values.password.length > passwordMaxLength) {
-      errors.password = "La contrasena no puede superar 72 caracteres.";
+      errors.password = "La contraseña no puede superar 72 caracteres.";
     }
 
     if (!values.confirmPassword) {
-      errors.confirmPassword = "Confirma la contrasena.";
+      errors.confirmPassword = "Confirma la contraseña.";
     } else if (values.confirmPassword !== values.password) {
-      errors.confirmPassword = "Las contrasenas no coinciden.";
+      errors.confirmPassword = "Las contraseñas no coinciden.";
     }
 
     return errors;
@@ -170,9 +170,9 @@ export function AuthPage({
       navigate("/catalogo", { replace: true });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        setLoginFormError("Email o contrasena incorrectos.");
+        setLoginFormError("Email o contraseña incorrectos.");
       } else {
-        setLoginFormError("No se pudo iniciar sesion. Intentalo otra vez.");
+        setLoginFormError("No se pudo iniciar sesión. Inténtalo otra vez.");
       }
     } finally {
       setIsLoginSubmitting(false);
@@ -224,8 +224,8 @@ export function AuthPage({
           </h1>
           <p className="auth-page-lead">
             {activeTab === "login"
-              ? "Accede a catalogo, listas, progreso y estadisticas con la misma identidad visual del resto de la aplicacion."
-              : "Registra tu cuenta para organizar libros, lecturas y bibliotecas compartidas desde una unica interfaz."}
+              ? "Accede a catálogo, listas, progreso y estadísticas con la misma identidad visual del resto de la aplicación."
+              : "Registra tu cuenta para organizar libros, lecturas y bibliotecas compartidas desde una única interfaz."}
           </p>
           <div className="auth-page-links">
             <Link className="auth-page-link" to="/">
@@ -300,7 +300,7 @@ export function AuthPage({
                     }))
                   }
                   autoComplete="current-password"
-                  placeholder="Introduce tu contrasena"
+                  placeholder="Introduce tu contraseña"
                 />
                 {loginErrors.password ? (
                   <p className="auth-field-error">{loginErrors.password}</p>
@@ -317,7 +317,7 @@ export function AuthPage({
             <form className="auth-form" onSubmit={handleRegisterSubmit} noValidate>
               <div className="auth-form-copy">
                 <h2>Crea tu cuenta</h2>
-                <p>Empieza con un perfil nuevo y entra directo a tu catalogo.</p>
+                <p>Empieza con un perfil nuevo y entra directo a tu catálogo.</p>
               </div>
 
               <label className="auth-field">
@@ -382,7 +382,7 @@ export function AuthPage({
               </label>
 
               <label className="auth-field">
-                <span className="auth-field-label">Confirmacion de contrasena</span>
+                <span className="auth-field-label">Confirmación de contraseña</span>
                 <input
                   className="auth-input"
                   type="password"
@@ -394,7 +394,7 @@ export function AuthPage({
                     }))
                   }
                   autoComplete="new-password"
-                  placeholder="Repite la contrasena"
+                  placeholder="Repite la contraseña"
                   maxLength={passwordMaxLength}
                 />
                 {registerErrors.confirmPassword ? (

@@ -152,7 +152,7 @@ describe("ActivityPage", () => {
     expect(screen.getByLabelText("Biblioteca compartida")).toHaveValue("2");
     expect(screen.queryByText("Selecciona una biblioteca compartida para ver su actividad y sus opiniones.")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Comunidad" })).toBeInTheDocument();
-    expect(screen.getByText("Sigue la actividad de tus bibliotecas compartidas, descubre opiniones publicadas por otros miembros y mantente al dia de lo que se mueve en el club.")).toBeInTheDocument();
+    expect(screen.getByText("Sigue la actividad de tus bibliotecas compartidas, descubre opiniones publicadas por otros miembros y mantente al día de lo que se mueve en el club.")).toBeInTheDocument();
   });
 
   it("keeps the selector available to switch shared libraries manually", async () => {
@@ -262,7 +262,7 @@ describe("ActivityPage", () => {
       });
     });
 
-    expect(await screen.findByText("Tu publicacion")).toBeInTheDocument();
+    expect(await screen.findByText("Tu publicación")).toBeInTheDocument();
     expect(screen.getAllByText("Comunidad").length).toBeGreaterThan(0);
     expect(screen.getByText("Lo quiero comentar.")).toBeInTheDocument();
     expect(screen.getByText("Impactante.")).toBeInTheDocument();
@@ -293,7 +293,7 @@ describe("ActivityPage", () => {
 
     renderPage("/muro?tab=activity");
 
-    expect(await screen.findByText("Todavia no tienes acceso a ninguna biblioteca compartida.")).toBeInTheDocument();
+    expect(await screen.findByText("Todavía no tienes acceso a ninguna biblioteca compartida.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ir a Mis bibliotecas" })).toHaveAttribute(
       "href",
       "/bibliotecas",

@@ -103,7 +103,7 @@ def normalize_theme(
     if invalid_fallback is not None:
         return invalid_fallback
 
-    raise ValueError("Tema no valido. Usa uno de los temas del catalogo.")
+    raise ValueError("Tema no válido. Usa uno de los temas del catálogo.")
 
 
 def normalize_theme_list(
@@ -130,7 +130,7 @@ def normalize_theme_list(
         normalized_values.append(canonical)
 
     if len(normalized_values) > limit:
-        raise ValueError(f"Selecciona como maximo {limit} temas.")
+        raise ValueError(f"Selecciona como máximo {limit} temas.")
 
     return normalized_values
 

@@ -158,7 +158,7 @@ export function BookDetailEditModal({
       const publisher = bookValues.publisherName.trim();
 
       if (!isbn && !title) {
-        throw new Error("Escribe un ISBN o un titulo antes de buscar.");
+        throw new Error("Escribe un ISBN o un título antes de buscar.");
       }
 
       return fetchOpenLibraryBook(
@@ -290,7 +290,7 @@ export function BookDetailEditModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Edicion del ejemplar</p>
+            <p className="eyebrow">Edición del ejemplar</p>
             <h2 id="book-detail-edit-modal-title">Editar</h2>
             <p className="detail-inline-copy modal-subtitle">{copy.title}</p>
           </div>
@@ -320,13 +320,13 @@ export function BookDetailEditModal({
                       value={copyValues.format}
                       onChange={(event) => handleCopyFieldChange("format", event.target.value as CopyFormat)}
                     >
-                      <option value="physical">Fisico</option>
+                      <option value="physical">Físico</option>
                       <option value="digital">Digital</option>
                     </select>
                   </label>
 
                   <label className="field-group">
-                    Ubicacion fisica
+                    Ubicación física
                     <input
                       value={copyValues.physicalLocation}
                       onChange={(event) => handleCopyFieldChange("physicalLocation", event.target.value)}
@@ -339,8 +339,8 @@ export function BookDetailEditModal({
             {canEditBook ? (
               <section className="content-stack">
                 <div>
-                  <p className="eyebrow">Ficha canonica</p>
-                  <p className="detail-inline-copy">Busca por ISBN o por titulo, nombre y editorial.</p>
+                  <p className="eyebrow">Ficha canónica</p>
+                  <p className="detail-inline-copy">Busca por ISBN o por título, nombre y editorial.</p>
                 </div>
 
                 <div className="modal-grid">
@@ -411,7 +411,7 @@ export function BookDetailEditModal({
                   </label>
 
                   <label className="field-group">
-                    Pais del autor principal
+                    País del autor principal
                     <input
                       value={bookValues.authorCountry}
                       onChange={(event) => handleBookFieldChange("authorCountry", event.target.value)}
@@ -419,7 +419,7 @@ export function BookDetailEditModal({
                   </label>
 
                   <label className="field-group">
-                    Ano
+                    Año
                     <input
                       inputMode="numeric"
                       value={bookValues.publicationYear}
@@ -429,12 +429,12 @@ export function BookDetailEditModal({
                   </label>
 
                   <label className="field-group">
-                    Genero literario
+                    Género literario
                     <select
                       value={bookValues.genre}
                       onChange={(event) => handleBookFieldChange("genre", event.target.value)}
                     >
-                      <option value="">Sin genero</option>
+                      <option value="">Sin género</option>
                       {genreOptions.map((genreOption) => (
                         <option key={genreOption.value} value={genreOption.value}>
                           {genreOption.label}
@@ -453,7 +453,7 @@ export function BookDetailEditModal({
                   />
 
                   <label className="field-group">
-                    Coleccion
+                    Colección
                     <input
                       value={bookValues.collection}
                       onChange={(event) => handleBookFieldChange("collection", event.target.value)}
@@ -470,7 +470,7 @@ export function BookDetailEditModal({
                   </label>
 
                   <label className="field-group field-span-full">
-                    Descripcion
+                    Descripción
                     <textarea
                       className="notes-textarea"
                       rows={4}

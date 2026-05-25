@@ -106,12 +106,12 @@ describe("BookModal", () => {
     expect(librarySelect.value).toBe("");
     expect(screen.queryByText("Estado inicial")).not.toBeInTheDocument();
     expect(screen.getByText("Rating")).toBeInTheDocument();
-    expect(screen.getByText("Busca por ISBN o por titulo, nombre y editorial.")).toBeInTheDocument();
+    expect(screen.getByText("Busca por ISBN o por título, nombre y editorial.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar libro" }));
 
     await waitFor(() => {
-      expect(screen.getByText("El titulo es obligatorio.")).toBeInTheDocument();
+      expect(screen.getByText("El título es obligatorio.")).toBeInTheDocument();
     });
     expect(screen.getByText("El autor es obligatorio.")).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();

@@ -59,7 +59,7 @@ describe("CatalogImportModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previsualizar importacion" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Selecciona una biblioteca valida.")).toBeInTheDocument();
+      expect(screen.getByText("Selecciona una biblioteca válida.")).toBeInTheDocument();
     });
     expect(onPreview).not.toHaveBeenCalled();
   });

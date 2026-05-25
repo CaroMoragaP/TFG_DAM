@@ -353,14 +353,14 @@ describe("ReadingPage", () => {
     expect(screen.getByText("Mostrando solo el libro seleccionado")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quitar filtro" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText("Mi valoracion y publicacion")).toBeInTheDocument();
+      expect(screen.getByText("Mi valoración y publicación")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Valorar Kindred con 5 estrellas" }));
     fireEvent.change(screen.getByLabelText("Comentario publico"), {
       target: { value: "Quiero comentarlo con el club." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Publicar mi valoracion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar mi valoración" }));
 
     await waitFor(() => {
       expect(apiMocks.updateUserCopyDataRequest).toHaveBeenCalledWith("token", 12, {
@@ -410,7 +410,7 @@ describe("ReadingPage", () => {
     renderPage("/lectura?tab=pending&library=all");
 
     await screen.findByText("Kindred");
-    expect(screen.queryByText("Sin notas personales todavia.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sin notas personales todavía.")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar lecturas" }), {
       target: { value: "Arrakis" },
@@ -420,7 +420,7 @@ describe("ReadingPage", () => {
       expect(screen.queryByText("Kindred")).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText("No hay resultados para esa busqueda.")).toBeInTheDocument();
+    expect(screen.getByText("No hay resultados para esa búsqueda.")).toBeInTheDocument();
   });
 
   it("cancels an active reading by moving it back to pending and clearing both dates", async () => {
@@ -510,10 +510,10 @@ describe("ReadingPage", () => {
 
     await screen.findByText("Kindred");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Retirar publicacion" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Retirar publicación" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Retirar publicacion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retirar publicación" }));
 
     await waitFor(() => {
       expect(confirmSpy).toHaveBeenCalled();

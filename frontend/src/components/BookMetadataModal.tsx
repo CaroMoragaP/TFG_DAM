@@ -132,7 +132,7 @@ export function BookMetadataModal({
       const publisher = formValues.publisherName.trim();
 
       if (!isbn && !title) {
-        throw new Error("Escribe un ISBN o un titulo antes de buscar.");
+        throw new Error("Escribe un ISBN o un título antes de buscar.");
       }
 
       return fetchOpenLibraryBook(
@@ -241,10 +241,10 @@ export function BookMetadataModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Ficha canonica</p>
+            <p className="eyebrow">Ficha canónica</p>
             <h2 id="book-metadata-modal-title">Editar libro</h2>
             <p className="detail-inline-copy modal-subtitle">
-              Busca por ISBN o por titulo, nombre y editorial.
+              Busca por ISBN o por título, nombre y editorial.
             </p>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
@@ -320,7 +320,7 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Pais del autor principal
+              País del autor principal
               <input
                 value={formValues.authorCountry}
                 onChange={(event) => handleFieldChange("authorCountry", event.target.value)}
@@ -328,7 +328,7 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Ano
+              Año
               <input
                 inputMode="numeric"
                 value={formValues.publicationYear}
@@ -338,9 +338,9 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Genero literario
+              Género literario
               <select value={formValues.genre} onChange={(event) => handleFieldChange("genre", event.target.value)}>
-                <option value="">Sin genero</option>
+                <option value="">Sin género</option>
                 {genreOptions.map((genreOption) => (
                   <option key={genreOption.value} value={genreOption.value}>
                     {genreOption.label}
@@ -359,7 +359,7 @@ export function BookMetadataModal({
             />
 
             <label className="field-group">
-              Coleccion
+              Colección
               <input
                 value={formValues.collection}
                 onChange={(event) => handleFieldChange("collection", event.target.value)}
@@ -376,7 +376,7 @@ export function BookMetadataModal({
             </label>
 
             <label className="field-group">
-              Descripcion
+              Descripción
               <textarea
                 className="notes-textarea"
                 rows={4}

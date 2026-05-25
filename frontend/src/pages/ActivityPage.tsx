@@ -79,21 +79,21 @@ function formatEventLabel(event: LibraryActivityEvent) {
 
   switch (event.event_type) {
     case "reading_started":
-      return `empezo a leer ${bookTitle}`;
+      return `empezó a leer ${bookTitle}`;
     case "reading_finished":
-      return `termino ${bookTitle}`;
+      return `terminó ${bookTitle}`;
     case "review_published":
-      return `publico una resena sobre ${bookTitle}`;
+      return `publicó una reseña sobre ${bookTitle}`;
     case "review_updated":
-      return `actualizo su resena de ${bookTitle}`;
+      return `actualizó su reseña de ${bookTitle}`;
     case "loan_started":
-      return `presto ${bookTitle} a ${borrowerName}`;
+      return `prestó ${bookTitle} a ${borrowerName}`;
     case "loan_returned":
-      return `registro la devolucion de ${bookTitle}`;
+      return `registró la devolución de ${bookTitle}`;
     case "book_added":
-      return `anadio ${bookTitle}`;
+      return `añadió ${bookTitle}`;
     case "books_imported":
-      return `anadio ${importedCount === 1 ? "1 libro" : `${importedCount ?? 0} libros`}`;
+      return `añadió ${importedCount === 1 ? "1 libro" : `${importedCount ?? 0} libros`}`;
     default:
       return `hizo una actividad en ${bookTitle}`;
   }
@@ -115,7 +115,7 @@ function formatTimestamp(value: string) {
   }
 
   if (diffDays < 7) {
-    return `Hace ${diffDays} ${diffDays === 1 ? "dia" : "dias"}`;
+    return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
   }
 
   return date.toLocaleDateString("es-ES", {
@@ -126,11 +126,11 @@ function formatTimestamp(value: string) {
 }
 
 function formatRating(value: number | null) {
-  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+  return value === null ? "Sin media pública" : `${value.toFixed(1)}/5`;
 }
 
 function formatReviewCount(count: number) {
-  return `${count} ${count === 1 ? "resena" : "resenas"}`;
+  return `${count} ${count === 1 ? "reseña" : "reseñas"}`;
 }
 
 function getEventTone(eventType: LibraryActivityEvent["event_type"]) {
@@ -159,17 +159,17 @@ function getEventBadgeLabel(eventType: LibraryActivityEvent["event_type"]) {
     case "reading_finished":
       return "Lectura cerrada";
     case "review_published":
-      return "Nueva opinion";
+      return "Nueva opinión";
     case "review_updated":
       return "Opinion editada";
     case "loan_started":
-      return "Prestamo";
+      return "Préstamo";
     case "loan_returned":
-      return "Devolucion";
+      return "Devolución";
     case "book_added":
       return "Nuevo libro";
     case "books_imported":
-      return "Importacion";
+      return "Importación";
     default:
       return "Actividad";
   }
@@ -304,7 +304,7 @@ export function ActivityPage() {
         <CommunityHero />
         <div className="panel community-empty-panel">
           <h3>Comunidad</h3>
-          <p>Todavia no tienes acceso a ninguna biblioteca compartida.</p>
+          <p>Todavía no tienes acceso a ninguna biblioteca compartida.</p>
           <div className="inline-actions">
             <Link className="button-primary compact-action" to="/bibliotecas">
               Ir a Mis bibliotecas
@@ -365,7 +365,7 @@ export function ActivityPage() {
               Mostrar
               <select value={reviewFilter} onChange={(event) => updateSearchParam("filter", event.target.value)}>
                 <option value="all">Todas</option>
-                <option value="missing_mine">Sin mi publicacion</option>
+                <option value="missing_mine">Sin mi publicación</option>
                 <option value="mine">Solo mis publicaciones</option>
               </select>
             </label>
@@ -375,7 +375,7 @@ export function ActivityPage() {
               <select value={reviewSort} onChange={(event) => updateSearchParam("sort", event.target.value)}>
                 <option value="recent">Actividad reciente</option>
                 <option value="rating">Mejor valoradas</option>
-                <option value="count">Mas resenadas</option>
+                <option value="count">Más reseñadas</option>
               </select>
             </label>
           </div>
@@ -405,8 +405,8 @@ export function ActivityPage() {
 
           {activityQuery.data && activityItems.length === 0 ? (
             <div className="panel community-empty-panel">
-              <h3>El muro aun esta vacio.</h3>
-              <p>Cuando alguien lea, resene, preste o anada libros, aparecera aqui.</p>
+              <h3>El muro aún está vacío.</h3>
+              <p>Cuando alguien lea, reseñe, preste o añada libros, aparecerá aquí.</p>
             </div>
           ) : null}
 
@@ -500,14 +500,14 @@ export function ActivityPage() {
 
           {reviewsQuery.isError ? (
             <div className="panel community-message-panel">
-              <p>No se pudieron cargar las opiniones publicas de esta biblioteca.</p>
+              <p>No se pudieron cargar las opiniones públicas de esta biblioteca.</p>
             </div>
           ) : null}
 
           {reviewsQuery.data && reviewsItems.length === 0 ? (
             <div className="panel community-empty-panel">
-              <h3>Todavia no hay resenas para este filtro.</h3>
-              <p>Publica tu valoracion desde Lectura para arrancar la conversacion compartida.</p>
+              <h3>Todavía no hay reseñas para este filtro.</h3>
+              <p>Publica tu valoración desde Lectura para arrancar la conversación compartida.</p>
             </div>
           ) : null}
 
@@ -537,7 +537,7 @@ export function ActivityPage() {
 
                   <div className="community-review-split community-review-columns">
                     <section className="community-review-column community-review-column-own">
-                      <p className="eyebrow">Tu publicacion</p>
+                      <p className="eyebrow">Tu publicación</p>
                       {card.my_review ? (
                         <div className="community-review-entry own-review-card">
                           <div className="community-review-entry-head">
@@ -547,12 +547,12 @@ export function ActivityPage() {
                             </div>
                             <StarRating rating={card.my_review.rating} className="community-stars" />
                           </div>
-                          <p>{card.my_review.body ?? "Solo has dejado una valoracion con estrellas."}</p>
+                          <p>{card.my_review.body ?? "Solo has dejado una valoración con estrellas."}</p>
                         </div>
                       ) : (
                         <div className="community-review-entry community-review-entry-empty">
-                          <strong>Todavia no has publicado tu valoracion para este libro.</strong>
-                          <p>Comparte tu lectura desde la ficha de seguimiento para sumarte a la conversacion.</p>
+                          <strong>Todavía no has publicado tu valoración para este libro.</strong>
+                          <p>Comparte tu lectura desde la ficha de seguimiento para sumarte a la conversación.</p>
                         </div>
                       )}
                     </section>
@@ -562,7 +562,7 @@ export function ActivityPage() {
                       {card.other_reviews.length === 0 ? (
                         <div className="community-review-entry community-review-entry-empty">
                           <strong>Sin opiniones de otros miembros</strong>
-                          <p>Todavia no hay opiniones de otros miembros para este ejemplar.</p>
+                          <p>Todavía no hay opiniones de otros miembros para este ejemplar.</p>
                         </div>
                       ) : (
                         <div className="community-review-stack">
@@ -575,7 +575,7 @@ export function ActivityPage() {
                                 </div>
                                 <StarRating rating={review.rating} className="community-stars" />
                               </div>
-                              <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
+                              <p>{review.body ?? "Solo ha dejado una valoración con estrellas."}</p>
                             </div>
                           ))}
                         </div>

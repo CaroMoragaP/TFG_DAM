@@ -172,7 +172,7 @@ function BreakdownBarCard({
     return (
       <EmptyChartPanel
         title={title}
-        description="Todavia no hay suficientes registros para construir este grafico."
+        description="Todavía no hay suficientes registros para construir este gráfico."
       />
     );
   }
@@ -237,7 +237,7 @@ function BreakdownPieCard({
     return (
       <EmptyChartPanel
         title={title}
-        description="Todavia no hay registros con esta metadata para mostrar la distribucion."
+        description="Todavía no hay registros con esta metadata para mostrar la distribución."
       />
     );
   }
@@ -325,12 +325,12 @@ function RecentFinishesCard({ items }: { items: ReadingStats["recent_finishes"] 
       <div className="stats-panel-header">
         <div>
           <p className="eyebrow">Lecturas recientes</p>
-          <h3>Ultimos libros terminados</h3>
+          <h3>Últimos libros terminados</h3>
         </div>
       </div>
       {items.length === 0 ? (
         <div className="stats-empty-chart">
-          <p>Todavia no hay libros terminados con fecha de fin registrada.</p>
+          <p>Todavía no hay libros terminados con fecha de fin registrada.</p>
         </div>
       ) : (
         <div className="stats-recent-list">
@@ -389,8 +389,8 @@ function ReadingGoalCard({
           </span>
           <p>
             {hasGoal
-              ? "Tu porcentaje de cumplimiento se calcula con todos los libros terminados este ano."
-              : "Aun no has definido una meta anual. Puedes crearla desde este panel."}
+              ? "Tu porcentaje de cumplimiento se calcula con todos los libros terminados este año."
+              : "Aún no has definido una meta anual. Puedes crearla desde este panel."}
           </p>
           <small>
             {isScopedToLibrary
@@ -444,7 +444,7 @@ function StuckRemindersCard({ items }: { items: ReadingStats["stuck_reminders"] 
       </div>
       {items.length === 0 ? (
         <div className="stats-empty-chart">
-          <p>No hay lecturas atascadas segun el umbral actual de 30 dias.</p>
+          <p>No hay lecturas atascadas según el umbral actual de 30 días.</p>
         </div>
       ) : (
         <div className="stats-recent-list">
@@ -455,10 +455,10 @@ function StuckRemindersCard({ items }: { items: ReadingStats["stuck_reminders"] 
                 <span>{item.authors.join(", ") || "Autor sin registrar"}</span>
                 <small>
                   Empezado el {dateFormatter.format(new Date(item.started_on))} -{" "}
-                  {numberFormatter.format(item.days_open)} dias abierto
+                  {numberFormatter.format(item.days_open)} días abierto
                 </small>
               </div>
-              <span className="status-chip warning">{item.days_open} dias</span>
+              <span className="status-chip warning">{item.days_open} días</span>
             </Link>
           ))}
         </div>
@@ -539,7 +539,7 @@ export function StatsPage() {
   const queryErrorMessage =
     activeQuery.error instanceof Error
       ? activeQuery.error.message
-      : "No se pudieron cargar las estadisticas.";
+      : "No se pudieron cargar las estadísticas.";
   const goalErrorMessage =
     updateGoalMutation.error instanceof Error
       ? updateGoalMutation.error.message
@@ -567,9 +567,9 @@ export function StatsPage() {
   return (
     <section className="content-stack private-page-shell">
       <DashboardHero
-        eyebrow="Analitica personal"
-        title="Estadistica"
-        description="Revisa el equilibrio de tu catalogo, el progreso de lectura y los patrones que se van formando en tus bibliotecas."
+        eyebrow="Analítica personal"
+        title="Estadística"
+        description="Revisa el equilibrio de tu catálogo, el progreso de lectura y los patrones que se van formando en tus bibliotecas."
         icon="stats"
       />
 
@@ -590,20 +590,20 @@ export function StatsPage() {
           </select>
         </label>
 
-        <div className="stats-tab-strip" role="tablist" aria-label="Tipos de estadisticas">
+        <div className="stats-tab-strip" role="tablist" aria-label="Tipos de estadísticas">
           <button
             className={tab === "catalog" ? "stats-tab active" : "stats-tab"}
             type="button"
             onClick={() => updateSearchParam("tab", "catalog")}
           >
-            Estadisticas del catalogo
+            Estadísticas del catálogo
           </button>
           <button
             className={tab === "reading" ? "stats-tab active" : "stats-tab"}
             type="button"
             onClick={() => updateSearchParam("tab", "reading")}
           >
-            Estadisticas de lectura
+            Estadísticas de lectura
           </button>
         </div>
       </div>
@@ -632,17 +632,17 @@ export function StatsPage() {
         <>
           <div className="stats-grid stats-grid-metrics">
             <MetricCard
-              eyebrow="Catalogo"
+              eyebrow="Catálogo"
               label="Total de ejemplares"
               value={numberFormatter.format(catalogQuery.data.totals.total)}
             />
             <MetricCard
               eyebrow="Formato"
-              label="Libros fisicos - libros digitales"
+              label="Libros físicos - libros digitales"
               value={`${numberFormatter.format(catalogQuery.data.totals.physical)} - ${numberFormatter.format(catalogQuery.data.totals.digital)}`}
             />
             <MetricCard
-              eyebrow="Catalogo"
+              eyebrow="Catálogo"
               label="Total de autores"
               value={numberFormatter.format(catalogQuery.data.totals.distinct_authors)}
             />
@@ -651,36 +651,36 @@ export function StatsPage() {
           <div className="stats-grid">
             <BreakdownBarCard
               title="Autorias por sexo"
-              eyebrow="Catalogo"
+              eyebrow="Catálogo"
               data={catalogQuery.data.author_sex_distribution}
               countLabel="libros"
             />
             <BreakdownPieCard
-              title="Pais de nacimiento del autor"
-              eyebrow="Catalogo"
+              title="País de nacimiento del autor"
+              eyebrow="Catálogo"
               data={buildCountryPieData(catalogQuery.data.author_country_distribution)}
             />
             <BreakdownBarCard
-              title="Distribucion por genero literario"
-              eyebrow="Catalogo"
+              title="Distribución por género literario"
+              eyebrow="Catálogo"
               data={topSlice(catalogQuery.data.genre_distribution, 10)}
               countLabel="libros"
             />
             <BreakdownBarCard
-              title="Distribucion por temas"
-              eyebrow="Catalogo"
+              title="Distribución por temas"
+              eyebrow="Catálogo"
               data={topSlice(catalogQuery.data.theme_distribution, 10)}
               countLabel="libros"
             />
             <BreakdownBarCard
-              title="Distribucion por editorial"
-              eyebrow="Catalogo"
+              title="Distribución por editorial"
+              eyebrow="Catálogo"
               data={catalogQuery.data.publisher_distribution}
               countLabel="libros"
             />
             <BreakdownBarCard
-              title="Distribucion por ano de publicacion"
-              eyebrow="Catalogo"
+              title="Distribución por año de publicación"
+              eyebrow="Catálogo"
               data={catalogQuery.data.publication_year_distribution}
               countLabel="libros"
               wide={true}
@@ -689,19 +689,19 @@ export function StatsPage() {
               title="Top autores"
               eyebrow="Ranking"
               items={catalogQuery.data.top_authors}
-              emptyText="Todavia no hay autores suficientes para construir un ranking."
+              emptyText="Todavía no hay autores suficientes para construir un ranking."
             />
             <RankingCard
-              title="Top generos literarios"
+              title="Top géneros literarios"
               eyebrow="Ranking"
               items={catalogQuery.data.top_genres}
-              emptyText="Todavia no hay generos suficientes para construir un ranking."
+              emptyText="Todavía no hay géneros suficientes para construir un ranking."
             />
             <RankingCard
               title="Top temas"
               eyebrow="Ranking"
               items={catalogQuery.data.top_themes}
-              emptyText="Todavia no hay temas suficientes para construir un ranking."
+              emptyText="Todavía no hay temas suficientes para construir un ranking."
             />
           </div>
         </>
@@ -798,7 +798,7 @@ export function StatsPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="stats-empty-chart">
-                  <p>Todavia no hay fechas suficientes este ano para construir el progreso mensual.</p>
+                  <p>Todavía no hay fechas suficientes este año para construir el progreso mensual.</p>
                 </div>
               )}
             </article>
@@ -807,12 +807,12 @@ export function StatsPage() {
               <div className="stats-panel-header">
                 <div>
                   <p className="eyebrow">Ritmo de lectura</p>
-                  <h3>Libros leidos por ano</h3>
+                  <h3>Libros leídos por año</h3>
                 </div>
               </div>
               {readingQuery.data.finished_by_year.length === 0 ? (
                 <div className="stats-empty-chart">
-                  <p>Todavia no hay lecturas terminadas con fecha de fin para construir este grafico.</p>
+                  <p>Todavía no hay lecturas terminadas con fecha de fin para construir este gráfico.</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
@@ -854,7 +854,7 @@ export function StatsPage() {
                 <span>
                   {readingQuery.data.rating_summary.total_rated > 0
                     ? `${readingQuery.data.rating_summary.total_rated} libros valorados`
-                    : "Todavia no has valorado ningun libro"}
+                    : "Todavía no has valorado ningún libro"}
                 </span>
               </div>
               {readingQuery.data.rating_summary.total_rated > 0 ? (
@@ -884,7 +884,7 @@ export function StatsPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="stats-empty-chart compact">
-                  <p>Aun no hay datos de valoracion para repartir por estrellas.</p>
+                  <p>Aún no hay datos de valoración para repartir por estrellas.</p>
                 </div>
               )}
             </article>

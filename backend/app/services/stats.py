@@ -124,12 +124,12 @@ def get_catalog_stats(
         author_country_counts[
             primary_author.country.name
             if primary_author is not None and primary_author.country is not None
-            else "Sin pais"
+            else "Sin país"
         ] += 1
-        genre_counts[book.genre if book.genre is not None else "Sin genero"] += 1
+        genre_counts[book.genre if book.genre is not None else "Sin género"] += 1
         publisher_counts[book.publisher.name if book.publisher is not None else "Sin editorial"] += 1
         publication_year_counts[
-            str(book.publication_year) if book.publication_year is not None else "Sin ano"
+            str(book.publication_year) if book.publication_year is not None else "Sin año"
         ] += 1
 
         if primary_author is not None:
@@ -137,7 +137,7 @@ def get_catalog_stats(
         else:
             top_author_counts["Autor sin registrar"] += 1
 
-        top_genre_counts[book.genre if book.genre is not None else "Sin genero"] += 1
+        top_genre_counts[book.genre if book.genre is not None else "Sin género"] += 1
 
         serialized_themes = _serialize_themes(book)
         if not serialized_themes:
@@ -521,7 +521,7 @@ def _sorted_counter_items(
 
 
 def _publication_year_sort_key(label: str, count: int) -> tuple[int, int, str]:
-    if label == "Sin ano":
+    if label == "Sin año":
         return (1, 0, label)
     return (0, int(label), label)
 

@@ -5,28 +5,28 @@ const landingPreviewImageSrc = "/images/landing/public-home-preview.jpg";
 
 const featureCards = [
   {
-    title: "Catalogo privado",
-    description: "Guarda tus libros por biblioteca, localiza rapido por autor o ISBN y manten tu fondo ordenado.",
+    title: "Catálogo privado",
+    description: "Guarda tus libros por biblioteca, localiza rápido por autor o ISBN y mantén tu fondo ordenado.",
   },
   {
     title: "Seguimiento de lectura",
-    description: "Marca pendientes, en lectura y terminados. Anade notas y puntuaciones sin salir de tu panel.",
+    description: "Marca pendientes, en lectura y terminados. Añade notas y puntuaciones sin salir de tu panel.",
   },
   {
-    title: "Listas tematicas",
-    description: "Agrupa lecturas por club, semestre, regalos o cualquier coleccion que quieras preparar.",
+    title: "Listas temáticas",
+    description: "Agrupa lecturas por club, semestre, regalos o cualquier colección que quieras preparar.",
   },
   {
-    title: "Estadisticas claras",
-    description: "Consulta tendencias, formatos, generos y progreso para entender mejor tus habitos lectores.",
+    title: "Estadísticas claras",
+    description: "Consulta tendencias, formatos, géneros y progreso para entender mejor tus hábitos lectores.",
   },
   {
     title: "Bibliotecas separadas",
-    description: "Organiza colecciones distintas dentro de la misma cuenta y mueve el foco segun necesites.",
+    description: "Organiza colecciones distintas dentro de la misma cuenta y mueve el foco según necesites.",
   },
   {
     title: "Importa y exporta",
-    description: "Aprovecha el soporte CSV para arrancar rapido o sacar copias de tu catalogo cuando quieras.",
+    description: "Aprovecha el soporte CSV para arrancar rápido o sacar copias de tu catálogo cuando quieras.",
   },
 ];
 
@@ -38,13 +38,13 @@ const steps = [
   },
   {
     number: "02",
-    title: "Carga tu catalogo",
-    description: "Anade libros manualmente o importa un CSV para empezar a trabajar con tu biblioteca real.",
+    title: "Carga tu catálogo",
+    description: "Añade libros manualmente o importa un CSV para empezar a trabajar con tu biblioteca real.",
   },
   {
     number: "03",
     title: "Ordena y consulta",
-    description: "Filtra, clasifica, sigue tus lecturas y revisa estadisticas desde una misma interfaz.",
+    description: "Filtra, clasifica, sigue tus lecturas y revisa estadísticas desde una misma interfaz.",
   },
 ];
 
@@ -80,7 +80,7 @@ function LandingPreviewImage() {
     <img
       className="landing-preview-image"
       src={landingPreviewImageSrc}
-      alt="Vista previa de la aplicacion"
+      alt="Vista previa de la aplicación"
       onError={() => setHasImageError(true)}
     />
   );
@@ -93,11 +93,11 @@ export function PublicHomePage() {
         <div className="landing-hero-copy">
           <span className="landing-hero-badge">Tu biblioteca personal</span>
           <h1>
-            Organiza tu catalogo. <span>Sigue</span> cada lectura.
+            Organiza tu catálogo. <span>Sigue</span> cada lectura.
           </h1>
           <p>
-            Reune catalogo, listas, progreso y estadisticas en una zona privada con acceso real,
-            autenticacion persistente y una interfaz preparada para trabajar desde el primer dia.
+            Reúne catálogo, listas, progreso y estadísticas en una zona privada con acceso real,
+            autenticación persistente y una interfaz preparada para trabajar desde el primer día.
           </p>
           <div className="landing-hero-actions">
             <Link className="landing-signup-link landing-hero-primary" to="/register">
@@ -121,9 +121,9 @@ export function PublicHomePage() {
       <section id="funciones" className="landing-features-section landing-section">
         <div className="landing-section-heading">
           <span>Funciones</span>
-          <h2>Una experiencia mas cuidada para gestionar tu biblioteca real</h2>
+          <h2>Una experiencia más cuidada para gestionar tu biblioteca real</h2>
           <p>
-            El estilo visual del catalogo se traslada a la portada para que toda la aplicacion se
+            El estilo visual del catálogo se traslada a la portada para que toda la aplicación se
             sienta coherente, clara y lista para usar.
           </p>
         </div>
@@ -141,7 +141,7 @@ export function PublicHomePage() {
 
       <section id="como-funciona" className="landing-steps-section landing-section">
         <div className="landing-section-heading">
-          <span>Como funciona</span>
+          <span>Cómo funciona</span>
           <h2>Ordena tu biblioteca en solo tres pasos</h2>
         </div>
 
@@ -160,10 +160,10 @@ export function PublicHomePage() {
         <div className="landing-cta-shell">
           <div>
             <span className="landing-cta-badge">Empieza hoy</span>
-            <h2>Activa tu espacio privado y organiza tus libros con el mismo estilo del catalogo</h2>
+            <h2>Activa tu espacio privado y organiza tus libros con el mismo estilo del catálogo</h2>
             <p>
-              La navegacion publica mantiene los accesos originales y la zona privada sigue
-              funcionando igual, ahora con una entrada mucho mas solida y consistente.
+              La navegación pública mantiene los accesos originales y la zona privada sigue
+              funcionando igual, ahora con una entrada mucho más sólida y consistente.
             </p>
           </div>
           <div className="landing-cta-actions">
@@ -171,7 +171,7 @@ export function PublicHomePage() {
               Crear mi biblioteca
             </Link>
             <Link className="landing-cta-secondary" to="/login">
-              Iniciar sesion
+              Iniciar sesión
             </Link>
           </div>
         </div>
@@ -184,14 +184,14 @@ export function PublicHomePage() {
           </span>
           <div>
             <strong>Mi Biblioteca</strong>
-            <small>Catalogo, lectura, listas y estadisticas en un mismo lugar.</small>
+            <small>Catálogo, lectura, listas y estadísticas en un mismo lugar.</small>
           </div>
         </div>
 
-        <nav className="landing-footer-nav" aria-label="Accesos rapidos">
+        <nav className="landing-footer-nav" aria-label="Accesos rápidos">
           <a href="#funciones">Funciones</a>
-          <a href="#como-funciona">Como funciona</a>
-          <Link to="/login">Iniciar sesion</Link>
+          <a href="#como-funciona">Cómo funciona</a>
+          <Link to="/login">Iniciar sesión</Link>
         </nav>
 
         <p className="landing-footer-copy">(c) {new Date().getFullYear()} Mi Biblioteca</p>

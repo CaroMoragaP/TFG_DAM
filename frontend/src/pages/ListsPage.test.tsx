@@ -95,7 +95,7 @@ describe("ListsPage", () => {
     });
 
     navigateMock.mockClear();
-    fireEvent.click(screen.getByRole("button", { name: "Ver en catalogo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver en catálogo" }));
 
     expect(navigateMock).toHaveBeenCalledWith("/catalogo?listId=3");
   });
@@ -106,7 +106,7 @@ describe("ListsPage", () => {
       {
         id: 2,
         user_id: 1,
-        name: "Proximas lecturas",
+        name: "Próximas lecturas",
         type: "pending",
         created_at: "2026-04-19T00:00:00Z",
         updated_at: "2026-04-19T00:00:00Z",
@@ -118,7 +118,7 @@ describe("ListsPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Proximas lecturas")).toBeInTheDocument();
+      expect(screen.getByText("Próximas lecturas")).toBeInTheDocument();
     });
 
     navigateMock.mockClear();

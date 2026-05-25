@@ -168,7 +168,7 @@ describe("BookDetailPage", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Ejemplar local")).toBeInTheDocument();
-    expect(screen.getByText("Ficha canonica")).toBeInTheDocument();
+    expect(screen.getByText("Ficha canónica")).toBeInTheDocument();
   });
 
   it("hides empty notes and community sections when there is no content", async () => {
@@ -231,9 +231,9 @@ describe("BookDetailPage", () => {
 
     expect(screen.queryByText("Notas personales")).not.toBeInTheDocument();
     expect(screen.queryByText("Comunidad")).not.toBeInTheDocument();
-    expect(screen.queryByText("No hay ningun prestamo activo para este ejemplar.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No hay ningún préstamo activo para este ejemplar.")).not.toBeInTheDocument();
     expect(screen.queryByText("Nadie lo esta leyendo ahora mismo.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Todavia no hay resenas publicas.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Todavía no hay reseñas públicas.")).not.toBeInTheDocument();
   });
 
   it("shows a safe borrower fallback when an internal loan arrives without borrower_name", async () => {

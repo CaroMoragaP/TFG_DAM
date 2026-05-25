@@ -35,8 +35,8 @@ type ReadingSort =
   | "rating";
 
 const statusDescriptions: Record<ReadingStatus, string> = {
-  pending: "Libros guardados para mas adelante, sin empezar todavia.",
-  reading: "Lecturas activas con seguimiento de fechas, notas y valoracion.",
+  pending: "Libros guardados para más adelante, sin empezar todavía.",
+  reading: "Lecturas activas con seguimiento de fechas, notas y valoración.",
   finished: "Historial de lecturas terminadas y ya valoradas.",
 };
 
@@ -48,21 +48,21 @@ const statusEyebrows: Record<ReadingStatus, string> = {
 
 const sortOptionsByTab: Record<ReadingTab, Array<{ value: ReadingSort; label: string }>> = {
   pending: [
-    { value: "title", label: "Titulo A-Z" },
+    { value: "title", label: "Título A-Z" },
     { value: "author", label: "Autor A-Z" },
   ],
   reading: [
-    { value: "recent-start", label: "Inicio mas reciente" },
-    { value: "oldest-start", label: "Inicio mas antiguo" },
-    { value: "title", label: "Titulo A-Z" },
+    { value: "recent-start", label: "Inicio más reciente" },
+    { value: "oldest-start", label: "Inicio más antiguo" },
+    { value: "title", label: "Título A-Z" },
     { value: "author", label: "Autor A-Z" },
     { value: "rating", label: "Mejor valorados" },
   ],
   finished: [
     { value: "recent-finish", label: "Finalizados recientemente" },
-    { value: "oldest-finish", label: "Finalizados mas antiguos" },
+    { value: "oldest-finish", label: "Finalizados más antiguos" },
     { value: "rating", label: "Mejor valorados" },
-    { value: "title", label: "Titulo A-Z" },
+    { value: "title", label: "Título A-Z" },
     { value: "author", label: "Autor A-Z" },
   ],
 };
@@ -391,13 +391,13 @@ export function ReadingPage() {
     reviewMutation.isError
       ? reviewMutation.error instanceof Error
         ? reviewMutation.error.message
-        : "No se pudo publicar la valoracion."
+        : "No se pudo publicar la valoración."
       : null;
   const deleteReviewErrorMessage =
     deleteReviewMutation.isError
       ? deleteReviewMutation.error instanceof Error
         ? deleteReviewMutation.error.message
-        : "No se pudo retirar la publicacion."
+        : "No se pudo retirar la publicación."
       : null;
 
   const updateSearchParam = useCallback(
@@ -680,7 +680,7 @@ export function ReadingPage() {
       <DashboardHero
         eyebrow="Seguimiento lector"
         title="Mi registro de lectura"
-        description="Gestiona tu progreso lector, anota impresiones personales y publica tu valoracion en las bibliotecas compartidas sin duplicar notas."
+        description="Gestiona tu progreso lector, anota impresiones personales y publica tu valoración en las bibliotecas compartidas sin duplicar notas."
         icon="reading"
       />
 
@@ -702,7 +702,7 @@ export function ReadingPage() {
             </span>
             <input
               aria-label="Buscar lecturas"
-              placeholder="Buscar por titulo, autor o coleccion..."
+              placeholder="Buscar por título, autor o colección..."
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -852,17 +852,17 @@ export function ReadingPage() {
         <div className="panel empty-state">
           <h3>
             {normalizedSearchQuery
-              ? "No hay resultados para esa busqueda."
+              ? "No hay resultados para esa búsqueda."
               : `No hay libros en ${readingStatusSectionLabels[tab].toLowerCase()}.`}
           </h3>
           <p>
             {normalizedSearchQuery
-              ? "Prueba con otro titulo, autor o coleccion, o limpia la busqueda actual."
+              ? "Prueba con otro título, autor o colección, o limpia la búsqueda actual."
               : statusDescriptions[tab]}
           </p>
           <div className="inline-actions">
             <Link className="ghost-link compact-action" to="/catalogo">
-              Ir al catalogo
+              Ir al catálogo
             </Link>
             {normalizedSearchQuery ? (
               <button
@@ -873,7 +873,7 @@ export function ReadingPage() {
                   updateSearchParam("q", null);
                 }}
               >
-                Limpiar busqueda
+                Limpiar búsqueda
               </button>
             ) : null}
             {tab === "pending" ? (

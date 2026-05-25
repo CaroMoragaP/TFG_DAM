@@ -5,7 +5,7 @@ export function CommunityHero() {
     <DashboardHero
       eyebrow="Comunidad compartida"
       title="Comunidad"
-      description="Sigue la actividad de tus bibliotecas compartidas, descubre opiniones publicadas por otros miembros y mantente al dia de lo que se mueve en el club."
+      description="Sigue la actividad de tus bibliotecas compartidas, descubre opiniones publicadas por otros miembros y mantente al día de lo que se mueve en el club."
       icon="community"
     />
   );

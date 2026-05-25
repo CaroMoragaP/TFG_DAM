@@ -451,7 +451,7 @@ def _read_csv_rows(file_bytes: bytes) -> list[tuple[int, dict[str, str]]]:
         rows.append((index, {key: (value or "") for key, value in row.items()}))
         if len(rows) > _MAX_PREVIEW_ROWS:
             raise ValueError(
-                f"El CSV supera el maximo de {_MAX_PREVIEW_ROWS} filas permitido para previsualizar/importar.",
+                f"El CSV supera el máximo de {_MAX_PREVIEW_ROWS} filas permitido para previsualizar/importar.",
             )
     return rows
 
@@ -474,7 +474,7 @@ def _build_reference_payload(row: dict[str, str]) -> CatalogImportRowPayload:
     authors = [structured_author.display_name] if structured_author.display_name is not None else []
 
     return CatalogImportRowPayload(
-        title=_required_text(indexed_row.get("libro"), "El titulo es obligatorio."),
+        title=_required_text(indexed_row.get("libro"), "El título es obligatorio."),
         publisher_name=_optional_text(indexed_row.get("editorial")),
         collection_name=_optional_text(indexed_row.get("coleccion")),
         author_country_name=_optional_text(indexed_row.get("nacionalidad")),
@@ -504,7 +504,7 @@ def _build_native_payload(row: dict[str, str]) -> CatalogImportRowPayload:
         authors = [structured_author.display_name, *authors]
 
     return CatalogImportRowPayload(
-        title=_required_text(indexed_row.get("titulo"), "El titulo es obligatorio."),
+        title=_required_text(indexed_row.get("titulo"), "El título es obligatorio."),
         isbn=_optional_text(indexed_row.get("isbn")),
         publication_year=_optional_int(indexed_row.get("anio_publicacion")),
         description=_optional_text(indexed_row.get("descripcion")),
@@ -663,7 +663,7 @@ def _optional_int(value: str | None) -> int | None:
     if normalized is None:
         return None
     if not normalized.isdigit():
-        raise ValueError(f"Numero invalido: {normalized}.")
+        raise ValueError(f"Número inválido: {normalized}.")
     return int(normalized)
 
 

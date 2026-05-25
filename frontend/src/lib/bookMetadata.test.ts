@@ -14,11 +14,11 @@ describe("validateSharedBookFields", () => {
         themes: ["Uno", "Dos", "Tres", "Cuatro"],
       }),
     ).toEqual({
-      title: "El titulo es obligatorio.",
+      title: "El título es obligatorio.",
       authorFirstName: "El autor es obligatorio.",
-      publicationYear: "Introduce un ano valido.",
-      coverUrl: "Introduce una URL valida.",
-      themes: "Selecciona como maximo 3 temas.",
+      publicationYear: "Introduce un año válido.",
+      coverUrl: "Introduce una URL válida.",
+      themes: "Selecciona como máximo 3 temas.",
     });
   });
 });

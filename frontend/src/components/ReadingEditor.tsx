@@ -35,7 +35,7 @@ type ReadingEditorProps = {
 };
 
 function formatCommunityRating(value: number | null) {
-  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+  return value === null ? "Sin media pública" : `${value.toFixed(1)}/5`;
 }
 
 export function ReadingEditor({
@@ -63,7 +63,7 @@ export function ReadingEditor({
     <div className="reading-editor-panel">
       <div className="reading-editor-header">
         <div>
-          <p className="eyebrow">Edicion principal</p>
+          <p className="eyebrow">Edición principal</p>
           <h4>Mi lectura</h4>
         </div>
         <span className="status-chip">{readingStatusValueLabels[editorState.readingStatus]}</span>
@@ -78,12 +78,12 @@ export function ReadingEditor({
           >
             <option value="pending">Pendiente</option>
             <option value="reading">Leyendo</option>
-            <option value="finished">Leido</option>
+            <option value="finished">Leído</option>
           </select>
         </label>
 
         <div className="rating-block">
-          <span className="eyebrow">Valoracion</span>
+          <span className="eyebrow">Valoración</span>
           <div className="star-row" role="group" aria-label={`Valorar ${item.title}`}>
             {[1, 2, 3, 4, 5].map((star) => (
               <button
@@ -97,7 +97,7 @@ export function ReadingEditor({
               </button>
             ))}
           </div>
-          <p className="detail-inline-copy">{editorState.rating ? `${editorState.rating}/5` : "Sin valoracion"}</p>
+          <p className="detail-inline-copy">{editorState.rating ? `${editorState.rating}/5` : "Sin valoración"}</p>
         </div>
 
         <label className="field-group">
@@ -125,28 +125,28 @@ export function ReadingEditor({
         <div className="reading-community-panel">
           <div className="reading-community-header">
             <div>
-              <p className="eyebrow">Mi valoracion y publicacion</p>
+              <p className="eyebrow">Mi valoración y publicación</p>
               <h4>Publica la misma nota que usas para tu seguimiento</h4>
             </div>
             <div className="community-stat-row">
-              <span className="status-chip active">{item.public_review_count} resenas</span>
+              <span className="status-chip active">{item.public_review_count} reseñas</span>
               <span className="status-chip">{formatCommunityRating(item.public_average_rating)}</span>
             </div>
           </div>
 
           <p className="detail-inline-copy">
-            Tu valoracion personal es la nota canonica. Si la publicas, la comunidad vera esa misma puntuacion junto con
+            Tu valoración personal es la nota canónica. Si la publicas, la comunidad verá esa misma puntuación junto con
             tu comentario opcional.
           </p>
 
           <label className="field-group">
-            Comentario publico
+            Comentario público
             <textarea
               className="notes-textarea"
               rows={4}
               value={editorState.publicReviewBody}
               onChange={(event) => onPublicReviewBodyChange(event.target.value)}
-              placeholder="Comparte por que merece la pena leerlo..."
+              placeholder="Comparte por qué merece la pena leerlo..."
             />
           </label>
 
@@ -157,7 +157,7 @@ export function ReadingEditor({
               onClick={onPublishReview}
               disabled={isReviewSaving || isSaving || editorState.rating === null}
             >
-              {item.my_public_review ? "Actualizar publicacion" : "Publicar mi valoracion"}
+              {item.my_public_review ? "Actualizar publicación" : "Publicar mi valoración"}
             </button>
             {item.my_public_review ? (
               <button
@@ -166,7 +166,7 @@ export function ReadingEditor({
                 onClick={onDeleteReview}
                 disabled={isReviewDeleting}
               >
-                Retirar publicacion
+                Retirar publicación
               </button>
             ) : null}
             <Link className="ghost-link compact-action" to={`/muro?tab=reviews&library=${item.library_id}`}>
@@ -175,7 +175,7 @@ export function ReadingEditor({
           </div>
 
           {editorState.rating === null ? (
-            <p className="detail-inline-copy">Guarda una nota para poder publicar esta valoracion.</p>
+            <p className="detail-inline-copy">Guarda una nota para poder publicar esta valoración.</p>
           ) : null}
           {reviewErrorMessage ? <p className="form-error">{reviewErrorMessage}</p> : null}
           {deleteReviewErrorMessage ? <p className="form-error">{deleteReviewErrorMessage}</p> : null}

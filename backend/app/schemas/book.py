@@ -114,7 +114,7 @@ class BookCreate(BaseBookFields):
     def normalize_title(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
-            raise ValueError("El titulo es obligatorio.")
+            raise ValueError("El título es obligatorio.")
         return normalized
 
     @field_validator("physical_location", "digital_location")
@@ -151,7 +151,7 @@ class BookMetadataUpdate(BaseBookFields):
 
         normalized = value.strip()
         if not normalized:
-            raise ValueError("El titulo no puede estar vacio.")
+            raise ValueError("El título no puede estar vacío.")
         return normalized
 
 

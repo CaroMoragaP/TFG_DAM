@@ -185,7 +185,7 @@ export function DashboardPage() {
       notifySuccess("El libro se ha guardado en la lista.");
     },
     onError: (error) => {
-      setAddToListError(error instanceof Error ? error.message : "No se pudo anadir el libro a la lista.");
+      setAddToListError(error instanceof Error ? error.message : "No se pudo añadir el libro a la lista.");
     },
   });
 
@@ -215,7 +215,7 @@ export function DashboardPage() {
       notifySuccess("La importación del catálogo se ha completado.");
     },
     onError: (error) => {
-      setImportError(error instanceof Error ? error.message : "No se pudo completar la importacion.");
+      setImportError(error instanceof Error ? error.message : "No se pudo completar la importación.");
     },
   });
 
@@ -234,7 +234,7 @@ export function DashboardPage() {
   const showLibraryBadge = libraries.length > 1;
   const genreOptions = buildLiteraryGenreOptions(genresQuery.data ?? []);
   const booksErrorMessage =
-    booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catalogo.";
+    booksQuery.error instanceof Error ? booksQuery.error.message : "No se pudo cargar el catálogo.";
 
   function updateFilter(
     key: "library" | "listId" | "genre" | "theme" | "collection" | "authorCountry",
@@ -269,7 +269,7 @@ export function DashboardPage() {
   async function handleSubmitBook(values: BookFormValues) {
     const libraryId = Number(values.libraryId);
     if (!Number.isInteger(libraryId) || libraryId <= 0) {
-      throw new Error("Selecciona una biblioteca valida para guardar el libro.");
+      throw new Error("Selecciona una biblioteca válida para guardar el libro.");
     }
 
     const primaryAuthorFirstName = values.authorFirstName.trim() || null;
@@ -349,7 +349,7 @@ export function DashboardPage() {
       anchor.remove();
       window.URL.revokeObjectURL(objectUrl);
     } catch (error) {
-      setExportErrorMessage(error instanceof Error ? error.message : "No se pudo exportar el catalogo.");
+      setExportErrorMessage(error instanceof Error ? error.message : "No se pudo exportar el catálogo.");
     } finally {
       setIsExporting(false);
     }
@@ -476,7 +476,7 @@ export function DashboardPage() {
           <p>
             {selectedListId
               ? 'Añade libros a esta lista desde el catálogo usando la acción "Añadir a lista".'
-              : "Ajusta la busqueda o crea un nuevo libro para empezar a poblar tu catalogo."}
+              : "Ajusta la búsqueda o crea un nuevo libro para empezar a poblar tu catálogo."}
           </p>
           {!selectedListId ? (
             <button

@@ -70,7 +70,7 @@ class LibraryMemberCreate(BaseModel):
     @classmethod
     def validate_role(cls, value: UserLibraryRole) -> UserLibraryRole:
         if value == UserLibraryRole.OWNER:
-            raise ValueError("No se puede asignar el rol owner desde esta operacion.")
+            raise ValueError("No se puede asignar el rol owner desde esta operación.")
         return value
 
 
@@ -81,7 +81,7 @@ class LibraryMemberUpdate(BaseModel):
     @classmethod
     def validate_role(cls, value: UserLibraryRole) -> UserLibraryRole:
         if value == UserLibraryRole.OWNER:
-            raise ValueError("No se puede asignar el rol owner desde esta operacion.")
+            raise ValueError("No se puede asignar el rol owner desde esta operación.")
         return value
 
 

@@ -243,7 +243,7 @@ export function LibrariesPage() {
 
       {librariesQuery.isSuccess && allLibraries.length === 0 ? (
         <div className="panel empty-state">
-          <h3>Aun no tienes bibliotecas.</h3>
+          <h3>Aún no tienes bibliotecas.</h3>
           <p>Crea una para empezar a organizar tus lecturas o colaborar con otras personas.</p>
         </div>
       ) : null}

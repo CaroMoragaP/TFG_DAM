@@ -38,6 +38,6 @@ describe("AuthPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Tu sesion ha expirado. Inicia sesion de nuevo.")).toBeInTheDocument();
+    expect(await screen.findByText("Tu sesión ha expirado. Inicia sesión de nuevo.")).toBeInTheDocument();
   });
 });

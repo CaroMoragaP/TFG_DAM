@@ -186,7 +186,7 @@ def get_user_library_membership(
 
     library, role = membership
     if library.archived_at is not None and not allow_archived:
-        raise LibraryArchivedError("La biblioteca archivada no admite esta operacion.")
+        raise LibraryArchivedError("La biblioteca archivada no admite esta operación.")
 
     if allowed_roles is not None and role not in allowed_roles:
         if allowed_roles == frozenset({UserLibraryRole.OWNER}):
@@ -440,7 +440,7 @@ def leave_library(
     )
     if library.type != LibraryType.SHARED:
         raise LibraryMembershipOperationError(
-            "Esta operacion solo esta disponible para bibliotecas compartidas.",
+            "Esta operación solo está disponible para bibliotecas compartidas.",
         )
     if role == UserLibraryRole.OWNER:
         raise LibraryMembershipOperationError(
@@ -497,7 +497,7 @@ def _get_shared_library_for_owner(
     )
     if library.type != LibraryType.SHARED:
         raise LibraryMembershipOperationError(
-            "Esta operacion solo esta disponible para bibliotecas compartidas.",
+            "Esta operación solo está disponible para bibliotecas compartidas.",
         )
     return library, role
 

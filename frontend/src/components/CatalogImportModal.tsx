@@ -49,7 +49,7 @@ export function CatalogImportModal({
     ready: "lista",
     duplicate_existing: "duplicada (ya existe en biblioteca)",
     duplicate_in_file: "duplicada (repetida en CSV)",
-    invalid: "invalida",
+    invalid: "inválida",
   };
 
   if (!isOpen) {
@@ -59,7 +59,7 @@ export function CatalogImportModal({
   async function handlePreview() {
     const parsedLibraryId = Number(libraryId);
     if (!Number.isInteger(parsedLibraryId) || parsedLibraryId <= 0) {
-      setLocalError("Selecciona una biblioteca valida.");
+      setLocalError("Selecciona una biblioteca válida.");
       return;
     }
     if (!selectedFile) {
@@ -74,7 +74,7 @@ export function CatalogImportModal({
   async function handleConfirm() {
     const parsedLibraryId = Number(libraryId);
     if (!Number.isInteger(parsedLibraryId) || parsedLibraryId <= 0) {
-      setLocalError("Selecciona una biblioteca valida.");
+      setLocalError("Selecciona una biblioteca válida.");
       return;
     }
 
@@ -93,7 +93,7 @@ export function CatalogImportModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Catalogo</p>
+            <p className="eyebrow">Catálogo</p>
             <h2 id="catalog-import-modal-title">Importar CSV</h2>
           </div>
           <button className="ghost-link compact-action" type="button" onClick={onClose}>
@@ -142,7 +142,7 @@ export function CatalogImportModal({
                 <p>Total: {preview.total}</p>
                 <p>Listas: {preview.ready}</p>
                 <p>Duplicadas: {preview.duplicates}</p>
-                <p>Invalidas: {preview.invalid}</p>
+                <p>Inválidas: {preview.invalid}</p>
               </div>
 
               <div className="content-stack" style={{ maxHeight: "18rem", overflowY: "auto" }}>

@@ -70,7 +70,7 @@ def normalize_author_sex(
 
     valid_values = ", ".join(AUTHOR_SEX_VALUES)
     raise ValueError(
-        f"Sexo de autor no valido. Usa uno de: {valid_values}.",
+        f"Sexo de autor no válido. Usa uno de: {valid_values}.",
     )
 
 

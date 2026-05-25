@@ -120,7 +120,7 @@ export function ListsPage() {
       <DashboardHero
         eyebrow="Listas personales"
         title="Mis listas"
-        description="Organiza tus lecturas en colecciones disponibles para todo tu catalogo."
+        description="Organiza tus lecturas en colecciones disponibles para todo tu catálogo."
         icon="list"
         actions={
           <HeroActionButton emphasis="primary" icon="plus" onClick={handleOpenCreateForm}>
@@ -151,7 +151,7 @@ export function ListsPage() {
 
       {listsQuery.isSuccess && visibleLists.length === 0 ? (
         <div className="panel empty-state">
-          <h3>Aun no tienes listas.</h3>
+          <h3>Aún no tienes listas.</h3>
           <p>Crea tu primera lista para empezar a organizar lecturas y recomendaciones.</p>
         </div>
       ) : null}
@@ -184,7 +184,7 @@ export function ListsPage() {
                     navigate(`/catalogo?listId=${list.id}`);
                   }}
                 >
-                  Ver en catalogo
+                  Ver en catálogo
                 </button>
                 <button
                   className="ghost-link compact-action"

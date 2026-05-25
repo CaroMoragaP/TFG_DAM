@@ -77,7 +77,7 @@ def lookup_open_library_book_by_metadata(
     normalized_publisher = _clean_text(publisher)
 
     if normalized_title is None:
-        raise ValueError("El titulo es obligatorio para buscar metadatos externos.")
+        raise ValueError("El título es obligatorio para buscar metadatos externos.")
 
     try:
         with _build_open_library_client() as client:
@@ -172,7 +172,7 @@ def _lookup_by_query(client: httpx.Client, query: str) -> ExternalBookLookupOut:
 
     first_doc = docs[0]
     if not isinstance(first_doc, dict):
-        raise ExternalBookLookupServiceError("Open Library devolvio una respuesta invalida.")
+        raise ExternalBookLookupServiceError("Open Library devolvió una respuesta inválida.")
 
     result = _build_search_lookup_output(first_doc)
     if result is None:

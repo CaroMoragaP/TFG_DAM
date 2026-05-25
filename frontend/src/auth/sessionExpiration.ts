@@ -11,5 +11,5 @@ export function consumeSessionExpiredNotice() {
   }
 
   window.sessionStorage.removeItem(SESSION_EXPIRATION_STORAGE_KEY);
-  return "Tu sesion ha expirado. Inicia sesion de nuevo.";
+  return "Tu sesión ha expirado. Inicia sesión de nuevo.";
 }

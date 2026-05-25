@@ -185,7 +185,7 @@ export function ListDetailPage() {
           <p>{booksErrorMessage}</p>
           <div className="inline-actions">
             <Link className="ghost-link compact-action" to="/catalogo">
-              Ir al catalogo
+              Ir al catálogo
             </Link>
           </div>
         </div>
@@ -211,7 +211,7 @@ export function ListDetailPage() {
               <div className="list-detail-hero-actions">
                 <span className="status-chip active">{listTypeLabels[activeList.type]}</span>
                 <Link className="dashboard-hero-action dashboard-hero-action-secondary" to={`/catalogo?listId=${activeList.id}`}>
-                  Ver esta lista en catalogo
+                  Ver esta lista en catálogo
                 </Link>
               </div>
             }
@@ -226,7 +226,7 @@ export function ListDetailPage() {
                   <option value="oldest">Mas antiguos</option>
                   <option value="title">Titulo A-Z</option>
                   <option value="author">Autor A-Z</option>
-                  <option value="year">Ano mas reciente</option>
+                  <option value="year">Año más reciente</option>
                 </select>
               </label>
             </div>
@@ -244,7 +244,7 @@ export function ListDetailPage() {
               <p>Añade libros desde el catálogo usando la acción "Añadir a lista".</p>
               <div className="inline-actions">
                 <Link className="ghost-link compact-action" to="/catalogo">
-                  Ir al catalogo
+                  Ir al catálogo
                 </Link>
               </div>
             </div>
@@ -265,19 +265,19 @@ export function ListDetailPage() {
 
                     <dl className="list-book-meta-grid">
                       <div>
-                        <dt>Genero</dt>
+                        <dt>Género</dt>
                         <dd>{book.genre ?? "-"}</dd>
                       </div>
                       <div>
-                        <dt>Coleccion</dt>
+                        <dt>Colección</dt>
                         <dd>{book.collection ?? "-"}</dd>
                       </div>
                       <div>
-                        <dt>Ano</dt>
+                        <dt>Año</dt>
                         <dd>{book.publication_year ?? "-"}</dd>
                       </div>
                       <div>
-                        <dt>Anadido</dt>
+                        <dt>Añadido</dt>
                         <dd>{formatAddedAt(book.added_at)}</dd>
                       </div>
                     </dl>

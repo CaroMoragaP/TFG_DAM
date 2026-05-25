@@ -159,7 +159,7 @@ export function CatalogToolbar({
             <SearchIcon />
           </span>
           <input
-            placeholder="Buscar por titulo, autor, ISBN..."
+            placeholder="Buscar por título, autor, ISBN..."
             value={searchDraft}
             onChange={(event) => onSearchChange(event.target.value)}
           />
@@ -210,7 +210,7 @@ export function CatalogToolbar({
             />
 
             <FilterSelect
-              label="Genero literario"
+              label="Género literario"
               value={genre}
               onChange={onGenreChange}
               placeholder="Todos"
@@ -229,19 +229,19 @@ export function CatalogToolbar({
             />
 
             <label className="dashboard-filter-field">
-              <span>Coleccion</span>
+              <span>Colección</span>
               <input
                 value={collection}
-                placeholder="Buscar coleccion..."
+                placeholder="Buscar colección..."
                 onChange={(event) => onCollectionChange(event.target.value)}
               />
             </label>
 
             <label className="dashboard-filter-field">
-              <span>Pais del autor</span>
+              <span>País del autor</span>
               <input
                 value={authorCountry}
-                placeholder="Buscar pais..."
+                placeholder="Buscar país..."
                 onChange={(event) => onAuthorCountryChange(event.target.value)}
               />
             </label>

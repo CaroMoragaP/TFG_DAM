@@ -61,7 +61,7 @@ function formatDateLabel(value: string | null) {
 }
 
 function formatCommunityRating(value: number | null) {
-  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+  return value === null ? "Sin media pública" : `${value.toFixed(1)}/5`;
 }
 
 function formatBorrowerName(loan: CommunityLoan) {
@@ -263,7 +263,7 @@ export function BookDetailPage() {
   return (
     <section className="content-stack private-page-shell">
       <button className="ghost-link detail-back-button" type="button" onClick={() => navigate(-1)}>
-        Volver al catalogo
+        Volver al catálogo
       </button>
 
       {isLoading ? (
@@ -293,7 +293,7 @@ export function BookDetailPage() {
 
                 <dl className="detail-meta-grid">
                   <div>
-                    <dt>Genero literario</dt>
+                    <dt>Género literario</dt>
                     <dd>{genre}</dd>
                   </div>
                   <div>
@@ -301,7 +301,7 @@ export function BookDetailPage() {
                     <dd>{themes.length > 0 ? themes.join(", ") : "-"}</dd>
                   </div>
                   <div>
-                    <dt>Coleccion</dt>
+                    <dt>Colección</dt>
                     <dd>{collection}</dd>
                   </div>
                   <div>
@@ -309,7 +309,7 @@ export function BookDetailPage() {
                     <dd>{publisher}</dd>
                   </div>
                   <div>
-                    <dt>Pais autor</dt>
+                    <dt>País autor</dt>
                     <dd>{authorCountry}</dd>
                   </div>
                   <div>
@@ -317,7 +317,7 @@ export function BookDetailPage() {
                     <dd>{authorSex}</dd>
                   </div>
                   <div>
-                    <dt>Ano</dt>
+                    <dt>Año</dt>
                     <dd>{detail.publication_year ?? "-"}</dd>
                   </div>
                   <div>
@@ -330,7 +330,7 @@ export function BookDetailPage() {
                   </div>
                   {hasDescription ? (
                     <div className="detail-meta-item-full">
-                      <dt>Descripcion</dt>
+                      <dt>Descripción</dt>
                       <dd>{detail.description}</dd>
                     </div>
                   ) : null}
@@ -405,14 +405,14 @@ export function BookDetailPage() {
 
               {hasCommunityStats ? (
                 <div className="community-stat-row">
-                  <span className="status-chip active">{community?.public_review_count ?? 0} resenas</span>
+                  <span className="status-chip active">{community?.public_review_count ?? 0} reseñas</span>
                   <span className="status-chip">{formatCommunityRating(community?.public_average_rating ?? null)}</span>
                 </div>
               ) : null}
 
               {community?.active_loan ? (
                 <div className="community-list-item">
-                  <strong>Prestamo activo</strong>
+                  <strong>Préstamo activo</strong>
                   <p>
                     Prestado a {formatBorrowerName(community.active_loan)}
                     {community.active_loan.due_date ? ` hasta ${formatDateLabel(community.active_loan.due_date)}` : ""}
@@ -429,13 +429,13 @@ export function BookDetailPage() {
 
               {hasCommunityReviews ? (
                 <div className="content-stack">
-                  <strong>Ultimas resenas</strong>
+                  <strong>Últimas reseñas</strong>
                   {community?.latest_reviews.slice(0, 3).map((review) => (
                     <div key={review.id} className="community-list-item">
                       <strong>
                         {review.user_name} - {review.rating}/5
                       </strong>
-                      <p>{review.body ?? "Solo ha dejado una valoracion con estrellas."}</p>
+                      <p>{review.body ?? "Solo ha dejado una valoración con estrellas."}</p>
                     </div>
                   ))}
                 </div>
@@ -446,7 +446,7 @@ export function BookDetailPage() {
           {library?.is_archived ? (
             <div className="panel subtle-panel">
               <p className="eyebrow">Biblioteca archivada</p>
-              <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catalogo.</p>
+              <p>Esta copia pertenece a una biblioteca archivada y no admite cambios de catálogo.</p>
             </div>
           ) : null}
         </div>

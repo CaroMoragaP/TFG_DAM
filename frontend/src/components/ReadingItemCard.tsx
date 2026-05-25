@@ -43,7 +43,7 @@ function formatDateLabel(value: string | null) {
 }
 
 function formatCommunityRating(value: number | null) {
-  return value === null ? "Sin media publica" : `${value.toFixed(1)}/5`;
+  return value === null ? "Sin media pública" : `${value.toFixed(1)}/5`;
 }
 
 export function ReadingItemCard({
@@ -99,7 +99,7 @@ export function ReadingItemCard({
 
           <dl className="reading-entry-meta">
             <div>
-              <dt>Valoracion</dt>
+              <dt>Valoración</dt>
               <dd>{item.rating ? `${item.rating}/5` : "-"}</dd>
             </div>
             <div>
@@ -107,7 +107,7 @@ export function ReadingItemCard({
               <dd>{formatDateLabel(tab === "finished" ? item.end_date : item.start_date)}</dd>
             </div>
             <div>
-              <dt>Coleccion</dt>
+              <dt>Colección</dt>
               <dd>{item.collection ?? "-"}</dd>
             </div>
           </dl>
@@ -118,7 +118,7 @@ export function ReadingItemCard({
               {item.my_public_review ? <span className="status-chip active">Publicada</span> : null}
               {isSharedItem && item.public_review_count > 0 ? (
                 <span className="status-chip">
-                  {item.public_review_count} resenas · {formatCommunityRating(item.public_average_rating)}
+                  {item.public_review_count} reseñas · {formatCommunityRating(item.public_average_rating)}
                 </span>
               ) : null}
             </div>

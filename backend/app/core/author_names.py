@@ -14,7 +14,9 @@ _PLACEHOLDER_AUTHOR_VALUES = {
     "varios autores",
     "autor anonimo",
     "autor anónimo",
+    "autor anónimo",
     "anonimo",
+    "anónimo",
     "anónimo",
 }
 

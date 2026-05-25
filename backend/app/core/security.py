@@ -53,10 +53,10 @@ def decode_access_token(token: str) -> str:
             algorithms=[settings.algorithm],
         )
     except JWTError as exc:
-        raise InvalidTokenError("Token invalido o expirado.") from exc
+        raise InvalidTokenError("Token inválido o expirado.") from exc
 
     subject = payload.get("sub")
     if not isinstance(subject, str) or not subject:
-        raise InvalidTokenError("Token sin subject valido.")
+        raise InvalidTokenError("Token sin subject válido.")
 
     return subject

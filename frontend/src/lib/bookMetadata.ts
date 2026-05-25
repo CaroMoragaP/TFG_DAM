@@ -59,7 +59,7 @@ export function validateSharedBookFields(values: SharedBookFormValues): SharedBo
   const errors: SharedBookFormErrors = {};
 
   if (!values.title.trim()) {
-    errors.title = "El titulo es obligatorio.";
+    errors.title = "El título es obligatorio.";
   }
 
   if (!values.authorFirstName.trim() && !values.authorLastName.trim()) {
@@ -69,7 +69,7 @@ export function validateSharedBookFields(values: SharedBookFormValues): SharedBo
   if (values.publicationYear.trim()) {
     const parsedYear = Number(values.publicationYear);
     if (!Number.isInteger(parsedYear) || parsedYear < 0 || parsedYear > 9999) {
-      errors.publicationYear = "Introduce un ano valido.";
+      errors.publicationYear = "Introduce un año válido.";
     }
   }
 
@@ -77,12 +77,12 @@ export function validateSharedBookFields(values: SharedBookFormValues): SharedBo
     try {
       new URL(values.coverUrl);
     } catch {
-      errors.coverUrl = "Introduce una URL valida.";
+      errors.coverUrl = "Introduce una URL válida.";
     }
   }
 
   if (values.themes.length > MAX_BOOK_THEMES) {
-    errors.themes = `Selecciona como maximo ${MAX_BOOK_THEMES} temas.`;
+    errors.themes = `Selecciona como máximo ${MAX_BOOK_THEMES} temas.`;
   }
 
   return errors;

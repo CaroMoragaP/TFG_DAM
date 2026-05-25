@@ -5,10 +5,10 @@ import { useAuth } from "../auth/AuthProvider";
 
 const navigationItems = [
   { to: "/bibliotecas", label: "Mis bibliotecas" },
-  { to: "/catalogo", label: "Mi catalogo" },
+  { to: "/catalogo", label: "Mi catálogo" },
   { to: "/listas", label: "Mis listas" },
   { to: "/lectura", label: "Mi lectura" },
-  { to: "/stats", label: "Estadisticas" },
+  { to: "/stats", label: "Estadísticas" },
   { to: "/muro", label: "Comunidad" },
 ];
 
@@ -114,7 +114,7 @@ export function PrivateLayout() {
                   type="button"
                   onClick={handleLogout}
                 >
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
               </div>
             </details>
@@ -123,7 +123,7 @@ export function PrivateLayout() {
               className="landing-menu-button private-menu-button"
               type="button"
               aria-expanded={isMobileMenuOpen}
-              aria-label={isMobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
+              aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
               onClick={() => setIsMobileMenuOpen((open) => !open)}
             >
               <span className="landing-menu-icon">
@@ -165,7 +165,7 @@ export function PrivateLayout() {
                 type="button"
                 onClick={handleLogout}
               >
-                Cerrar sesion
+                Cerrar sesión
               </button>
             </div>
           </div>

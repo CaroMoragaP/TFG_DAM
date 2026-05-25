@@ -48,6 +48,6 @@ def authenticate_user(db: Session, data: UserLogin) -> User:
         or not user.is_active
         or not verify_password(data.password, user.password_hash)
     ):
-        raise InvalidCredentialsError("Email o contrasena incorrectos.")
+        raise InvalidCredentialsError("Email o contraseña incorrectos.")
 
     return user

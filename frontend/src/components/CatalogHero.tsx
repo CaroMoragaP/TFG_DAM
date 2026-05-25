@@ -19,9 +19,9 @@ export function CatalogHero({
 }: CatalogHeroProps) {
   return (
     <DashboardHero
-      eyebrow="Catalogo privado"
-      title="Mi catalogo"
-      description="Explora tus libros, busca por autor o ISBN y manten el estado de lectura al dia."
+      eyebrow="Catálogo privado"
+      title="Mi catálogo"
+      description="Explora tus libros, busca por autor o ISBN y mantén el estado de lectura al día."
       icon="book"
       actions={
         <>

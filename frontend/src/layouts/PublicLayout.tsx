@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 
 const landingLinks = [
   { href: "#funciones", label: "Funciones" },
-  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#empezar", label: "Empezar" },
 ];
 
@@ -77,7 +77,7 @@ export function PublicLayout() {
 
           <div className="landing-nav-actions">
             <Link className="landing-login-link" to="/login">
-              Iniciar sesion
+              Iniciar sesión
             </Link>
             <Link className="landing-signup-link" to="/register">
               Regístrate
@@ -88,7 +88,7 @@ export function PublicLayout() {
             className="landing-menu-button"
             type="button"
             aria-expanded={isMobileMenuOpen}
-            aria-label={isMobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
+            aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             onClick={() => setIsMobileMenuOpen((open) => !open)}
           >
             <span className="landing-menu-icon">{isMobileMenuOpen ? <CloseIcon /> : <MenuIcon />}</span>
@@ -106,7 +106,7 @@ export function PublicLayout() {
             </div>
             <div className="landing-mobile-actions">
               <Link className="landing-login-link" to="/login">
-                Iniciar sesion
+                Iniciar sesión
               </Link>
               <Link className="landing-signup-link" to="/register">
                 Regístrate

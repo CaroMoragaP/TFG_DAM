@@ -43,7 +43,7 @@ def read_open_library_book(
         )
 
         if normalized_isbn and (normalized_query or has_metadata_search):
-            raise ValueError("Debes enviar isbn o una busqueda por texto/metadatos, pero no combinarlos.")
+            raise ValueError("Debes enviar isbn o una búsqueda por texto/metadatos, pero no combinarlos.")
 
         if normalized_query and has_metadata_search:
             raise ValueError("Debes enviar q o title/author/publisher, pero no ambos modos a la vez.")
@@ -56,7 +56,7 @@ def read_open_library_book(
 
         if has_metadata_search:
             if not normalized_title:
-                raise ValueError("El titulo es obligatorio cuando buscas por autor o editorial.")
+                raise ValueError("El título es obligatorio cuando buscas por autor o editorial.")
 
             return lookup_open_library_book_by_metadata(
                 title=normalized_title,

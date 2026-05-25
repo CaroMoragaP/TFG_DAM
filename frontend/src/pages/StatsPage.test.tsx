@@ -209,10 +209,10 @@ describe("StatsPage", () => {
     });
 
     await screen.findByText("Total de ejemplares");
-    expect(screen.getByText("Libros fisicos - libros digitales")).toBeInTheDocument();
+    expect(screen.getByText("Libros físicos - libros digitales")).toBeInTheDocument();
     expect(screen.getByText("Total de autores")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Estadisticas del catalogo" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Estadísticas del catálogo" })).toHaveClass("active");
     expect(screen.getByText("Frank Herbert")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Estadisticas de lectura" }));

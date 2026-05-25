@@ -192,6 +192,64 @@ def test_lookup_open_library_book_by_metadata_prefers_author_match(monkeypatch) 
     assert result.cover_url == "https://covers.openlibrary.org/b/id/2-L.jpg"
 
 
+def test_lookup_open_library_book_identifies_client_with_user_agent(monkeypatch) -> None:
+    payload = {
+        "ISBN:9780141187761": {
+            "title": "The Trial",
+            "authors": [{"name": "Franz Kafka"}],
+            "publish_date": "1925",
+            "identifiers": {"isbn_13": ["9780141187761"]},
+            "publishers": [{"name": "Penguin"}],
+            "subjects": [{"name": "Classic"}],
+            "cover": {"large": "https://example.com/cover.jpg"},
+        },
+    }
+
+    class DummySettings:
+        project_name = "Personal Shared Library API"
+        project_version = "0.1.0"
+        open_library_user_agent = "PersonalSharedLibrary/0.1.0"
+        open_library_contact_email = "library@example.com"
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            del args
+            assert kwargs["base_url"] == external_books_service.OPEN_LIBRARY_BASE_URL
+            assert kwargs["timeout"] == external_books_service.OPEN_LIBRARY_TIMEOUT_SECONDS
+            assert kwargs["follow_redirects"] is True
+            assert kwargs["headers"]["Accept"] == "application/json"
+            assert kwargs["headers"]["User-Agent"] == "PersonalSharedLibrary/0.1.0 (library@example.com)"
+            assert kwargs["headers"]["From"] == "library@example.com"
+
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            del exc_type
+            del exc
+            del tb
+
+        def get(self, path: str, params: dict[str, object]) -> FakeResponse:
+            assert path == "/api/books"
+            assert params["bibkeys"] == "ISBN:9780141187761"
+            return FakeResponse()
+
+    monkeypatch.setattr(external_books_service, "get_settings", lambda: DummySettings())
+    monkeypatch.setattr(external_books_service.httpx, "Client", FakeClient)
+
+    result = external_books_service.lookup_open_library_book(isbn="9780141187761")
+
+    assert result.title == "The Trial"
+    assert result.isbn == "9780141187761"
+
+
 def test_lookup_open_library_book_by_metadata_rejects_doubtful_matches(monkeypatch) -> None:
     payload = {
         "docs": [

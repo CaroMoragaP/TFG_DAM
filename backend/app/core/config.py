@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     admin_name: str | None = None
     admin_email: str | None = None
     admin_password: str | None = None
+    open_library_user_agent: str = "PersonalSharedLibrary/0.1.0"
+    open_library_contact_email: str = "contact@example.com"
 
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from difflib import SequenceMatcher
+import logging
 import re
 
 import httpx
@@ -8,6 +9,7 @@ import httpx
 from app.core.author_names import StructuredAuthorName
 from app.core.author_names import normalize_author_lookup_key
 from app.core.author_names import split_author_name_heuristic
+from app.core.config import get_settings
 from app.core.themes import map_theme_candidates
 from app.schemas.author import PrimaryAuthorOut
 from app.schemas.external_book import ExternalBookLookupOut
@@ -34,6 +36,8 @@ OPEN_LIBRARY_SEARCH_FIELDS = ",".join(
     ),
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ExternalBookLookupNotFoundError(ValueError):
     """Raised when Open Library has no match for the requested book."""
@@ -51,11 +55,12 @@ def lookup_open_library_book(*, isbn: str | None = None, q: str | None = None) -
         raise ValueError("Debes enviar exactamente uno de estos parametros: isbn o q.")
 
     try:
-        with httpx.Client(base_url=OPEN_LIBRARY_BASE_URL, timeout=OPEN_LIBRARY_TIMEOUT_SECONDS) as client:
+        with _build_open_library_client() as client:
             if normalized_isbn:
                 return _lookup_by_isbn(client, normalized_isbn)
             return _lookup_by_query(client, normalized_query or "")
     except httpx.HTTPError as exc:
+        logger.warning("Open Library request failed.", exc_info=exc)
         raise ExternalBookLookupServiceError(
             "No se pudo consultar Open Library en este momento.",
         ) from exc
@@ -75,7 +80,7 @@ def lookup_open_library_book_by_metadata(
         raise ValueError("El titulo es obligatorio para buscar metadatos externos.")
 
     try:
-        with httpx.Client(base_url=OPEN_LIBRARY_BASE_URL, timeout=OPEN_LIBRARY_TIMEOUT_SECONDS) as client:
+        with _build_open_library_client() as client:
             return _lookup_by_metadata(
                 client,
                 title=normalized_title,
@@ -83,9 +88,38 @@ def lookup_open_library_book_by_metadata(
                 publisher=normalized_publisher,
             )
     except httpx.HTTPError as exc:
+        logger.warning("Open Library request failed.", exc_info=exc)
         raise ExternalBookLookupServiceError(
             "No se pudo consultar Open Library en este momento.",
         ) from exc
+
+
+def _build_open_library_client() -> httpx.Client:
+    return httpx.Client(
+        base_url=OPEN_LIBRARY_BASE_URL,
+        timeout=OPEN_LIBRARY_TIMEOUT_SECONDS,
+        follow_redirects=True,
+        headers=_build_open_library_headers(),
+    )
+
+
+def _build_open_library_headers() -> dict[str, str]:
+    settings = get_settings()
+
+    normalized_email = settings.open_library_contact_email.strip()
+    configured_user_agent = _clean_text(settings.open_library_user_agent)
+    user_agent = configured_user_agent or "PersonalSharedLibrary/0.1.0"
+
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": (
+            f"{user_agent} ({normalized_email})" if normalized_email else user_agent
+        ),
+    }
+    if normalized_email:
+        headers["From"] = normalized_email
+
+    return headers
 
 
 def _lookup_by_isbn(client: httpx.Client, isbn: str) -> ExternalBookLookupOut:
@@ -478,7 +512,6 @@ def _normalize_match_text(value: str | None) -> str | None:
     compact = _NON_ALNUM_RE.sub(" ", normalized)
     compact = " ".join(compact.split())
     return compact or None
-
 
 def _extract_search_editions(value: object) -> list[dict[str, object]]:
     if not isinstance(value, dict):
